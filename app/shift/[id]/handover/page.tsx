@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { request } from "@/components/phase1";
 import BottomNav from "@/components/bottom-nav";
@@ -52,36 +52,43 @@ export default function HandoverPage() {
 
   return (
     <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]">
-      <div className="mx-auto max-w-4xl px-4 py-6">
-        <nav className="mb-8 flex flex-wrap items-center gap-4 border-b border-[#e5e5e5] pb-4 text-sm font-medium">
-          <Link href="/" className="text-[#0075de]">MYSHIFT</Link>
-          <Link href="/jadwal-saya" className="text-[#615d59] hover:text-[#0075de]">Jadwal Saya</Link>
-          <Link href={`/shift/${id}`} className="text-[#615d59] hover:text-[#0075de]">Detail Shift</Link>
-        </nav>
-        <h1 className="mb-6 text-2xl font-bold">Handover Shift</h1>
-        {previous && previous.fields.length > 0 && (
-          <div className="mb-6 rounded-lg border border-[#0075de] bg-[#e8f0fe] p-4">
-            <h2 className="mb-2 font-semibold">Handover Shift Sebelumnya ({previous.scheduleId})</h2>
-            <div className="space-y-2">
-              {previous.fields.map((f, i) => <div key={i}><p className="text-sm text-[#615d59]">{f.label}</p><p className="text-sm">{f.value || "-"}</p></div>)}
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h1 className="mb-6 text-2xl font-bold">Handover Shift</h1>
+          {previous && previous.fields.length > 0 && (
+            <div className="mb-6 rounded-lg border border-[#0075de] bg-[#e8f0fe] p-4">
+              <h2 className="mb-2 font-semibold">Handover Shift Sebelumnya ({previous.scheduleId})</h2>
+              <div className="space-y-2">
+                {previous.fields.map((f, i) => <div key={i}><p className="text-sm text-[#615d59]">{f.label}</p><p className="text-sm">{f.value || "-"}</p></div>)}
+              </div>
             </div>
-          </div>
-        )}
-        {!data ? <p className="text-[#615d59]">Memuat...</p> : (
-          <div className="space-y-4">
-            <div className="mb-2 text-sm text-[#615d59]">{data.filledCount}/{data.total} field terisi</div>
-            <div className="space-y-3">
-              {data.fields.map((field) => (
-                <div key={field.fieldId} className="rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                  <label className="mb-2 font-medium">{field.label}{field.isRequired && <span className="ml-1 text-[#dc3545]">*</span>}</label>
-                  <textarea value={field.value} onChange={(e) => handleChange(field.fieldId, e.target.value)} placeholder={field.isRequired ? "Field wajib..." : "Opsional..."} className="w-full rounded-lg border-[#e5e5e5] px-4 py-2 text-sm" rows={3} />
-                </div>
-              ))}
+          )}
+          {!data ? <p className="text-[#615d59]">Memuat...</p> : (
+            <div className="space-y-4">
+              <div className="mb-2 text-sm text-[#615d59]">{data.filledCount}/{data.total} field terisi</div>
+              <div className="space-y-3">
+                {data.fields.map((field) => (
+                  <motion.div
+                    key={field.fieldId}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                  >
+                    <label className="mb-2 font-medium">{field.label}{field.isRequired && <span className="ml-1 text-[#dc3545]">*</span>}</label>
+                    <textarea value={field.value} onChange={(e) => handleChange(field.fieldId, e.target.value)} placeholder={field.isRequired ? "Field wajib..." : "Opsional..."} className="w-full rounded-lg border-[#e5e5e5] px-4 py-2 text-sm" rows={3} />
+                  </motion.div>
+                ))}
+              </div>
+              <Button disabled={!allRequiredFilled || submitting} onClick={handleSubmit} className="h-11 rounded-lg bg-[#0075de] text-white">{submitting ? "Mengirim..." : "Submit Handover"}</Button>
+              {!allRequiredFilled && <p className="mt-2 text-sm text-[#dc3545]">Isi semua field wajib sebelum submit</p>}
             </div>
-            <Button disabled={!allRequiredFilled || submitting} onClick={handleSubmit} className="h-11 rounded-lg bg-[#0075de] text-white">{submitting ? "Mengirim..." : "Submit Handover"}</Button>
-            {!allRequiredFilled && <p className="mt-2 text-sm text-[#dc3545]">Isi semua field wajib sebelum submit</p>}
-          </div>
-        )}
+          )}
+        </motion.div>
         <BottomNav />
       </div>
     </main>

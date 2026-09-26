@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { request } from "@/components/phase1";
 import BottomNav from "@/components/bottom-nav";
@@ -37,32 +37,33 @@ export default function ShiftDetailPage() {
     finally { setStarting(false); }
   }
 
-  if (!detail) return <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]"><div className="mx-auto max-w-4xl px-4 py-6"><h1 className="mb-6 text-2xl font-bold">Detail Shift</h1><p className="text-[#615d59]">Memuat...</p></div></main>;
+  if (!detail) return <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]"><div className="mx-auto max-w-6xl px-4 py-6"><h1 className="mb-6 text-2xl font-bold">Detail Shift</h1><p className="text-[#615d59]">Memuat...</p></div></main>;
 
   const statusClass = detail.status === "started" ? "bg-[#0075de] text-white" : detail.status === "scheduled" ? "bg-[#615d59] text-white" : "bg-[#615d59] text-white";
 
   return (
     <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]">
-      <div className="mx-auto max-w-4xl px-4 py-6">
-        <nav className="mb-8 flex flex-wrap items-center gap-4 border-b border-[#e5e5e5] pb-4 text-sm font-medium">
-          <Link href="/" className="text-[#0075de]">MYSHIFT</Link>
-          <Link href="/jadwal" className="text-[#615d59] hover:text-[#0075de]">Jadwal</Link>
-          <Link href={`/shift/${id}`} className="text-[#0075de]">Detail Shift</Link>
-        </nav>
-        <h1 className="mb-6 text-2xl font-bold">Detail Shift</h1>
-        <div className="mb-6 rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <div className="grid gap-4">
-            <div className="flex justify-between"><span className="text-sm text-[#615d59]">Status</span><span className={`rounded px-2 py-1 text-xs font-medium ${statusClass}`}>{detail.status}</span></div>
-            <div className="flex justify-between"><span className="text-sm text-[#615d59]">Karyawan</span><span>{detail.employeeId}</span></div>
-            <div className="flex justify-between"><span className="text-sm text-[#615d59]">Dimulai</span><span>{detail.startedAt || "-"}</span></div>
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h1 className="mb-6 text-2xl font-bold">Detail Shift</h1>
+          <div className="mb-6 rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <div className="grid gap-4">
+              <div className="flex justify-between"><span className="text-sm text-[#615d59]">Status</span><span className={`rounded px-2 py-1 text-xs font-medium ${statusClass}`}>{detail.status}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-[#615d59]">Karyawan</span><span>{detail.employeeId}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-[#615d59]">Dimulai</span><span>{detail.startedAt || "-"}</span></div>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {detail.status === "scheduled" ? <Button onClick={startShift} disabled={starting} className="rounded-lg bg-[#0075de] text-white">{starting ? "Memulai..." : "Mulai Shift"}</Button> : null}
-          <Button variant="outline" onClick={() => router.push(`/shift/${id}/checklist`)} className="rounded-lg border-[#e5e5e5]">Checklist ({completed ?? "-"})</Button>
-          <Button variant="outline" onClick={() => router.push(`/shift/${id}/handover`)} className="rounded-lg border-[#e5e5e5]">Handover</Button>
-          <Button variant="outline" onClick={() => router.push("/jadwal-saya")} className="rounded-lg border-[#e5e5e5]">Kembali</Button>
-        </div>
+          <div className="flex flex-wrap gap-2">
+            {detail.status === "scheduled" ? <Button onClick={startShift} disabled={starting} className="rounded-lg bg-[#0075de] text-white">{starting ? "Memulai..." : "Mulai Shift"}</Button> : null}
+            <Button variant="outline" onClick={() => router.push(`/shift/${id}/checklist`)} className="rounded-lg border-[#e5e5e5]">Checklist ({completed ?? "-"})</Button>
+            <Button variant="outline" onClick={() => router.push(`/shift/${id}/handover`)} className="rounded-lg border-[#e5e5e5]">Handover</Button>
+            <Button variant="outline" onClick={() => router.push("/jadwal-saya")} className="rounded-lg border-[#e5e5e5]">Kembali</Button>
+          </div>
+        </motion.div>
         <BottomNav />
       </div>
     </main>

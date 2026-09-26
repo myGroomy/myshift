@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import BottomNav, { KaryawanShell } from "@/components/bottom-nav";
+import { Footer } from "@/components/nav";
 
 export type Branch = { branchId: string; nama: string; aktif: boolean; spreadsheetId: string };
 export type Employee = { employeeId: string; username: string; nama: string; role: string; cabangAktif: string; aktif: boolean };
@@ -31,23 +33,16 @@ function AdminShell({ title, children }: { title: string; children: React.ReactN
   return (
     <main className="min-h-screen bg-[#faf9fe] text-[#000000]">
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <nav className="mb-8 flex flex-wrap items-center gap-4 border-b border-[#e5e5e5] pb-4 text-sm font-medium">
-          <Link href="/" className="text-[#0075de]">MYSHIFT</Link>
-          <Link href="/jadwal" className="text-[#615d59] hover:text-[#0075de]">Jadwal</Link>
-          <Link href="/jadwal-saya" className="text-[#615d59] hover:text-[#0075de]">Jadwal Saya</Link>
-          <Link href="/karyawan" className="text-[#615d59] hover:text-[#0075de]">Karyawan</Link>
-          <Link href="/cabang" className="text-[#615d59] hover:text-[#0075de]">Cabang</Link>
-          <Link href="/shift-template" className="text-[#615d59] hover:text-[#0075de]">Shift Template</Link>
-          <Link href="/checklist-template" className="text-[#615d59] hover:text-[#0075de]">Checklist</Link>
-          <Link href="/handover-template" className="text-[#615d59] hover:text-[#0075de]">Handover</Link>
-          <Link href="/dashboard" className="text-[#615d59] hover:text-[#0075de]">Dashboard</Link>
-          <Link href="/laporan" className="text-[#615d59] hover:text-[#0075de]">Laporan</Link>
-          <Link href="/riwayat" className="text-[#615d59] hover:text-[#0075de]">Riwayat</Link>
-          <Link href="/approval/swap" className="text-[#615d59] hover:text-[#0075de]">Approval Swap</Link>
-          <Link href="/approval/izin" className="text-[#615d59] hover:text-[#0075de]">Approval Izin</Link>
-        </nav>
-        <h1 className="mb-6 text-2xl font-bold">{title}</h1>
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-6 text-2xl font-bold"
+        >
+          {title}
+        </motion.h1>
         {children}
+        <Footer />
       </div>
     </main>
   );
@@ -95,7 +90,7 @@ export function SwapAjukanPage() {
         <Button type="submit" disabled={loading || !scheduleId || !partnerId} className="h-11 rounded-lg bg-[#0075de] text-white">{loading ? "Mengajukan..." : "Ajukan Swap"}</Button>
       </form>
       {error && <p className="mb-4 text-[#dc3545]">{error}</p>}
-      <BottomNav />
+      <Footer />
     </KaryawanShell>
   );
 }
@@ -138,7 +133,7 @@ export function RiwayatPage() {
           </table>
         </div>
       )}
-      <BottomNav />
+      <Footer />
     </KaryawanShell>
   );
 }
@@ -216,7 +211,7 @@ export function IzinAjukanPage() {
         <Button type="submit" disabled={loading || !scheduleId || !categoryId} className="h-11 rounded-lg bg-[#0075de] text-white">{loading ? "Mengajukan..." : "Ajukan Izin"}</Button>
       </form>
       {error && <p className="mb-4 text-[#dc3545]">{error}</p>}
-      <BottomNav />
+      <Footer />
     </KaryawanShell>
   );
 }
