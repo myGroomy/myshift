@@ -2,17 +2,18 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import BottomNav, { KaryawanShell } from "@/components/bottom-nav";
 
-type Branch = { branchId: string; nama: string; aktif: boolean; spreadsheetId: string };
-type Employee = { employeeId: string; username: string; nama: string; role: string; cabangAktif: string; aktif: boolean };
-type Schedule = { scheduleId: string; employeeId: string; shiftId: string; date: string; status: string };
-type Swap = { swapId: string; scheduleId: string; requestedBy: string; requestedWith: string; reason: string; status: string; approvedBy: string; rejectReason: string };
-type Izin = { izinId: string; employeeId: string; scheduleId: string; categoryId: string; note: string; status: string; approvedBy: string; rejectReason: string };
-type Category = { id: string; label: string; aktif: boolean };
+export type Branch = { branchId: string; nama: string; aktif: boolean; spreadsheetId: string };
+export type Employee = { employeeId: string; username: string; nama: string; role: string; cabangAktif: string; aktif: boolean };
+export type Schedule = { scheduleId: string; employeeId: string; shiftId: string; date: string; status: string };
+export type Swap = { swapId: string; scheduleId: string; requestedBy: string; requestedWith: string; reason: string; status: string; approvedBy: string; rejectReason: string };
+export type Izin = { izinId: string; employeeId: string; scheduleId: string; categoryId: string; note: string; status: string; approvedBy: string; rejectReason: string };
+export type Category = { id: string; label: string; aktif: boolean };
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -21,13 +22,35 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
-  return <main className="min-h-screen bg-background px-6 py-8 text-foreground"><div className="mx-auto max-w-6xl"><nav className="mb-10 flex flex-wrap items-center gap-4 border-b border-border pb-4 text-sm"><a href="/">MYSHIFT</a><a href="/jadwal">Jadwal</a><a href="/jadwal-saya">Jadwal Saya</a><a href="/karyawan">Karyawan</a><a href="/cabang">Cabang</a><a href="/shift-template">Shift Template</a><a href="/riwayat">Riwayat</a><a href="/approval/swap">Approval Swap</a><a href="/approval/izin">Approval Izin</a></nav><h1 className="mb-6 text-3xl font-bold">{title}</h1>{children}</div></main>;
+function statusBadge(status: string) {
+  const cls = status === "approved" ? "bg-[#0075de] text-white" : status === "rejected" ? "bg-[#dc3545] text-white" : "bg-[#615d59] text-white";
+  return <span className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>{status}</span>;
 }
 
-function statusBadge(status: string) {
-  const cls = status === "approved" ? "bg-green-600 text-white" : status === "rejected" ? "bg-red-600 text-white" : "bg-yellow-600 text-white";
-  return <span className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>{status}</span>;
+function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <main className="min-h-screen bg-[#faf9fe] text-[#000000]">
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        <nav className="mb-8 flex flex-wrap items-center gap-4 border-b border-[#e5e5e5] pb-4 text-sm font-medium">
+          <Link href="/" className="text-[#0075de]">MYSHIFT</Link>
+          <Link href="/jadwal" className="text-[#615d59] hover:text-[#0075de]">Jadwal</Link>
+          <Link href="/jadwal-saya" className="text-[#615d59] hover:text-[#0075de]">Jadwal Saya</Link>
+          <Link href="/karyawan" className="text-[#615d59] hover:text-[#0075de]">Karyawan</Link>
+          <Link href="/cabang" className="text-[#615d59] hover:text-[#0075de]">Cabang</Link>
+          <Link href="/shift-template" className="text-[#615d59] hover:text-[#0075de]">Shift Template</Link>
+          <Link href="/checklist-template" className="text-[#615d59] hover:text-[#0075de]">Checklist</Link>
+          <Link href="/handover-template" className="text-[#615d59] hover:text-[#0075de]">Handover</Link>
+          <Link href="/dashboard" className="text-[#615d59] hover:text-[#0075de]">Dashboard</Link>
+          <Link href="/laporan" className="text-[#615d59] hover:text-[#0075de]">Laporan</Link>
+          <Link href="/riwayat" className="text-[#615d59] hover:text-[#0075de]">Riwayat</Link>
+          <Link href="/approval/swap" className="text-[#615d59] hover:text-[#0075de]">Approval Swap</Link>
+          <Link href="/approval/izin" className="text-[#615d59] hover:text-[#0075de]">Approval Izin</Link>
+        </nav>
+        <h1 className="mb-6 text-2xl font-bold">{title}</h1>
+        {children}
+      </div>
+    </main>
+  );
 }
 
 export function SwapAjukanPage() {
@@ -42,16 +65,12 @@ export function SwapAjukanPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    request<{ employeeId: string; nama: string; activeBranchId: string; branches: Branch[] }>("/api/auth/session").then((s) => { setSession(s); }).catch(() => {});
-  }, []);
-
+  useEffect(() => { request<{ employeeId: string; nama: string; activeBranchId: string; branches: Branch[] }>("/api/auth/session").then((s) => { setSession(s); }).catch(() => {}); }, []);
   useEffect(() => {
     if (!session?.activeBranchId) return;
     void request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`).then(setSchedules).catch(() => {});
     void request<Employee[]>(`/api/employees?branchId=${session.activeBranchId}`).then(setEmployees).catch(() => {});
   }, [session?.activeBranchId]);
-
   useEffect(() => {
     if (!scheduleId || !session?.activeBranchId) { setPartners([]); return; }
     const params = new URLSearchParams({ scheduleId, branchId: session.activeBranchId });
@@ -60,18 +79,25 @@ export function SwapAjukanPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await request("/api/swaps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduleId, requestedWithEmployeeId: partnerId, reason }) });
-      router.push("/riwayat");
-    } catch (e) { setError(e instanceof Error ? e.message : "Gagal"); }
-    finally { setLoading(false); }
+    setError(""); setLoading(true);
+    try { await request("/api/swaps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduleId, requestedWithEmployeeId: partnerId, reason }) }); router.push("/riwayat"); }
+    catch (e) { setError(e instanceof Error ? e.message : "Gagal"); } finally { setLoading(false); }
   }
 
   const mySchedules = schedules.filter((s) => s.employeeId === session?.employeeId && s.status === "scheduled");
 
-  return <Shell title="Ajukan Swap Shift"><form onSubmit={submit} className="mb-6 grid max-w-xl gap-3"><div><Label>Jadwal Saya</Label><select className="h-11 w-full rounded-md border border-border px-3" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">Pilih jadwal</option>{mySchedules.map((s) => <option key={s.scheduleId} value={s.scheduleId}>{s.date} · {s.shiftId}</option>)}</select></div><div><Label>Partner Tukar</Label><select className="h-11 w-full rounded-md border border-border px-3" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}><option value="">Pilih partner</option>{partners.map((p) => <option key={p.employeeId} value={p.employeeId}>{p.nama} ({p.employeeId})</option>)}</select></div><div><Label>Alasan</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan swap" required /></div><Button type="submit" disabled={loading || !scheduleId || !partnerId}>{loading ? "Mengajukan..." : "Ajukan Swap"}</Button></form>{error && <p className="mb-4 text-destructive">{error}</p>}</Shell>;
+  return (
+    <KaryawanShell title="Ajukan Swap Shift">
+      <form onSubmit={submit} className="mb-6 grid max-w-xl gap-4">
+        <div><Label>Jadwal Saya</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">Pilih jadwal</option>{mySchedules.map((s) => <option key={s.scheduleId} value={s.scheduleId}>{s.date} · {s.shiftId}</option>)}</select></div>
+        <div><Label>Partner Tukar</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}><option value="">Pilih partner</option>{partners.map((p) => <option key={p.employeeId} value={p.employeeId}>{p.nama} ({p.employeeId})</option>)}</select></div>
+        <div><Label>Alasan</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan swap" required className="rounded-lg border-[#e5e5e5] px-4" /></div>
+        <Button type="submit" disabled={loading || !scheduleId || !partnerId} className="h-11 rounded-lg bg-[#0075de] text-white">{loading ? "Mengajukan..." : "Ajukan Swap"}</Button>
+      </form>
+      {error && <p className="mb-4 text-[#dc3545]">{error}</p>}
+      <BottomNav />
+    </KaryawanShell>
+  );
 }
 
 export function RiwayatPage() {
@@ -89,7 +115,32 @@ export function RiwayatPage() {
   const itemId = (item: Swap | Izin) => "swapId" in item ? item.swapId : item.izinId;
   const itemScheduleId = (item: Swap | Izin) => item.scheduleId;
 
-  return <Shell title="Riwayat"><div className="mb-4 flex gap-2"><Button variant={tab === "swap" ? "default" : "outline"} onClick={() => setTab("swap")}>Swap</Button><Button variant={tab === "izin" ? "default" : "outline"} onClick={() => setTab("izin")}>Izin</Button></div>{loading ? <p>Memuat...</p> : items.length === 0 ? <p>Tidak ada data.</p> : <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-left text-sm"><thead><tr className="bg-muted"><th className="p-3">ID</th><th className="p-3">Jadwal</th><th className="p-3">Status</th><th className="p-3">Aksi</th></tr></thead><tbody>{items.map((item) => <tr key={itemId(item)}><td className="p-3">{itemId(item)}</td><td className="p-3">{itemScheduleId(item)}</td><td className="p-3">{statusBadge(item.status)}</td><td className="p-3"><Button variant="link" onClick={() => router.push(`/shift/${itemScheduleId(item)}`)}>Lihat</Button></td></tr>)}</tbody></table></div>}</Shell>;
+  return (
+    <KaryawanShell title="Riwayat">
+      <div className="mb-4 flex gap-2">
+        <Button variant={tab === "swap" ? "default" : "outline"} onClick={() => setTab("swap")} className={tab === "swap" ? "bg-[#0075de] text-white" : ""}>Swap</Button>
+        <Button variant={tab === "izin" ? "default" : "outline"} onClick={() => setTab("izin")} className={tab === "izin" ? "bg-[#0075de] text-white" : ""}>Izin</Button>
+      </div>
+      {loading ? <p className="text-[#615d59]">Memuat...</p> : items.length === 0 ? <p className="text-[#615d59]">Tidak ada data.</p> : (
+        <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
+          <table className="w-full text-left text-sm">
+            <thead><tr className="bg-[#f0f1f5]"><th className="p-3">ID</th><th className="p-3">Jadwal</th><th className="p-3">Status</th><th className="p-3">Aksi</th></tr></thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={itemId(item)} className="border-t border-[#e5e5e5]">
+                  <td className="p-3">{itemId(item)}</td>
+                  <td className="p-3">{itemScheduleId(item)}</td>
+                  <td className="p-3">{statusBadge(item.status)}</td>
+                  <td className="p-3"><Button variant="link" onClick={() => router.push(`/shift/${itemScheduleId(item)}`)} className="text-[#0075de]">Lihat</Button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <BottomNav />
+    </KaryawanShell>
+  );
 }
 
 export function SwapApprovalPage() {
@@ -99,16 +150,36 @@ export function SwapApprovalPage() {
   useEffect(() => { void request<Swap[]>("/api/swaps?status=pending").then(setItems).catch(() => setItems([])).finally(() => setLoading(false)); }, []);
 
   async function approve(swapId: string) {
-    try { await request(`/api/swaps/${swapId}/approve`, { method: "POST" }); setItems(items.filter((item) => item.swapId !== swapId)); } catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+    try { await request(`/api/swaps/${swapId}/approve`, { method: "POST" }); setItems(items.filter((item) => item.swapId !== swapId)); }
+    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
   }
-
   async function reject(swapId: string) {
     const reason = prompt("Alasan penolakan:");
     if (!reason) return;
-    try { await request(`/api/swaps/${swapId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }); setItems(items.filter((item) => item.swapId !== swapId)); } catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+    try { await request(`/api/swaps/${swapId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }); setItems(items.filter((item) => item.swapId !== swapId)); }
+    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
   }
 
-  return <Shell title="Approval Swap"><div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-left text-sm"><thead><tr className="bg-muted"><th className="p-3">Swap ID</th><th className="p-3">Jadwal</th><th className="p-3">Diminta</th><th className="p-3">Alasan</th><th className="p-3">Aksi</th></tr></thead><tbody>{loading ? <tr><td className="p-3" colSpan={5}>Memuat...</td></tr> : items.map((item) => <tr key={item.swapId}><td className="p-3">{item.swapId}</td><td className="p-3">{item.scheduleId}</td><td className="p-3">{item.requestedWith}</td><td className="p-3">{item.reason}</td><td className="p-3"><div className="flex gap-2"><Button variant="default" onClick={() => approve(item.swapId)}>Setuju</Button><Button variant="destructive" onClick={() => reject(item.swapId)}>Tolak</Button></div></td></tr>)}</tbody></table></div></Shell>;
+  return (
+    <AdminShell title="Approval Swap">
+      <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
+        <table className="w-full text-left text-sm">
+          <thead><tr className="bg-[#f0f1f5]"><th className="p-3">Swap ID</th><th className="p-3">Jadwal</th><th className="p-3">Diminta</th><th className="p-3">Alasan</th><th className="p-3">Aksi</th></tr></thead>
+          <tbody>
+            {loading ? <tr><td className="p-3" colSpan={5}>Memuat...</td></tr> : items.map((item) => (
+              <tr key={item.swapId} className="border-t border-[#e5e5e5]">
+                <td className="p-3">{item.swapId}</td>
+                <td className="p-3">{item.scheduleId}</td>
+                <td className="p-3">{item.requestedWith}</td>
+                <td className="p-3">{item.reason}</td>
+                <td className="p-3"><div className="flex gap-2"><Button variant="default" onClick={() => approve(item.swapId)} className="bg-[#0075de]">Setuju</Button><Button variant="destructive" onClick={() => reject(item.swapId)}>Tolak</Button></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </AdminShell>
+  );
 }
 
 export function IzinAjukanPage() {
@@ -123,7 +194,6 @@ export function IzinAjukanPage() {
   const [error, setError] = useState("");
 
   useEffect(() => { request<{ employeeId: string; activeBranchId: string }>("/api/auth/session").then(setSession).catch(() => {}); }, []);
-
   useEffect(() => {
     if (!session?.activeBranchId) return;
     void request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`).then(setSchedules).catch(() => {});
@@ -132,13 +202,23 @@ export function IzinAjukanPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError("");
-    setLoading(true);
-    try { await request("/api/izin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduleId, categoryId, note }) }); router.push("/riwayat"); } catch (e) { setError(e instanceof Error ? e.message : "Gagal"); }
-    finally { setLoading(false); }
+    setError(""); setLoading(true);
+    try { await request("/api/izin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduleId, categoryId, note }) }); router.push("/riwayat"); }
+    catch (e) { setError(e instanceof Error ? e.message : "Gagal"); } finally { setLoading(false); }
   }
 
-  return <Shell title="Ajukan Izin"><form onSubmit={submit} className="mb-6 grid max-w-lg gap-3"><div><Label>Jadwal</Label><select className="h-11 w-full rounded-md border border-border px-3" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">Pilih jadwal</option>{schedules.map((s) => <option key={s.scheduleId} value={s.scheduleId}>{s.date} · {s.shiftId}</option>)}</select></div><div><Label>Kategori</Label><select className="h-11 w-full rounded-md border border-border px-3" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Pilih kategori</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div><div><Label>Catatan</Label><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Alasan izin" required /></div><Button type="submit" disabled={loading || !scheduleId || !categoryId}>{loading ? "Mengajukan..." : "Ajukan Izin"}</Button></form>{error && <p className="mb-4 text-destructive">{error}</p>}</Shell>;
+  return (
+    <KaryawanShell title="Ajukan Izin">
+      <form onSubmit={submit} className="mb-6 grid max-w-lg gap-4">
+        <div><Label>Jadwal</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">Pilih jadwal</option>{schedules.map((s) => <option key={s.scheduleId} value={s.scheduleId}>{s.date} · {s.shiftId}</option>)}</select></div>
+        <div><Label>Kategori</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Pilih kategori</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+        <div><Label>Catatan</Label><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Alasan izin" required className="rounded-lg border-[#e5e5e5] px-4" /></div>
+        <Button type="submit" disabled={loading || !scheduleId || !categoryId} className="h-11 rounded-lg bg-[#0075de] text-white">{loading ? "Mengajukan..." : "Ajukan Izin"}</Button>
+      </form>
+      {error && <p className="mb-4 text-[#dc3545]">{error}</p>}
+      <BottomNav />
+    </KaryawanShell>
+  );
 }
 
 export function IzinApprovalPage() {
@@ -148,14 +228,34 @@ export function IzinApprovalPage() {
   useEffect(() => { void request<Izin[]>("/api/izin?status=pending").then(setItems).catch(() => setItems([])).finally(() => setLoading(false)); }, []);
 
   async function approve(izinId: string) {
-    try { await request(`/api/izin/${izinId}/approve`, { method: "POST" }); setItems(items.filter((item) => item.izinId !== izinId)); } catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+    try { await request(`/api/izin/${izinId}/approve`, { method: "POST" }); setItems(items.filter((item) => item.izinId !== izinId)); }
+    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
   }
-
   async function reject(izinId: string) {
     const reason = prompt("Alasan penolakan:");
     if (!reason) return;
-    try { await request(`/api/izin/${izinId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }); setItems(items.filter((item) => item.izinId !== izinId)); } catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+    try { await request(`/api/izin/${izinId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }); setItems(items.filter((item) => item.izinId !== izinId)); }
+    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
   }
 
-  return <Shell title="Approval Izin"><div className="overflow-x-auto rounded-lg border border-border"><table className="w-full text-left text-sm"><thead><tr className="bg-muted"><th className="p-3">Izin ID</th><th className="p-3">Karyawan</th><th className="p-3">Jadwal</th><th className="p-3">Status</th><th className="p-3">Aksi</th></tr></thead><tbody>{loading ? <tr><td className="p-3" colSpan={5}>Memuat...</td></tr> : items.map((item) => <tr key={item.izinId}><td className="p-3">{item.izinId}</td><td className="p-3">{item.employeeId}</td><td className="p-3">{item.scheduleId}</td><td className="p-3">{statusBadge(item.status)}</td><td className="p-3"><div className="flex gap-2"><Button variant="default" onClick={() => approve(item.izinId)}>Setuju</Button><Button variant="destructive" onClick={() => reject(item.izinId)}>Tolak</Button></div></td></tr>)}</tbody></table></div></Shell>;
+  return (
+    <AdminShell title="Approval Izin">
+      <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
+        <table className="w-full text-left text-sm">
+          <thead><tr className="bg-[#f0f1f5]"><th className="p-3">Izin ID</th><th className="p-3">Karyawan</th><th className="p-3">Jadwal</th><th className="p-3">Status</th><th className="p-3">Aksi</th></tr></thead>
+          <tbody>
+            {loading ? <tr><td className="p-3" colSpan={5}>Memuat...</td></tr> : items.map((item) => (
+              <tr key={item.izinId} className="border-t border-[#e5e5e5]">
+                <td className="p-3">{item.izinId}</td>
+                <td className="p-3">{item.employeeId}</td>
+                <td className="p-3">{item.scheduleId}</td>
+                <td className="p-3">{statusBadge(item.status)}</td>
+                <td className="p-3"><div className="flex gap-2"><Button variant="default" onClick={() => approve(item.izinId)} className="bg-[#0075de]">Setuju</Button><Button variant="destructive" onClick={() => reject(item.izinId)}>Tolak</Button></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </AdminShell>
+  );
 }

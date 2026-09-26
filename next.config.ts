@@ -27,6 +27,9 @@ const nextConfig: NextConfig = {
   experimental: {
     useTypeScriptCli: true,
   },
+  turbopack: {
+    root: "/home/bradley/project/MOCHIKIN-APPS",
+  },
   headers: async () => [
     {
       source: "/(.*)",

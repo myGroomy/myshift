@@ -1,9 +1,10 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { request } from "@/components/phase1";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { request } from "@/components/phase1";
+import BottomNav from "@/components/bottom-nav";
 
 type HandoverField = {
   fieldId: string;
@@ -43,5 +44,35 @@ export default function HandoverTemplatePage() {
     } catch {}
   }
 
-  return <main className="min-h-screen bg-background px-6 py-8 text-foreground"><div className="mx-auto max-w-4xl"><nav className="mb-10 flex flex-wrap items-center gap-4 border-b border-border pb-4 text-sm"><a href="/">MYSHIFT</a><a href="/jadwal">Jadwal</a><a href="/jadwal-saya">Jadwal Saya</a><a href="/cabang">Cabang</a></nav><h1 className="mb-6 text-3xl font-bold">Kelola Handover Template</h1><div className="mb-6 space-y-4 rounded-lg border border-border p-4"><h2 className="text-lg font-semibold">Tambah Field</h2><input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label field" className="w-full rounded border border-input bg-background px-3 py-2 text-sm" /><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />Field wajib</label><Button onClick={handleAdd} disabled={!label.trim()}><Plus className="mr-2 h-4 w-4" />Tambah</Button></div>{loading ? <p>Memuat...</p> : <div className="space-y-3">{fields.map((field) => <Card key={field.fieldId}><CardContent className="flex items-center justify-between p-4"><div><p className="font-medium">{field.label}</p><p className="text-xs text-muted-foreground">Wajib: {field.isRequired ? "Ya" : "Tidak"}</p></div><Button variant="ghost" size="icon" onClick={() => handleDelete(field.fieldId)}><Trash2 className="h-4 w-4" /></Button></CardContent></Card>)}</div>}</div></main>;
+  return (
+    <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]">
+      <div className="mx-auto max-w-4xl px-4 py-6">
+        <nav className="mb-8 flex flex-wrap items-center gap-4 border-b border-[#e5e5e5] pb-4 text-sm font-medium">
+          <Link href="/" className="text-[#0075de]">MYSHIFT</Link>
+          <Link href="/jadwal" className="text-[#615d59] hover:text-[#0075de]">Jadwal</Link>
+          <Link href="/handover-template" className="text-[#0075de]">Handover</Link>
+        </nav>
+        <h1 className="mb-6 text-2xl font-bold">Kelola Handover Template</h1>
+        <div className="mb-6 rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <h2 className="mb-4 font-semibold">Tambah Field</h2>
+          <div className="grid gap-3">
+            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label field" className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" />
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />Field wajib</label>
+            <Button onClick={handleAdd} disabled={!label.trim()} className="h-11 w-full rounded-lg bg-[#0075de] text-white">Tambah</Button>
+          </div>
+        </div>
+        {loading ? <p className="text-[#615d59]">Memuat...</p> : (
+          <div className="space-y-3">
+            {fields.map((field) => (
+              <div key={field.fieldId} className="flex items-center justify-between rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                <div><p className="font-medium">{field.label}</p><p className="text-xs text-[#615d59]">Wajib: {field.isRequired ? "Ya" : "Tidak"}</p></div>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(field.fieldId)} className="text-[#dc3545]">Hapus</Button>
+              </div>
+            ))}
+          </div>
+        )}
+        <BottomNav />
+      </div>
+    </main>
+  );
 }

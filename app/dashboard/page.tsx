@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { request } from "@/components/phase1";
+import BottomNav from "@/components/bottom-nav";
 
 type DashboardItem = {
   branchId: string;
@@ -32,46 +33,41 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-6 py-8 text-foreground">
-      <div className="mx-auto max-w-6xl">
-        <nav className="mb-10 flex flex-wrap items-center gap-4 border-b border-border pb-4 text-sm">
-          <a href="/">MYSHIFT</a>
-          <a href="/jadwal">Jadwal</a>
-          <a href="/jadwal-saya">Jadwal Saya</a>
-          <a href="/karyawan">Karyawan</a>
-          <a href="/cabang">Cabang</a>
-          <a href="/shift-template">Shift Template</a>
-          <a href="/checklist-template">Checklist</a>
-          <a href="/handover-template">Handover</a>
-          <a href="/dashboard">Dashboard</a>
-          <a href="/laporan">Laporan</a>
-          <a href="/riwayat">Riwayat</a>
-          <a href="/approval/swap">Approval Swap</a>
-          <a href="/approval/izin">Approval Izin</a>
+    <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]">
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        <nav className="mb-8 flex flex-wrap items-center gap-4 border-b border-[#e5e5e5] pb-4 text-sm font-medium">
+          <Link href="/" className="text-[#0075de]">MYSHIFT</Link>
+          <Link href="/jadwal" className="text-[#615d59] hover:text-[#0075de]">Jadwal</Link>
+          <Link href="/jadwal-saya" className="text-[#615d59] hover:text-[#0075de]">Jadwal Saya</Link>
+          <Link href="/karyawan" className="text-[#615d59] hover:text-[#0075de]">Karyawan</Link>
+          <Link href="/cabang" className="text-[#615d59] hover:text-[#0075de]">Cabang</Link>
+          <Link href="/shift-template" className="text-[#615d59] hover:text-[#0075de]">Shift Template</Link>
+          <Link href="/checklist-template" className="text-[#615d59] hover:text-[#0075de]">Checklist</Link>
+          <Link href="/handover-template" className="text-[#615d59] hover:text-[#0075de]">Handover</Link>
+          <Link href="/dashboard" className="text-[#0075de]">Dashboard</Link>
+          <Link href="/laporan" className="text-[#615d59] hover:text-[#0075de]">Laporan</Link>
+          <Link href="/riwayat" className="text-[#615d59] hover:text-[#0075de]">Riwayat</Link>
         </nav>
-        <h1 className="mb-6 text-3xl font-bold">Dashboard</h1>
-        {loading && <p className="text-muted-foreground">Memuat...</p>}
-        {!loading && items.length === 0 && <p className="text-muted-foreground">Tidak ada data cabang.</p>}
+        <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
+        {loading && <p className="text-[#615d59]">Memuat...</p>}
+        {!loading && items.length === 0 && <p className="text-[#615d59]">Tidak ada data cabang.</p>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <Card key={item.branchId}>
-              <CardHeader>
-                <CardTitle>{item.branchName}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2 text-sm">
-                  <div>Shift hari ini: <strong>{item.shiftsToday}</strong></div>
-                  <div>Dimulai: <strong>{item.shiftsStarted}</strong></div>
-                  <div>Selesai: <strong>{item.shiftsCompleted}</strong></div>
-                  <div>Checklist: <strong>{item.checklistPercent}%</strong></div>
-                  <div>Handover: <strong>{item.handoverCount}</strong></div>
-                  <div>Swap pending: <strong>{item.pendingSwaps}</strong></div>
-                  <div>Izin pending: <strong>{item.pendingIzins}</strong></div>
-                </div>
-              </CardContent>
-            </Card>
+            <div key={item.branchId} className="rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <h2 className="mb-3 font-bold">{item.branchName}</h2>
+              <div className="grid gap-2 text-sm">
+                <div>Shift hari ini: <strong>{item.shiftsToday}</strong></div>
+                <div>Dimulai: <strong>{item.shiftsStarted}</strong></div>
+                <div>Selesai: <strong>{item.shiftsCompleted}</strong></div>
+                <div>Checklist: <strong>{item.checklistPercent}%</strong></div>
+                <div>Handover: <strong>{item.handoverCount}</strong></div>
+                <div>Swap pending: <strong>{item.pendingSwaps}</strong></div>
+                <div>Izin pending: <strong>{item.pendingIzins}</strong></div>
+              </div>
+            </div>
           ))}
         </div>
+        <BottomNav />
       </div>
     </main>
   );
