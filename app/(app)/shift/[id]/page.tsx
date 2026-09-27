@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { request } from "@/components/phase1";
 import BottomNav from "@/components/bottom-nav";
+import { useToast } from "@/components/ui/toast";
 
 type ShiftDetail = {
   scheduleId: string;
@@ -20,6 +21,7 @@ type ShiftDetail = {
 export default function ShiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { toast } = useToast();
   const [detail, setDetail] = useState<ShiftDetail | null>(null);
   const [starting, setStarting] = useState(false);
   const [completed, setCompleted] = useState(0);
@@ -32,8 +34,8 @@ export default function ShiftDetailPage() {
 
   async function startShift() {
     setStarting(true);
-    try { await request(`/api/schedules/${id}/start-shift`, { method: "POST" }); setDetail((d) => d ? { ...d, status: "started", startedAt: new Date().toISOString() } : null); }
-    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+    try { await request(`/api/schedules/${id}/start-shift`, { method: "POST" }); setDetail((d) => d ? { ...d, status: "started", startedAt: new Date().toISOString() } : null); toast("Shift dimulai!", "success"); }
+    catch (e) { toast(e instanceof Error ? e.message : "Gagal", "error"); }
     finally { setStarting(false); }
   }
 

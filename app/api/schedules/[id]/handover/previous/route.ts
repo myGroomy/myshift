@@ -1,50 +1,51 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/lib/session";
-import { branchSpreadsheet } from "@/lib/google/branch-data";
-import { readRows } from "@/lib/google/sheets-data";
+import { fail, ok } from "@/lib/api-response";
+import { assertScheduleOwner } from "@/lib/domain/ops-validation";
+import { loadHandoverLogs, loadHandoverTemplates, loadSchedules } from "@/lib/google/ops-data";
+import { isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
+import type { NextRequest } from "next/server";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+type Context = { params: Promise<{ id: string }> };
+
+export async function GET(request: NextRequest, context: Context) {
+  const auth = await staffSession(request);
+  if (isResponse(auth)) return auth;
+  const { id: scheduleId } = await context.params;
   try {
-    const { id: scheduleId } = await params;
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
+    const { records: schedules } = await loadSchedules(branchId);
+    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan", 404);
+    if (auth.role === "karyawan") assertScheduleOwner(schedule.employeeId, auth.employeeId);
 
-    const branchId = "CBG001";
-    const { spreadsheetId } = await branchSpreadsheet(branchId);
+    const scheduleDate = schedule.date;
+    const employeeId = schedule.employeeId;
 
-    const scheduleRows = await readRows(spreadsheetId, "Schedules!A:G");
-    const scheduleRow = scheduleRows.find((r) => r.values[0] === scheduleId);
-    if (!scheduleRow) return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "Jadwal tidak ditemukan" } }, { status: 404 });
+    const prevSchedule = schedules
+      .filter((s) => s.employeeId === employeeId && s.date < scheduleDate && s.scheduleId !== scheduleId)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
 
-    const scheduleDate = scheduleRow.values[3] ?? "";
-    const employeeId = scheduleRow.values[1] ?? "";
+    if (!prevSchedule) return ok(null);
 
-    const allScheduleRows = await readRows(spreadsheetId, "Schedules!A:G");
-    const prevRow = allScheduleRows
-      .filter((r) => r.values[1] === employeeId && (r.values[3] ?? "") < scheduleDate)
-      .sort((a, b) => (b.values[3] ?? "").localeCompare(a.values[3] ?? ""))[0];
-
-    if (!prevRow) return NextResponse.json({ success: true, data: null });
-
-    const prevScheduleId = prevRow.values[0] ?? "";
-    const logRows = await readRows(spreadsheetId, "Handover_Log!A:F");
-    const prevLogs = logRows.filter((l) => l.values[1] === prevScheduleId);
-    const existingFields = prevLogs.reduce<Record<string, string>>((acc, l) => {
-      acc[l.values[2]] = l.values[3] ?? "";
+    const { records: templates } = await loadHandoverTemplates(branchId);
+    const { records: logs } = await loadHandoverLogs(branchId, prevSchedule.scheduleId);
+    const existingFields = logs.reduce<Record<string, string>>((acc, l) => {
+      acc[l.fieldId] = l.isi;
       return acc;
     }, {});
 
-    const templateRows = await readRows(spreadsheetId, "Handover_Template!A:D");
-    const fields = templateRows.slice(1).map((row) => ({
-      fieldId: row.values[0] ?? "",
-      label: row.values[1] ?? "",
-      isRequired: (row.values[2] ?? "FALSE").toUpperCase() === "TRUE",
-      value: existingFields[row.values[0] ?? ""] ?? "",
-    }));
+    const fields = templates
+      .sort((a, b) => a.order - b.order)
+      .map((t) => ({
+        fieldId: t.fieldId,
+        label: t.label,
+        isRequired: t.isRequired,
+        value: existingFields[t.fieldId] ?? "",
+      }));
 
-    return NextResponse.json({ success: true, data: { scheduleId: prevScheduleId, fields } });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok({ scheduleId: prevSchedule.scheduleId, fields });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal memuat handover sebelumnya";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }

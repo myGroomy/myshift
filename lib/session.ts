@@ -71,8 +71,6 @@ export function sessionCookieHeader(value: string, maxAge = 604800) {
   };
 }
 
-import { headers } from "next/headers";
-
 export async function getServerSession(): Promise<SessionPayload | null> {
   try {
     const cookie = (await getHeaders()).get("cookie") ?? "";

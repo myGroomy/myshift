@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MYSHIFT
 
-## Getting Started
+Aplikasi manajemen shift & operasional harian untuk Mochikin (F&B UMKM multi-cabang). Bagian dari ekosistem MOCHIKIN-APPS.
 
-First, run the development server:
+## Fitur
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Penjadwalan shift mingguan multi-cabang dengan deteksi bentrok
+- Tukar shift (swap) dengan alur approval
+- Pengajuan izin dengan kategori kustom
+- Checklist opening/closing dengan validasi foto wajib
+- Handover antar shift dengan template field
+- Dashboard & laporan rekap
+
+## Tech Stack
+
+- **Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend:** Next.js API Routes
+- **Database:** Google Sheets API v4
+- **Auth:** PIN + scrypt hash, session cookie HMAC-signed
+
+## Setup
+
+### 1. Environment Variables
+
+Buat `.env.local` dari `.env.example`:
+
+```env
+MYSHIFT_API_KEY=<random-string-min-32-chars>
+GOOGLE_SERVICE_ACCOUNT_EMAIL=<service-account-email>
+GOOGLE_PRIVATE_KEY=<service-account-private-key>
+REGISTRY_SPREADSHEET_ID=<registry-spreadsheet-id>
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Google Sheets Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm run setup:sheets
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Script ini membuat Registry Spreadsheet dan spreadsheet per cabang dengan sheet yang dibutuhkan.
 
-## Learn More
+### 3. Jalankan
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Buka http://localhost:3000
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Production
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm run build
+pnpm start
+```

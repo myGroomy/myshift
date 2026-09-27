@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { request } from "@/components/phase1";
-import BottomNav from "@/components/bottom-nav";
+import { request, AdminShell } from "@/components/phase1";
+import { useToast } from "@/components/ui/toast";
+import { SkeletonTable } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type LaporanRow = {
   type: string;
@@ -18,12 +19,13 @@ type LaporanRow = {
 };
 
 export default function LaporanPage() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<LaporanRow[]>([]);
+  const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [loading, setLoading] = useState(false);
-
   async function load() {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
@@ -31,6 +33,7 @@ export default function LaporanPage() {
       const data = await request<LaporanRow[]>(`/api/laporan?${params}`);
       setRows(data);
     } catch { setRows([]); }
+    setLoading(false);
   }
 
   async function exportCSV() {
@@ -44,52 +47,51 @@ export default function LaporanPage() {
       const a = document.createElement("a");
       a.href = url; a.download = `laporan-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click(); URL.revokeObjectURL(url);
-    } catch { alert("Export gagal"); }
+      toast("Export CSV berhasil!", "success");
+    } catch { toast("Export gagal", "error"); }
   }
 
   return (
-    <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]">
-      <div className="mx-auto max-w-6xl px-4 py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="mb-6 text-2xl font-bold">Laporan</h1>
-          <div className="mb-6 flex flex-wrap gap-3">
-            <input className="h-11 rounded-lg border-[#e5e5e5] px-4" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            <input className="h-11 rounded-lg border-[#e5e5e5] px-4" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-            <Button className="h-11 rounded-lg bg-[#0075de] text-white" onClick={load}>Cari</Button>
-            <Button className="h-11 rounded-lg border border-[#e5e5e5] bg-white" onClick={exportCSV}>Export CSV</Button>
-          </div>
-          {loading && <p className="text-[#615d59]">Memuat...</p>}
-          {!loading && rows.length === 0 && <p className="text-[#615d59]">Tidak ada data laporan.</p>}
-          <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
-            <table className="w-full text-left text-sm">
-              <thead><tr className="bg-[#f0f1f5]"><th className="p-3">Tipe</th><th className="p-3">ID</th><th className="p-3">Tanggal</th><th className="p-3">Karyawan</th><th className="p-3">Detail</th><th className="p-3">Status</th></tr></thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <motion.tr
-                    key={`${row.type}-${row.id}-${i}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.05, duration: 0.3 }}
-                    className="border-t border-[#e5e5e5]"
-                  >
-                    <td className="p-3">{row.type}</td>
-                    <td className="p-3">{row.id}</td>
-                    <td className="p-3">{row.date}</td>
-                    <td className="p-3">{row.employeeId}</td>
-                    <td className="p-3">{row.details}</td>
-                    <td className="p-3">{row.status}</td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
-        <BottomNav />
+    <AdminShell title="Laporan">
+      <div className="mb-6 flex flex-wrap gap-3">
+        <input className="h-11 rounded-lg border-[#e5e5e5] px-4" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        <input className="h-11 rounded-lg border-[#e5e5e5] px-4" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        <Button className="h-11 rounded-lg bg-[#0075de] text-white" onClick={load}>Cari</Button>
+        <Button className="h-11 rounded-lg border border-[#e5e5e5] bg-white" onClick={exportCSV}>Export CSV</Button>
       </div>
-    </main>
+      {loading ? (
+        <SkeletonTable rows={5} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon="assessment"
+          title="Belum ada laporan"
+          description="Atur filter tanggal lalu klik Cari untuk melihat laporan."
+        />
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
+          <table className="w-full text-left text-sm">
+            <thead><tr className="bg-[#f0f1f5]"><th className="p-3">Tipe</th><th className="p-3">ID</th><th className="p-3">Tanggal</th><th className="p-3">Karyawan</th><th className="p-3">Detail</th><th className="p-3">Status</th></tr></thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <motion.tr
+                  key={`${row.type}-${row.id}-${i}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.05, duration: 0.3 }}
+                  className="border-t border-[#e5e5e5]"
+                >
+                  <td className="p-3">{row.type}</td>
+                  <td className="p-3">{row.id}</td>
+                  <td className="p-3">{row.date}</td>
+                  <td className="p-3">{row.employeeId}</td>
+                  <td className="p-3">{row.details}</td>
+                  <td className="p-3">{row.status}</td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </AdminShell>
   );
 }

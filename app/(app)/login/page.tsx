@@ -11,6 +11,7 @@ import { request } from "@/components/phase1";
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,8 +19,8 @@ export default function LoginPage() {
     event.preventDefault();
     setError(""); setLoading(true);
     try {
-      await request("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, pin }) });
-      window.location.href = "/jadwal-saya";
+      const res = await request<{ role?: string }>("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, pin }) });
+      window.location.href = res?.role === "admin" ? "/dashboard" : "/jadwal-saya";
     } catch (e) { setError(e instanceof Error ? e.message : "Gagal"); }
     finally { setLoading(false); }
   }
@@ -49,7 +50,17 @@ export default function LoginPage() {
           </div>
           <div>
             <Label htmlFor="pin">PIN</Label>
-            <Input id="pin" type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN" required className="h-11 rounded-lg border-[#e5e5e5] px-4" />
+            <div className="relative">
+              <Input id="pin" type={showPin ? "text" : "password"} value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN" required className="h-11 rounded-lg border-[#e5e5e5] px-4 pr-11" />
+              <button
+                type="button"
+                onClick={() => setShowPin(!showPin)}
+                aria-label={showPin ? "Sembunyikan PIN" : "Tampilkan PIN"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#615d59] hover:text-[#0075de]"
+              >
+                <span className="material-symbols-outlined text-lg">{showPin ? "visibility_off" : "visibility"}</span>
+              </button>
+            </div>
           </div>
           {error && <p className="text-sm text-[#dc3545]">{error}</p>}
           <Button type="submit" disabled={loading} className="h-11 w-full rounded-lg bg-[#0075de] text-white">

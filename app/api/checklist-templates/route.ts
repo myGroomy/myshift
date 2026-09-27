@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/lib/session";
+import { fail, ok } from "@/lib/api-response";
 import { branchSpreadsheet } from "@/lib/google/branch-data";
+import { adminSession, isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
 import { readRows, appendRow } from "@/lib/google/sheets-data";
-import { nanoid } from "@/lib/ids";
+import type { NextRequest } from "next/server";
 
-export async function GET(_req: NextRequest) {
+export async function GET(request: NextRequest) {
+  const auth = await staffSession(request);
+  if (isResponse(auth)) return auth;
   try {
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
-
-    const branchId = "CBG001";
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
     const { spreadsheetId } = await branchSpreadsheet(branchId);
     const rows = await readRows(spreadsheetId, "Checklist_Template!A:G");
     const records = rows.slice(1).map((row) => ({
@@ -22,29 +21,30 @@ export async function GET(_req: NextRequest) {
       active: (row.values[5] ?? "TRUE").toUpperCase() === "TRUE",
     }));
 
-    return NextResponse.json({ success: true, data: records });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok(records);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal memuat template";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
+  const auth = await adminSession(request);
+  if (isResponse(auth)) return auth;
   try {
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
+    const body = await request.json() as { type: string; description: string; requiresPhoto: boolean };
+    const { type, description, requiresPhoto } = body;
 
-    const body = await req.json();
-    const { branchId, type, description, requiresPhoto } = body as { branchId?: string; type: string; description: string; requiresPhoto: boolean };
-
-    const { spreadsheetId } = await branchSpreadsheet(branchId ?? "CBG001");
-    const itemId = `CHK-${nanoid()}`;
-    const now = new Date().toISOString();
+    const { spreadsheetId } = await branchSpreadsheet(branchId);
+    const itemId = `CHK-${crypto.randomUUID().slice(0, 8)}`;
     await appendRow(spreadsheetId, "Checklist_Template!A:G", [itemId, type, description, requiresPhoto ? "TRUE" : "FALSE", "0", "TRUE"]);
 
-    return NextResponse.json({ success: true, data: { itemId, type, description, requiresPhoto } });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok({ itemId, type, description, requiresPhoto });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal membuat template";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }

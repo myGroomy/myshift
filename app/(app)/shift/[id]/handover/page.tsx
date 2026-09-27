@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { request } from "@/components/phase1";
 import BottomNav from "@/components/bottom-nav";
+import { useToast } from "@/components/ui/toast";
 
 type HandoverField = {
   fieldId: string;
@@ -19,6 +20,7 @@ type PreviousHandover = { scheduleId: string; fields: { label: string; value: st
 
 export default function HandoverPage() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
   const [data, setData] = useState<HandoverResponse | null>(null);
   const [previous, setPrevious] = useState<PreviousHandover>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -43,8 +45,8 @@ export default function HandoverPage() {
     setSubmitting(true);
     try {
       await request(`/api/schedules/${id}/handover`, { method: "POST", body: JSON.stringify({ fields: data.fields }) });
-      alert("Handover tersubmit!");
-    } catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+      toast("Handover tersubmit!", "success");
+    } catch (e) { toast(e instanceof Error ? e.message : "Gagal", "error"); }
     finally { setSubmitting(false); }
   }
 

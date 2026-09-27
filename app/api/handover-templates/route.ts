@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/lib/session";
+import { fail, ok } from "@/lib/api-response";
 import { branchSpreadsheet } from "@/lib/google/branch-data";
+import { adminSession, isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
 import { readRows, appendRow } from "@/lib/google/sheets-data";
-import { nanoid } from "@/lib/ids";
+import type { NextRequest } from "next/server";
 
-export async function GET(_req: NextRequest) {
+export async function GET(request: NextRequest) {
+  const auth = await staffSession(request);
+  if (isResponse(auth)) return auth;
   try {
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
-
-    const branchId = "CBG001";
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
     const { spreadsheetId } = await branchSpreadsheet(branchId);
     const rows = await readRows(spreadsheetId, "Handover_Template!A:D");
     const records = rows.slice(1).map((row) => ({
@@ -19,28 +18,30 @@ export async function GET(_req: NextRequest) {
       order: Number(row.values[3] ?? "0") || 0,
     }));
 
-    return NextResponse.json({ success: true, data: records });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok(records);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal memuat template";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
+  const auth = await adminSession(request);
+  if (isResponse(auth)) return auth;
   try {
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
+    const body = await request.json() as { label: string; isRequired: boolean };
+    const { label, isRequired } = body;
 
-    const body = await req.json();
-    const { label, isRequired } = body as { label: string; isRequired: boolean };
-
-    const { spreadsheetId } = await branchSpreadsheet("CBG001");
-    const fieldId = `HOF-${nanoid()}`;
+    const { spreadsheetId } = await branchSpreadsheet(branchId);
+    const fieldId = `HOF-${crypto.randomUUID().slice(0, 8)}`;
     await appendRow(spreadsheetId, "Handover_Template!A:D", [fieldId, label, isRequired ? "TRUE" : "FALSE", "0"]);
 
-    return NextResponse.json({ success: true, data: { fieldId, label, isRequired } });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok({ fieldId, label, isRequired });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal membuat template";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }

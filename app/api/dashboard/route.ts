@@ -47,7 +47,6 @@ export async function GET(req: NextRequest) {
 
       const todayScheduleIds = new Set(todaySchedules.map((r) => r.values[0]));
       const checkedScheduleIds = new Set(checklistLogRows.filter((l) => todayScheduleIds.has(l.values[1])).map((l) => l.values[1]));
-      const totalChecklistItems = checklistLogRows.filter((l) => todayScheduleIds.has(l.values[1])).length;
       const checklistPercent = todaySchedules.length > 0 ? Math.round((checkedScheduleIds.size / todaySchedules.length) * 100) : 0;
 
       const handoverCount = handoverLogRows.filter((l) => todayScheduleIds.has(l.values[1])).length;

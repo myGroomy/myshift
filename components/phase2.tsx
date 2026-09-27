@@ -3,11 +3,10 @@
 import { FormEvent, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import BottomNav, { KaryawanShell } from "@/components/bottom-nav";
+import { KaryawanShell } from "@/components/bottom-nav";
 import { Footer } from "@/components/nav";
 
 export type Branch = { branchId: string; nama: string; aktif: boolean; spreadsheetId: string };
@@ -52,7 +51,6 @@ export function SwapAjukanPage() {
   const router = useRouter();
   const [session, setSession] = useState<{ employeeId: string; nama: string; activeBranchId: string; branches: Branch[] } | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [scheduleId, setScheduleId] = useState("");
   const [partnerId, setPartnerId] = useState("");
   const [reason, setReason] = useState("");
@@ -64,7 +62,6 @@ export function SwapAjukanPage() {
   useEffect(() => {
     if (!session?.activeBranchId) return;
     void request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`).then(setSchedules).catch(() => {});
-    void request<Employee[]>(`/api/employees?branchId=${session.activeBranchId}`).then(setEmployees).catch(() => {});
   }, [session?.activeBranchId]);
   useEffect(() => {
     if (!scheduleId || !session?.activeBranchId) { setPartners([]); return; }

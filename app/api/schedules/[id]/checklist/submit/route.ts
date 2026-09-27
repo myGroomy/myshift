@@ -1,36 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/lib/session";
-import { branchSpreadsheet } from "@/lib/google/branch-data";
-import { readRows } from "@/lib/google/sheets-data";
-import { nanoid } from "@/lib/ids";
+import { fail, ok } from "@/lib/api-response";
+import { assertScheduleOwner } from "@/lib/domain/ops-validation";
+import { loadChecklistLogs, loadChecklistTemplates, loadSchedules } from "@/lib/google/ops-data";
+import { isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
+import type { NextRequest } from "next/server";
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+type Context = { params: Promise<{ id: string }> };
+
+export async function POST(request: NextRequest, context: Context) {
+  const auth = await staffSession(request);
+  if (isResponse(auth)) return auth;
+  const { id: scheduleId } = await context.params;
   try {
-    const { id: scheduleId } = await params;
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
+    const { records: schedules } = await loadSchedules(branchId);
+    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan", 404);
+    assertScheduleOwner(schedule.employeeId, auth.employeeId);
 
-    const branchId = "CBG001";
-    const { spreadsheetId } = await branchSpreadsheet(branchId);
+    const { records: templates } = await loadChecklistTemplates(branchId);
+    const activeItems = templates.filter((t) => t.active);
 
-    const templateRows = await readRows(spreadsheetId, "Checklist_Template!A:G");
-    const items = templateRows.slice(1).map((row) => ({
-      itemId: row.values[0] ?? "",
-      type: row.values[1] ?? "",
-      active: (row.values[5] ?? "TRUE").toUpperCase() === "TRUE",
-    })).filter((item) => item.active);
+    const { records: logs } = await loadChecklistLogs(branchId, scheduleId);
+    const checkedIds = new Set(logs.map((l) => l.itemId));
 
-    const logRows = await readRows(spreadsheetId, "Checklist_Log!A:F");
-    const checkedIds = new Set(logRows.filter((l) => l.values[1] === scheduleId).map((l) => l.values[2]));
-
-    const unchecked = items.filter((item) => !checkedIds.has(item.itemId));
+    const unchecked = activeItems.filter((item) => !checkedIds.has(item.itemId));
     if (unchecked.length > 0) {
-      return NextResponse.json({ success: false, error: { code: "CHECKLIST_INCOMPLETE", message: `${unchecked.length} item belum dicentang`, data: { fields: unchecked.map((i) => i.itemId) } } }, { status: 400 });
+      return fail("CHECKLIST_INCOMPLETE", `${unchecked.length} item belum dicentang`, 400, { fields: unchecked.map((i) => i.itemId) });
     }
 
-    return NextResponse.json({ success: true, data: { submitted: true } });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok({ submitted: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal submit checklist";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }

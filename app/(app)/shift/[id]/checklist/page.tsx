@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { request } from "@/components/phase1";
 import BottomNav from "@/components/bottom-nav";
+import { useToast } from "@/components/ui/toast";
 
 type ChecklistItem = {
   itemId: string;
@@ -18,6 +19,7 @@ type ChecklistResponse = { items: ChecklistItem[]; completed: number; total: num
 
 export default function ChecklistPage() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState(0);
   const [total, setTotal] = useState(0);
@@ -43,8 +45,8 @@ export default function ChecklistPage() {
     setSubmitting(true);
     try {
       await request(`/api/schedules/${id}/checklist/submit`, { method: "POST" });
-      alert("Checklist tersubmit!");
-    } catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+      toast("Checklist tersubmit!", "success");
+    } catch (e) { toast(e instanceof Error ? e.message : "Gagal", "error"); }
     finally { setSubmitting(false); }
   }
 

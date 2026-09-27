@@ -1,62 +1,71 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/lib/session";
-import { branchSpreadsheet } from "@/lib/google/branch-data";
-import { readRows, appendRow } from "@/lib/google/sheets-data";
-import { nanoid } from "@/lib/ids";
+import { fail, ok } from "@/lib/api-response";
+import { assertScheduleOwner } from "@/lib/domain/ops-validation";
+import { loadChecklistLogs, loadChecklistTemplates, loadSchedules } from "@/lib/google/ops-data";
+import { isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
+import type { NextRequest } from "next/server";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+type Context = { params: Promise<{ id: string }> };
+
+export async function GET(request: NextRequest, context: Context) {
+  const auth = await staffSession(request);
+  if (isResponse(auth)) return auth;
+  const { id: scheduleId } = await context.params;
   try {
-    const { id: scheduleId } = await params;
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
+    const { records: schedules } = await loadSchedules(branchId);
+    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan", 404);
+    if (auth.role === "karyawan") assertScheduleOwner(schedule.employeeId, auth.employeeId);
 
-    const branchId = "CBG001";
-    const { spreadsheetId } = await branchSpreadsheet(branchId);
-
-    const templateRows = await readRows(spreadsheetId, "Checklist_Template!A:G");
-    const items = templateRows.slice(1)
-      .map((row) => ({
-        rowNumber: row.rowNumber,
-        itemId: row.values[0] ?? "",
-        type: row.values[1] ?? "",
-        description: row.values[2] ?? "",
-        requiresPhoto: (row.values[3] ?? "FALSE").toUpperCase() === "TRUE",
-        order: Number(row.values[4] ?? "0") || 0,
-        active: (row.values[5] ?? "TRUE").toUpperCase() === "TRUE",
-      }))
-      .filter((item) => item.active)
+    const { records: templates } = await loadChecklistTemplates(branchId);
+    const items = templates
+      .filter((t) => t.active)
       .sort((a, b) => a.order - b.order);
 
-    const logRows = await readRows(spreadsheetId, "Checklist_Log!A:F");
-    const checkedIds = new Set(logRows.filter((l) => l.values[1] === scheduleId).map((l) => l.values[2]));
+    const { records: logs } = await loadChecklistLogs(branchId, scheduleId);
+    const checkedIds = new Set(logs.map((l) => l.itemId));
 
     const checklistItems = items.map((item) => ({ ...item, checked: checkedIds.has(item.itemId) }));
     const completed = checklistItems.filter((i) => i.checked).length;
 
-    return NextResponse.json({ success: true, data: { items: checklistItems, completed, total: checklistItems.length } });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok({ items: checklistItems, completed, total: checklistItems.length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal memuat checklist";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, context: Context) {
+  const auth = await staffSession(request);
+  if (isResponse(auth)) return auth;
+  const { id: scheduleId } = await context.params;
   try {
-    const { id: scheduleId } = await params;
-    const session = await getServerSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Belum login" } }, { status: 401 });
-    const body = await req.json();
-    const { itemId, photoUrl } = body as { itemId: string; photoUrl?: string };
+    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
+    const { records: schedules } = await loadSchedules(branchId);
+    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan", 404);
+    assertScheduleOwner(schedule.employeeId, auth.employeeId);
 
-    const branchId = "CBG001";
+    const body = await request.json() as { itemId: string; photoUrl?: string };
+    const { itemId, photoUrl } = body;
+
+    const { records: templates } = await loadChecklistTemplates(branchId);
+    const item = templates.find((t) => t.itemId === itemId);
+    if (!item) return fail("NOT_FOUND", "Item checklist tidak ditemukan", 404);
+    if (item.requiresPhoto && !photoUrl?.trim()) return fail("PHOTO_REQUIRED", "Item ini wajib menyertakan foto", 400);
+
+    const { appendChecklistLog } = await import("@/lib/google/ops-data");
+    const { branchSpreadsheet } = await import("@/lib/google/branch-data");
     const { spreadsheetId } = await branchSpreadsheet(branchId);
-    const logId = `CLG-${nanoid()}`;
+    const logId = `CLG-${crypto.randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
-    await appendRow(spreadsheetId, "Checklist_Log!A:F", [logId, scheduleId, itemId, session.employeeId, now, photoUrl ?? ""]);
+    await appendChecklistLog(spreadsheetId, [logId, scheduleId, itemId, auth.employeeId, now, photoUrl ?? ""]);
 
-    return NextResponse.json({ success: true, data: { checked: true } });
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: err.message } }, { status: 500 });
+    return ok({ checked: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Gagal menyimpan checklist";
+    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
+    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
   }
 }
