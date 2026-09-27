@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,11 @@ let toastId = 0;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toast = useCallback((message: string, type: ToastType = "info") => {
     const id = ++toastId;
@@ -51,29 +56,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      {createPortal(
-        <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
-          <AnimatePresence>
-            {toasts.map((t) => (
-              <motion.div
-                key={t.id}
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium shadow-lg",
-                  colors[t.type]
-                )}
-              >
-                <span className="material-symbols-outlined text-lg">{icons[t.type]}</span>
-                {t.message}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>,
-        document.body
-      )}
+      {mounted &&
+        createPortal(
+          <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+            <AnimatePresence>
+              {toasts.map((t) => (
+                <motion.div
+                  key={t.id}
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium shadow-lg",
+                    colors[t.type]
+                  )}
+                >
+                  <span className="material-symbols-outlined text-lg">{icons[t.type]}</span>
+                  {t.message}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>,
+          document.body
+        )}
     </ToastContext.Provider>
   );
 }
