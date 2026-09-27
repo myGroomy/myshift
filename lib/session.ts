@@ -1,6 +1,11 @@
 import { headers as getHeaders } from "next/headers";
+import { getEnv } from "@/lib/env";
 
 const COOKIE_NAME = "myshift_session";
+
+// Long enough to cover a shift, short enough to limit a stolen cookie's value.
+// Role/active changes are enforced per request in lib/auth.ts, not by this TTL alone.
+export const SESSION_TTL_SECONDS = 12 * 60 * 60;
 
 export type SessionPayload = {
   employeeId: string;
@@ -8,6 +13,7 @@ export type SessionPayload = {
   role: "admin" | "kepala_cabang" | "karyawan";
   branches: { branchId: string; nama: string }[];
   activeBranchId: string;
+  iat?: number;
   exp?: number;
 };
 
@@ -25,8 +31,7 @@ function base64UrlDecode(value: string) {
 }
 
 async function hmacKey(usage: "sign" | "verify") {
-  const secret = process.env.MYSHIFT_API_KEY;
-  if (!secret || secret.length < 32) throw new Error("MYSHIFT_API_KEY must be configured");
+  const secret = getEnv().MYSHIFT_API_KEY;
   return crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -36,8 +41,13 @@ async function hmacKey(usage: "sign" | "verify") {
   );
 }
 
+// iat/exp are always rewritten from the server clock — callers can pass a previous payload
+// (e.g. select-branch) without being able to extend their own session.
 export async function createSessionToken(payload: SessionPayload) {
-  const body = base64UrlEncode(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + 604800 }));
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const body = base64UrlEncode(
+    JSON.stringify({ ...payload, iat: issuedAt, exp: issuedAt + SESSION_TTL_SECONDS }),
+  );
   const signature = await crypto.subtle.sign("HMAC", await hmacKey("sign"), new TextEncoder().encode(body));
   return `${body}.${base64UrlEncode(new Uint8Array(signature))}`;
 }
@@ -65,9 +75,12 @@ export async function verifySessionToken(cookieValue?: string): Promise<SessionP
 
 export { COOKIE_NAME };
 
-export function sessionCookieHeader(value: string, maxAge = 604800) {
+// `Secure` in production only, so local http://localhost dev keeps working. Without it the
+// session cookie could be sent over a plaintext connection despite HSTS being enabled.
+export function sessionCookieHeader(value: string, maxAge = SESSION_TTL_SECONDS) {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   return {
-    "Set-Cookie": `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`,
+    "Set-Cookie": `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
   };
 }
 

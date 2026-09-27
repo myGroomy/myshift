@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken } from "@/lib/session";
+import { COOKIE_NAME, verifySessionToken } from "@/lib/session";
 
-const COOKIE_NAME = "myshift_session";
-const PUBLIC_API_PATHS = ["/api/auth/login", "/api/auth/logout"];
+const PUBLIC_API_PATHS = new Set(["/api/auth/login", "/api/auth/logout"]);
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isApi = pathname.startsWith("/api");
-  const isPublicApi = PUBLIC_API_PATHS.some((p) => pathname.startsWith(p));
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  const isApi = normalized.startsWith("/api");
+  const isPublicApi = PUBLIC_API_PATHS.has(normalized);
+
+  const cookie = request.cookies.get(COOKIE_NAME)?.value;
+  const session = cookie ? await verifySessionToken(cookie) : null;
 
   if (isApi && !isPublicApi) {
-    const cookie = request.cookies.get(COOKIE_NAME)?.value;
-    const session = cookie ? await verifySessionToken(cookie) : null;
     if (!session) {
       return new NextResponse(
         JSON.stringify({
@@ -22,23 +23,29 @@ export async function middleware(request: NextRequest) {
         {
           status: 401,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
   }
 
   if (!isApi) {
-    const isLoginPage = pathname === "/login";
-    const cookie = request.cookies.get(COOKIE_NAME)?.value;
-    const session = cookie ? await verifySessionToken(cookie) : null;
+    const isLoginPage = normalized === "/login";
+    const isLandingPage = normalized === "/";
 
+    // Already logged in trying to access /login -> send to appropriate home
     if (isLoginPage && session) {
-      return NextResponse.redirect(new URL("/", request.url));
+      const target =
+        session.role === "admin" || session.role === "kepala_cabang"
+          ? "/dashboard"
+          : "/jadwal-saya";
+      return NextResponse.redirect(new URL(target, request.url));
     }
 
-    if (!isLoginPage && !session) {
+    // Unauthenticated trying to access protected internal routes
+    // (Landing page '/' is PUBLIC, so anyone can see marketing info)
+    if (!isLoginPage && !isLandingPage && !session) {
       const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("next", pathname);
+      loginUrl.searchParams.set("next", normalized);
       return NextResponse.redirect(loginUrl);
     }
   }

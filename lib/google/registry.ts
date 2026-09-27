@@ -1,5 +1,7 @@
 import { sheets } from "@/lib/google/client";
-import { readRows } from "@/lib/google/sheets-data";
+import { readRows, type SheetRow } from "@/lib/google/sheets-data";
+import { REGISTRY_SHEETS, registrySheetRange } from "@/lib/google/sheet-schema";
+import { parseAttempts } from "@/lib/domain/login-lockout";
 
 export interface Employee {
   employeeId: string;
@@ -12,6 +14,9 @@ export interface Employee {
   aktif: boolean;
 }
 
+// Client-facing projection. `pinHash` must never cross the API boundary (AGENTS.md §5).
+export type PublicEmployee = Omit<Employee, "pinHash">;
+
 export interface Branch {
   branchId: string;
   nama: string;
@@ -19,81 +24,86 @@ export interface Branch {
   aktif: boolean;
 }
 
+export type EmployeeRow = SheetRow & { employee: Employee; attempts: number; lockedUntil: string };
+
+export const EMPLOYEE_ROLE_VALUES = ["admin", "kepala_cabang", "karyawan"] as const;
+
+export function parseRole(value: string): Employee["role"] {
+  const normalized = (value ?? "").trim();
+  return normalized === "admin" || normalized === "kepala_cabang" || normalized === "karyawan" ? normalized : "karyawan";
+}
+
+export function parseAktif(value: string): boolean {
+  return (value ?? "").trim().toUpperCase() === "TRUE";
+}
+
+export function toPublicEmployee(employee: Employee): PublicEmployee {
+  return {
+    employeeId: employee.employeeId,
+    username: employee.username,
+    nama: employee.nama,
+    role: employee.role,
+    cabangAktif: employee.cabangAktif,
+    cabangTerafiliasi: employee.cabangTerafiliasi,
+    aktif: employee.aktif,
+  };
+}
+
+function toEmployee(values: string[]): Employee {
+  return {
+    employeeId: (values[0] ?? "").trim(),
+    username: (values[1] ?? "").trim().toLowerCase(),
+    pinHash: (values[2] ?? "").trim(),
+    nama: (values[3] ?? "").trim(),
+    role: parseRole(values[4] ?? ""),
+    cabangAktif: (values[5] ?? "").trim(),
+    cabangTerafiliasi: (values[6] ?? "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+    aktif: parseAktif(values[7] ?? ""),
+  };
+}
+
+function toBranch(values: string[]): Branch {
+  return {
+    branchId: (values[0] ?? "").trim(),
+    nama: (values[1] ?? "").trim(),
+    spreadsheetId: (values[2] ?? "").trim(),
+    aktif: parseAktif(values[3] ?? ""),
+  };
+}
+
+function registryId() {
+  return process.env.REGISTRY_SPREADSHEET_ID!;
+}
+
+// Positional reads are safe because lib/google/sheet-schema.ts is the single source of
+// column order and test/sheet-schema.test.ts pins it to PLAN/SHEETS-SCHEMA.md.
+export async function getEmployeeRows(): Promise<EmployeeRow[]> {
+  const rows = await readRows(registryId(), registrySheetRange(REGISTRY_SHEETS.employees));
+  return rows.map((row) => ({
+    ...row,
+    employee: toEmployee(row.values),
+    attempts: parseAttempts(row.values[8]),
+    lockedUntil: (row.values[9] ?? "").trim(),
+  }));
+}
+
 export async function getEmployees(): Promise<Employee[]> {
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.REGISTRY_SPREADSHEET_ID!,
-    range: "Employees!A:J",
-  });
-  const rows = res.data.values || [];
-  if (rows.length <= 1) return [];
-  const header = rows[0];
-  const employees: Employee[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const obj: Record<string, string> = {};
-    for (let j = 0; j < header.length; j++) {
-      obj[header[j].trim()] = row[j] ?? "";
-    }
-    const employee: Employee = {
-      employeeId: (obj["Employee_ID"] || "").trim(),
-      username: (obj["Username"] || "").trim().toLowerCase(),
-      pinHash: (obj["PIN_Hash"] || "").trim(),
-      nama: (obj["Nama"] || "").trim(),
-      role: parseRole(obj["Role"]),
-      cabangAktif: (obj["Cabang_Aktif"] || "").trim(),
-      cabangTerafiliasi: (obj["Cabang_Terafiliasi"] || "").trim().split(",").map(s => s.trim()).filter(s => s),
-      aktif: (obj["Aktif"] || "").trim().toUpperCase() === "TRUE",
-    };
-    employees.push(employee);
-  }
-  return employees;
+  return (await getEmployeeRows()).map((row) => row.employee);
+}
+
+export async function getBranchRows(): Promise<Array<SheetRow & { branch: Branch }>> {
+  const rows = await readRows(registryId(), registrySheetRange(REGISTRY_SHEETS.branches));
+  return rows.map((row) => ({ ...row, branch: toBranch(row.values) }));
 }
 
 export async function getBranches(): Promise<Branch[]> {
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.REGISTRY_SPREADSHEET_ID!,
-    range: "Daftar_Cabang!A:D",
+    spreadsheetId: registryId(),
+    range: registrySheetRange(REGISTRY_SHEETS.branches),
   });
-  const rows = res.data.values || [];
-  if (rows.length <= 1) return [];
-  const header = rows[0];
-  const branches: Branch[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const obj: Record<string, string> = {};
-    for (let j = 0; j < header.length; j++) {
-      obj[header[j].trim()] = row[j] ?? "";
-    }
-    branches.push({
-      branchId: (obj["Cabang_ID"] || "").trim(),
-      nama: (obj["Nama_Cabang"] || "").trim(),
-      spreadsheetId: (obj["Spreadsheet_ID"] || "").trim(),
-      aktif: (obj["Aktif"] || "").trim().toUpperCase() === "TRUE",
-    });
-  }
-  return branches;
-}
-
-export async function getBranchRows() {
-  const spreadsheetId = process.env.REGISTRY_SPREADSHEET_ID!;
-  const rows = await readRows(spreadsheetId, "Daftar_Cabang!A:D");
-  return rows.map(({ rowNumber, values }) => ({
-    rowNumber,
-    branch: {
-      branchId: values[0] ?? "",
-      nama: values[1] ?? "",
-      spreadsheetId: values[2] ?? "",
-      aktif: (values[3] ?? "").toUpperCase() === "TRUE",
-    } satisfies Branch,
-  }));
-}
-
-export async function getEmployeeRows() {
-  const spreadsheetId = process.env.REGISTRY_SPREADSHEET_ID!;
-  const rows = await readRows(spreadsheetId, "Employees!A:J");
-  return rows.map(({ rowNumber, values }) => ({ rowNumber, values }));
-}
-
-function parseRole(value: string): Employee["role"] {
-  return value === "admin" || value === "kepala_cabang" || value === "karyawan" ? value : "karyawan";
+  const rows = res.data.values ?? [];
+  return rows.slice(1).map(toBranch);
 }

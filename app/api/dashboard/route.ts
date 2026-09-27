@@ -1,9 +1,13 @@
-import { ok, fail } from "@/lib/api-response";
+import { handleRouteError, ok } from "@/lib/api-response";
 import { getBranches } from "@/lib/google/registry";
-import { branchSpreadsheet } from "@/lib/google/branch-data";
+import { branchSpreadsheetFrom } from "@/lib/google/branch-data";
 import { readRows } from "@/lib/google/sheets-data";
-import { getSession } from "@/lib/auth";
+import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { todayInWIB } from "@/lib/domain/date";
+import { SHIFT_STATUS } from "@/lib/domain/shift-lifecycle";
+import { branchManagerSession, isResponse, resolveBranchId } from "@/lib/route-auth";
 import type { NextRequest } from "next/server";
+import type { Branch } from "@/lib/google/registry";
 
 interface DashboardData {
   branchId: string;
@@ -17,60 +21,78 @@ interface DashboardData {
   pendingIzins: number;
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getSession(req);
-    if (!session) return fail("UNAUTHORIZED", "Session tidak valid", 401);
+async function summarize(branch: Branch, today: string): Promise<DashboardData> {
+  const { spreadsheetId } = branchSpreadsheetFrom(branch);
+  const [scheduleRows, checklistLogRows, checklistTemplateRows, handoverLogRows, swapRows, izinRows] =
+    await Promise.all([
+      readRows(spreadsheetId, branchSheetRange("Schedules")),
+      readRows(spreadsheetId, branchSheetRange("Checklist_Log")),
+      readRows(spreadsheetId, branchSheetRange("Checklist_Template")),
+      readRows(spreadsheetId, branchSheetRange("Handover_Log")),
+      readRows(spreadsheetId, branchSheetRange("Shift_Swaps")),
+      readRows(spreadsheetId, branchSheetRange("Izin")),
+    ]);
 
-    const branches = (await getBranches()).filter((b) => b.aktif);
-    const targetBranches = session.role === "admin"
-      ? branches
-      : branches.filter((b) => b.branchId === session.activeBranchId);
+  const todaySchedules = scheduleRows.filter((row) => row.values[3] === today);
+  const todayScheduleIds = new Set(todaySchedules.map((row) => row.values[0] ?? ""));
 
-    const today = new Date().toISOString().slice(0, 10);
-    const results: DashboardData[] = [];
+  // Percentage of (schedule x active item) pairs that are checked — counting shifts that have
+  // at least one tick used to report 100% for a 1/10 checklist (audit M-3).
+  const activeItemIds = checklistTemplateRows
+    .filter((row) => (row.values[5] ?? "TRUE").toUpperCase() === "TRUE")
+    .map((row) => row.values[0] ?? "");
+  const checkedPairs = new Set(
+    checklistLogRows
+      .filter((row) => todayScheduleIds.has(row.values[1] ?? ""))
+      .map((row) => `${row.values[1]}::${row.values[2]}`)
+  );
+  const totalPairs = todaySchedules.length * activeItemIds.length;
+  const checkedCount = todaySchedules.reduce(
+    (total, row) =>
+      total + activeItemIds.filter((itemId) => checkedPairs.has(`${row.values[0]}::${itemId}`)).length,
+    0
+  );
 
-    for (const branch of targetBranches) {
-      const { spreadsheetId } = await branchSpreadsheet(branch.branchId);
-      const [scheduleRows, checklistLogRows, handoverLogRows, swapRows, izinRows] = await Promise.all([
-        readRows(spreadsheetId, "Schedules!A:G"),
-        readRows(spreadsheetId, "Checklist_Log!A:F"),
-        readRows(spreadsheetId, "Handover_Log!A:F"),
-        readRows(spreadsheetId, "Shift_Swaps!A:H"),
-        readRows(spreadsheetId, "Izin!A:H"),
-      ]);
-
-      const todaySchedules = scheduleRows.filter((r) => r.values[3] === today);
-      const shiftsToday = todaySchedules.length;
-      const shiftsStarted = todaySchedules.filter((r) => r.values[4] === "started").length;
-      const shiftsCompleted = todaySchedules.filter((r) => r.values[4] === "completed").length;
-
-      const todayScheduleIds = new Set(todaySchedules.map((r) => r.values[0]));
-      const checkedScheduleIds = new Set(checklistLogRows.filter((l) => todayScheduleIds.has(l.values[1])).map((l) => l.values[1]));
-      const checklistPercent = todaySchedules.length > 0 ? Math.round((checkedScheduleIds.size / todaySchedules.length) * 100) : 0;
-
-      const handoverCount = handoverLogRows.filter((l) => todayScheduleIds.has(l.values[1])).length;
-      const pendingSwaps = swapRows.filter((r) => r.values[5] === "pending").length;
-      const pendingIzins = izinRows.filter((r) => r.values[5] === "pending").length;
-
-      results.push({
-        branchId: branch.branchId,
-        branchName: branch.nama,
-        shiftsToday,
-        shiftsStarted,
-        shiftsCompleted,
-        checklistPercent,
-        handoverCount,
-        pendingSwaps,
-        pendingIzins,
-      });
-    }
-
-    return ok(results);
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return fail("INTERNAL_ERROR", err.message, 500);
-  }
+  return {
+    branchId: branch.branchId,
+    branchName: branch.nama,
+    shiftsToday: todaySchedules.length,
+    shiftsStarted: todaySchedules.filter((row) => row.values[4] === SHIFT_STATUS.started).length,
+    shiftsCompleted: todaySchedules.filter((row) => row.values[4] === SHIFT_STATUS.completed).length,
+    checklistPercent: totalPairs > 0 ? Math.round((checkedCount / totalPairs) * 100) : 0,
+    handoverCount: handoverLogRows.filter((row) => todayScheduleIds.has(row.values[1] ?? "")).length,
+    pendingSwaps: swapRows.filter((row) => row.values[5] === "pending").length,
+    pendingIzins: izinRows.filter((row) => row.values[5] === "pending").length,
+  };
 }
 
+export async function GET(request: NextRequest) {
+  const auth = await branchManagerSession(request);
+  if (isResponse(auth)) return auth;
+  try {
+    const branches = (await getBranches()).filter((branch) => branch.aktif);
+    const targetBranches =
+      auth.role === "admin"
+        ? branches
+        : branches.filter((branch) =>
+            branch.branchId === resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"))
+          );
 
+    // "Today" is a WIB calendar date; toISOString() would report yesterday until 07:00 WIB.
+    const today = todayInWIB();
+
+    // Branches are summarized in parallel instead of one serial round-trip at a time, and the
+    // already-fetched branch list is reused instead of re-reading the registry per branch.
+    const settled = await Promise.allSettled(targetBranches.map((branch) => summarize(branch, today)));
+    const results = settled.flatMap((outcome, index) => {
+      if (outcome.status === "fulfilled") return [outcome.value];
+      // One misconfigured branch must not blank out the whole dashboard.
+      console.error(`[myshift] dashboard skipped branch ${targetBranches[index].branchId}:`, outcome.reason);
+      return [];
+    });
+
+    return ok(results);
+  } catch (error) {
+    return handleRouteError(error, "Gagal memuat dashboard");
+  }
+}

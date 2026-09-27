@@ -1,18 +1,24 @@
-import { fail, ok } from "@/lib/api-response";
+import { handleRouteError, ok } from "@/lib/api-response";
 import { branchSpreadsheet } from "@/lib/google/branch-data";
-import { adminSession, isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
-import { readRows, appendRow } from "@/lib/google/sheets-data";
+import { branchManagerSession, isResponse, resolveBranchId } from "@/lib/route-auth";
+import { requiredText, optionalBoolean } from "@/lib/domain/master-validation";
+import { validChecklistType } from "@/lib/domain/checklist-handover-validation";
+import { appendRow, readRows } from "@/lib/google/sheets-data";
+import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { ID_PREFIX, nextSequentialId } from "@/lib/ids";
 import type { NextRequest } from "next/server";
 
+// Contract §8: Admin + Kepala Cabang, scoped to the caller's own branch.
 export async function GET(request: NextRequest) {
-  const auth = await staffSession(request);
+  const auth = await branchManagerSession(request);
   if (isResponse(auth)) return auth;
   try {
     const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
     const { spreadsheetId } = await branchSpreadsheet(branchId);
-    const rows = await readRows(spreadsheetId, "Checklist_Template!A:G");
-    const records = rows.slice(1).map((row) => ({
-      rowNumber: row.rowNumber,
+    const rows = await readRows(spreadsheetId, branchSheetRange("Checklist_Template"));
+
+    // readRows() already drops the header row — slicing again used to hide the first item.
+    const records = rows.map((row) => ({
       itemId: row.values[0] ?? "",
       type: row.values[1] ?? "",
       description: row.values[2] ?? "",
@@ -23,28 +29,34 @@ export async function GET(request: NextRequest) {
 
     return ok(records);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Gagal memuat template";
-    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
-    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
+    return handleRouteError(error, "Gagal memuat template checklist");
   }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await adminSession(request);
+  const auth = await branchManagerSession(request);
   if (isResponse(auth)) return auth;
   try {
     const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
-    const body = await request.json() as { type: string; description: string; requiresPhoto: boolean };
-    const { type, description, requiresPhoto } = body;
+    const body = await request.json();
+    const type = validChecklistType(body.type);
+    const description = requiredText(body.description, "description");
+    const requiresPhoto = optionalBoolean(body.requiresPhoto, "requiresPhoto", false);
 
     const { spreadsheetId } = await branchSpreadsheet(branchId);
-    const itemId = `CHK-${crypto.randomUUID().slice(0, 8)}`;
-    await appendRow(spreadsheetId, "Checklist_Template!A:G", [itemId, type, description, requiresPhoto ? "TRUE" : "FALSE", "0", "TRUE"]);
+    const rows = await readRows(spreadsheetId, branchSheetRange("Checklist_Template"));
+    const itemId = nextSequentialId(rows.map((row) => row.values[0] ?? ""), ID_PREFIX.checklistItem);
+    await appendRow(spreadsheetId, branchSheetRange("Checklist_Template"), [
+      itemId,
+      type,
+      description,
+      requiresPhoto ? "TRUE" : "FALSE",
+      "0",
+      "TRUE",
+    ]);
 
-    return ok({ itemId, type, description, requiresPhoto });
+    return ok({ itemId, type, description, requiresPhoto }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Gagal membuat template";
-    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
-    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
+    return handleRouteError(error, "Gagal membuat template checklist");
   }
 }

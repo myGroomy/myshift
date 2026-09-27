@@ -1,7 +1,10 @@
-import { ok, fail } from "@/lib/api-response";
+import { fail, handleRouteError, ok } from "@/lib/api-response";
+import { mergeBranchAffiliation, optionalBoolean, optionalText, optionalBranchIdList, validRole } from "@/lib/domain/master-validation";
 import { adminSession, isResponse } from "@/lib/route-auth";
-import { getEmployeeRows } from "@/lib/google/registry";
-import { replaceRow } from "@/lib/google/sheets-data";
+import { EMPLOYEE_ROLE_VALUES, getBranchRows, getEmployeeRows } from "@/lib/google/registry";
+import { replaceRowById } from "@/lib/google/sheets-data";
+import { EMPLOYEE_ROW_WIDTH, REGISTRY_SHEETS, padRow, registrySheetRange } from "@/lib/google/sheet-schema";
+import { DomainError } from "@/lib/error-codes";
 import type { NextRequest } from "next/server";
 
 type Context = { params: Promise<{ id: string }> };
@@ -10,21 +13,47 @@ export async function PATCH(request: NextRequest, context: Context) {
   const auth = await adminSession(request);
   if (isResponse(auth)) return auth;
   const { id } = await context.params;
-  const row = (await getEmployeeRows()).find((entry) => entry.values[0] === id);
-  if (!row) return fail("NOT_FOUND", "Karyawan tidak ditemukan", 404);
   try {
     const body = await request.json();
-    const values = [...row.values];
-    if (body.name !== undefined) values[3] = String(body.name).trim();
-    if (body.role !== undefined) values[4] = String(body.role).trim();
+    const rows = await getEmployeeRows();
+    const row = rows.find((entry) => entry.employee.employeeId === id);
+    if (!row) return fail("NOT_FOUND", "Karyawan tidak ditemukan");
+
+    const values = padRow(row.values, EMPLOYEE_ROW_WIDTH);
+    const currentName = (values[3] ?? "").trim();
+    const currentRole = (values[4] ?? "").trim();
+    const currentAffiliation = optionalBranchIdList(values[6]);
+    const currentActive = (values[7] ?? "").trim().toUpperCase() === "TRUE";
+
+    values[3] = optionalText(body.name, "name", currentName);
+    values[4] = validRole(body.role === undefined ? currentRole : body.role, EMPLOYEE_ROLE_VALUES);
+
     if (body.branchId !== undefined) {
-      values[5] = String(body.branchId).trim();
-      values[6] = String(body.branchId).trim();
+      const branchId = String(body.branchId).trim();
+      const branch = (await getBranchRows()).find((entry) => entry.branch.branchId === branchId);
+      if (!branch || !branch.branch.aktif) {
+        throw new DomainError("VALIDATION_ERROR", "Cabang tidak valid", { data: { fields: ["branchId"] } });
+      }
+      values[5] = branchId;
+      // Cabang_Terafiliasi is a comma-separated list; moving a branch must not drop the
+      // other affiliations the employee already has (SHEETS-SCHEMA §1).
+      values[6] = mergeBranchAffiliation(currentAffiliation, branchId).join(",");
     }
-    if (body.isActive !== undefined) values[7] = String(Boolean(body.isActive)).toUpperCase();
-    await replaceRow(process.env.REGISTRY_SPREADSHEET_ID!, "Employees", row.rowNumber, values);
-    return ok({ employeeId: values[0], username: values[1], name: values[3], role: values[4], branchId: values[5], isActive: values[7] === "TRUE" });
+
+    values[7] = String(optionalBoolean(body.isActive, "isActive", currentActive)).toUpperCase();
+
+    await replaceRowById(process.env.REGISTRY_SPREADSHEET_ID!, REGISTRY_SHEETS.employees, registrySheetRange(REGISTRY_SHEETS.employees), id, values);
+
+    return ok({
+      employeeId: values[0],
+      username: values[1],
+      name: values[3],
+      role: values[4],
+      branchId: values[5],
+      affiliatedBranches: optionalBranchIdList(values[6]),
+      isActive: values[7] === "TRUE",
+    });
   } catch (error) {
-    return fail("INVALID_REQUEST", error instanceof Error ? error.message : "Data karyawan tidak valid", 400);
+    return handleRouteError(error, "Data karyawan tidak valid");
   }
 }

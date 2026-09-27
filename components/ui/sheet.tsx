@@ -62,7 +62,7 @@ export function Sheet({ open, onClose, children, side = "right" }: SheetProps) {
             animate={{ x: 0, y: 0 }}
             exit={{ x: side === "left" ? "-100%" : side === "right" ? "100%" : 0, y: side === "bottom" ? "100%" : 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className={cn("fixed z-50 bg-white shadow-xl dark:bg-[#1a1b1f]", slideClass)}
+            className={cn("fixed z-50 bg-card text-card-foreground shadow-xl", slideClass)}
           >
             {children}
           </motion.div>

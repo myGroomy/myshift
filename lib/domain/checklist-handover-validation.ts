@@ -1,57 +1,70 @@
-export function validateChecklistSubmit(items: { itemId: string; checked: boolean }[]) {
-  const unchecked = items.filter((item) => !item.checked);
-  if (unchecked.length > 0) {
-    const error: { code: string; message: string; data?: { fields: string[] } } = {
-      code: "CHECKLIST_INCOMPLETE",
-      message: `Checklist belum lengkap: ${unchecked.length} item belum dicentang`,
-      data: { fields: unchecked.map((item) => item.itemId) },
-    };
-    throw error;
-  }
+import { DomainError } from "@/lib/error-codes";
+
+export const CHECKLIST_TYPES = ["opening", "closing"] as const;
+export type ChecklistType = (typeof CHECKLIST_TYPES)[number];
+
+export function validChecklistType(value: unknown): ChecklistType {
+  if (value === "opening" || value === "closing") return value;
+  throw new DomainError("VALIDATION_ERROR", "type harus opening atau closing", { data: { fields: ["type"] } });
 }
 
-export function validateHandoverFields(fields: { fieldId: string; value: string; isRequired: boolean }[]) {
-  const missing = fields.filter((field) => field.isRequired && !field.value.trim());
+// Backend-side business rule (contract §8): the checklist must be complete before the
+// shift can be closed, regardless of what the UI allows to be clicked.
+export function validateChecklistCompletion(input: { activeItemIds: string[]; checkedItemIds: string[] }): void {
+  const checked = new Set(input.checkedItemIds);
+  const missing = input.activeItemIds.filter((itemId) => !checked.has(itemId));
   if (missing.length > 0) {
-    const error: { code: string; message: string; data?: { fields: string[] } } = {
-      code: "REQUIRED_FIELD_MISSING",
-      message: `Field wajib belum diisi: ${missing.map((field) => field.fieldId).join(", ")}`,
-      data: { fields: missing.map((field) => field.fieldId) },
-    };
-    throw error;
+    throw new DomainError("CHECKLIST_INCOMPLETE", `${missing.length} item belum dicentang`, {
+      data: { fields: missing },
+    });
   }
 }
 
-export type ChecklistItem = {
-  itemId: string;
-  type: string;
-  description: string;
-  requiresPhoto: boolean;
-  order: number;
-  active: boolean;
-};
+export type HandoverSubmission = { fieldId: string; value: string };
 
-export type ChecklistLogEntry = {
-  logId: string;
-  scheduleId: string;
-  itemId: string;
-  checkedBy: string;
-  checkedAt: string;
-  photoUrl: string;
-};
+// isRequired and the set of valid fieldIds both come from Handover_Template on the server.
+// The client cannot opt out of a required field by sending isRequired:false, and arbitrary
+// fieldIds are rejected instead of being written straight into Handover_Log (audit H-7).
+export function normalizeHandoverSubmission(input: {
+  templates: { fieldId: string; isRequired: boolean }[];
+  submitted: unknown;
+}): HandoverSubmission[] {
+  const submitted = Array.isArray(input.submitted) ? input.submitted : [];
+  const values = new Map<string, string>();
 
-export type HandoverField = {
-  fieldId: string;
-  label: string;
-  isRequired: boolean;
-  order: number;
-};
+  for (const entry of submitted) {
+    const record = entry as { fieldId?: unknown; value?: unknown } | null;
+    const fieldId = typeof record?.fieldId === "string" ? record.fieldId.trim() : "";
+    if (!fieldId) {
+      throw new DomainError("VALIDATION_ERROR", "fieldId wajib diisi", { data: { fields: ["fields.fieldId"] } });
+    }
+    if (values.has(fieldId)) {
+      throw new DomainError("VALIDATION_ERROR", `fieldId ${fieldId} duplikat`, { data: { fields: [fieldId] } });
+    }
+    values.set(fieldId, typeof record?.value === "string" ? record.value.trim() : "");
+  }
 
-export type HandoverLogEntry = {
-  logId: string;
-  scheduleId: string;
-  fieldId: string;
-  isi: string;
-  createdBy: string;
-  createdAt: string;
-};
+  const known = new Set(input.templates.map((template) => template.fieldId));
+  const unknown = [...values.keys()].filter((fieldId) => !known.has(fieldId));
+  if (unknown.length > 0) {
+    throw new DomainError("VALIDATION_ERROR", `Field handover tidak dikenal: ${unknown.join(", ")}`, {
+      data: { fields: unknown },
+    });
+  }
+
+  const missing = input.templates.filter(
+    (template) => template.isRequired && !(values.get(template.fieldId) ?? "").trim()
+  );
+  if (missing.length > 0) {
+    throw new DomainError(
+      "REQUIRED_FIELD_MISSING",
+      `Field wajib belum diisi: ${missing.map((template) => template.fieldId).join(", ")}`,
+      { data: { fields: missing.map((template) => template.fieldId) } }
+    );
+  }
+
+  return input.templates.map((template) => ({
+    fieldId: template.fieldId,
+    value: values.get(template.fieldId) ?? "",
+  }));
+}

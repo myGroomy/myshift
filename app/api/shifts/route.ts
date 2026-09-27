@@ -1,22 +1,30 @@
-import { ok, fail } from "@/lib/api-response";
+import { handleRouteError, ok } from "@/lib/api-response";
 import { adminSession, isResponse } from "@/lib/route-auth";
+import { requiredText, validTime } from "@/lib/domain/master-validation";
 import { branchSpreadsheet } from "@/lib/google/branch-data";
 import { appendRow, readRows } from "@/lib/google/sheets-data";
-import { nextSequentialId } from "@/lib/ids";
-import { requiredText, validTime } from "@/lib/domain/master-validation";
+import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { ID_PREFIX, nextSequentialId } from "@/lib/ids";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   const auth = await adminSession(request);
   if (isResponse(auth)) return auth;
-  const branchId = request.nextUrl.searchParams.get("branchId");
-  if (!branchId) return fail("INVALID_REQUEST", "branchId wajib diisi", 400);
   try {
+    const branchId = requiredText(request.nextUrl.searchParams.get("branchId"), "branchId");
     const { spreadsheetId } = await branchSpreadsheet(branchId);
-    const rows = await readRows(spreadsheetId, "Shifts!A:D");
-    return ok(rows.map(({ values }) => ({ shiftId: values[0], name: values[1], startTime: values[2], endTime: values[3], branchId })));
+    const rows = await readRows(spreadsheetId, branchSheetRange("Shifts"));
+    return ok(
+      rows.map(({ values }) => ({
+        shiftId: values[0] ?? "",
+        name: values[1] ?? "",
+        startTime: values[2] ?? "",
+        endTime: values[3] ?? "",
+        branchId,
+      }))
+    );
   } catch (error) {
-    return fail("SHEETS_SETUP_REQUIRED", error instanceof Error ? error.message : "Spreadsheet cabang belum siap", 503);
+    return handleRouteError(error, "Gagal memuat shift");
   }
 }
 
@@ -29,12 +37,14 @@ export async function POST(request: NextRequest) {
     const name = requiredText(body.name, "name");
     const startTime = validTime(body.startTime, "startTime");
     const endTime = validTime(body.endTime, "endTime");
+
     const { spreadsheetId } = await branchSpreadsheet(branchId);
-    const rows = await readRows(spreadsheetId, "Shifts!A:D");
-    const shiftId = nextSequentialId(rows.map(({ values }) => values[0] ?? ""), "SFT-", 3);
-    await appendRow(spreadsheetId, "Shifts!A:D", [shiftId, name, startTime, endTime]);
+    const rows = await readRows(spreadsheetId, branchSheetRange("Shifts"));
+    const shiftId = nextSequentialId(rows.map(({ values }) => values[0] ?? ""), ID_PREFIX.shift);
+    await appendRow(spreadsheetId, branchSheetRange("Shifts"), [shiftId, name, startTime, endTime]);
+
     return ok({ shiftId, branchId, name, startTime, endTime }, { status: 201 });
   } catch (error) {
-    return fail(error instanceof Error && error.message.includes("Spreadsheet") ? "SHEETS_SETUP_REQUIRED" : "INVALID_REQUEST", error instanceof Error ? error.message : "Shift tidak valid", 400);
+    return handleRouteError(error, "Shift tidak valid");
   }
 }

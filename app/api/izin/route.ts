@@ -1,8 +1,9 @@
-import { fail, ok } from "@/lib/api-response";
+import { fail, handleRouteError, ok } from "@/lib/api-response";
 import { requiredText } from "@/lib/domain/master-validation";
-import { loadIzin, loadSchedules } from "@/lib/google/ops-data";
+import { loadCategories, loadIzin, loadSchedules } from "@/lib/google/ops-data";
 import { appendRow } from "@/lib/google/sheets-data";
-import { nextSequentialId } from "@/lib/ids";
+import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { ID_PREFIX, nextSequentialId } from "@/lib/ids";
 import { isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
 import type { NextRequest } from "next/server";
 import type { ScheduleRecord } from "@/lib/google/ops-data";
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
     return ok(result);
   } catch (error) {
-    return fail("SHEETS_SETUP_REQUIRED", error instanceof Error ? error.message : "Spreadsheet cabang belum siap", 503);
+    return handleRouteError(error, "Gagal memuat pengajuan izin");
   }
 }
 
@@ -34,27 +35,52 @@ export async function POST(request: NextRequest) {
     const categoryId = requiredText(body.categoryId, "categoryId");
     const note = requiredText(body.note, "note");
     const branchId = resolveBranchId(auth, body.branchId ?? request.nextUrl.searchParams.get("branchId"));
-    const [{ spreadsheetId, records: schedules }, { records: izinList }] = await Promise.all([loadSchedules(branchId), loadIzin(branchId)]);
+
+    const [{ spreadsheetId, records: schedules }, { records: izinList }, { records: categories }] =
+      await Promise.all([loadSchedules(branchId), loadIzin(branchId), loadCategories(branchId)]);
+
     const schedule = schedules.find((entry): entry is ScheduleRecord => entry.scheduleId === scheduleId);
-    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan", 404);
-    if (schedule.employeeId !== auth.employeeId) return fail("FORBIDDEN", "Hanya pemilik jadwal yang bisa ajukan izin", 403);
-    if (schedule.status !== "scheduled") return fail("INVALID_REQUEST", "Hanya jadwal yang belum dimulai yang bisa diajukan izinnya", 400);
-    if (izinList.some((izin) => izin.scheduleId === scheduleId && izin.status === "pending")) {
-      return fail("INVALID_REQUEST", "Sudah ada pengajuan izin pending untuk jadwal ini", 400);
+    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
+    if (schedule.employeeId !== auth.employeeId) {
+      return fail("FORBIDDEN", "Hanya pemilik jadwal yang bisa ajukan izin");
     }
-    const izinId = nextSequentialId(izinList.map((izin) => izin.izinId), "IZN-", 3);
-    await appendRow(spreadsheetId, "Izin!A:H", [izinId, auth.employeeId, scheduleId, categoryId, note, "pending", "", ""]);
-    return ok({
+    if (schedule.status !== "scheduled") {
+      return fail("VALIDATION_ERROR", "Hanya jadwal yang belum dimulai yang bisa diajukan izinnya");
+    }
+    const category = categories.find((entry) => entry.id === categoryId && entry.aktif);
+    if (!category) {
+      return fail("VALIDATION_ERROR", "Kategori izin tidak valid", { data: { fields: ["categoryId"] } });
+    }
+    if (izinList.some((izin) => izin.scheduleId === scheduleId && izin.status === "pending")) {
+      return fail("DUPLICATE_SUBMIT", "Sudah ada pengajuan izin pending untuk jadwal ini");
+    }
+
+    const izinId = nextSequentialId(izinList.map((izin) => izin.izinId), ID_PREFIX.izin);
+    await appendRow(spreadsheetId, branchSheetRange("Izin"), [
       izinId,
-      employeeId: auth.employeeId,
+      auth.employeeId,
       scheduleId,
       categoryId,
       note,
-      status: "pending",
-      approvedBy: "",
-      rejectReason: "",
-    }, { status: 201 });
+      "pending",
+      "",
+      "",
+    ]);
+
+    return ok(
+      {
+        izinId,
+        employeeId: auth.employeeId,
+        scheduleId,
+        categoryId,
+        note,
+        status: "pending",
+        approvedBy: "",
+        rejectReason: "",
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    return fail("SHEETS_SETUP_REQUIRED", error instanceof Error ? error.message : "Pengajuan izin tidak valid", 400);
+    return handleRouteError(error, "Pengajuan izin tidak valid");
   }
 }

@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
   icon?: string;
@@ -17,12 +17,12 @@ export function EmptyState({
   actionHref,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-[#e5e5e5] bg-white/50 py-16 text-center">
-      <span className="material-symbols-outlined mb-4 text-5xl text-[#615d59]">{icon}</span>
-      <h3 className="mb-1 text-lg font-semibold text-[#000000] dark:text-[#f5f5f5]">{title}</h3>
-      {description && <p className="mb-6 text-sm text-[#615d59]">{description}</p>}
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/50 py-16 text-center">
+      <span className="material-symbols-outlined mb-4 text-5xl text-muted-foreground">{icon}</span>
+      <h3 className="mb-1 text-lg font-semibold">{title}</h3>
+      {description && <p className="mb-6 text-sm text-muted-foreground">{description}</p>}
       {actionLabel && actionHref && (
-        <Button asChild className="h-10 rounded-lg bg-[#0075de] text-white">
+        <Button asChild size="lg" className="h-10">
           <Link href={actionHref}>{actionLabel}</Link>
         </Button>
       )}

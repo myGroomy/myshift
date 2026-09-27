@@ -1,11 +1,19 @@
 import { google } from "googleapis";
 
-// Lazy singleton — initialized on first use, not at module load.
+// Lazy singletons — initialized on first use, not at module load.
 // This prevents build-time crashes when env vars are not yet configured.
-let _sheets: ReturnType<typeof google.sheets> | null = null;
+// (Connection objects only: no *data* is cached at module level, per AGENTS.md §5.)
+const SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive",
+];
 
-function getSheets() {
-  if (_sheets) return _sheets;
+let _auth: InstanceType<typeof google.auth.JWT> | null = null;
+let _sheets: ReturnType<typeof google.sheets> | null = null;
+let _drive: ReturnType<typeof google.drive> | null = null;
+
+function getAuth() {
+  if (_auth) return _auth;
 
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
@@ -16,18 +24,25 @@ function getSheets() {
     );
   }
 
-  const auth = new google.auth.JWT({
+  _auth = new google.auth.JWT({
     email,
     key: privateKey.replace(/\\n/g, "\n"),
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    scopes: SCOPES,
   });
-
-  _sheets = google.sheets({ version: "v4", auth });
-  return _sheets;
+  return _auth;
 }
 
 export const sheets = new Proxy({} as ReturnType<typeof google.sheets>, {
   get(_target, prop) {
-    return (getSheets() as unknown as Record<string | symbol, unknown>)[prop];
+    if (!_sheets) _sheets = google.sheets({ version: "v4", auth: getAuth() });
+    return (_sheets as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});
+
+// Drive is only used for branch provisioning (copy the template into MYSHIFT_FOLDER).
+export const drive = new Proxy({} as ReturnType<typeof google.drive>, {
+  get(_target, prop) {
+    if (!_drive) _drive = google.drive({ version: "v3", auth: getAuth() });
+    return (_drive as unknown as Record<string | symbol, unknown>)[prop];
   },
 });

@@ -187,3 +187,14 @@ Karena data awal (karyawan, cabang, shift) rencananya diinput langsung ke spread
 - Urutan/nama kolom pada baris header
 - Format ID (prefix, jumlah digit)
 - Enum values (`Status`, `Role`, `Tipe`) — menambah/mengubah nilai enum butuh update kode aplikasi juga
+
+Semua hal di atas dipatok oleh satu modul kode (`lib/google/sheet-schema.ts`) dan diverifikasi test `test/sheet-schema.test.ts` terhadap tabel di dokumen ini — kalau dokumen dan kode berbeda, test gagal.
+
+---
+
+## 6. Catatan Implementasi Kolom Otomatis
+
+- **`Failed_Login_Attempts` / `Locked_Until`** — ditulis aplikasi pada `POST /api/auth/login`: bertambah 1 tiap kegagalan, akun terkunci 15 menit setelah 5 kegagalan berturut-turut, direset saat login sukses / reset PIN / lock berakhir. Jangan diisi manual.
+- **`Spreadsheet_ID`** — diisi otomatis oleh provisioning saat `POST /api/branches`: spreadsheet cabang dibuat dari `TEMPLATE_SPREADSHEET_ID` (atau spreadsheet baru), header 9 sheet ditulis ulang dari modul skema, baru baris `Daftar_Cabang` dibuat.
+- **ID log** (`CLG-###`, `HLG-###`) dan **ID master** (`CHK-###`, `HOF-###`) memakai penomoran urut sesuai §3 — bukan UUID. Nomor berikutnya dihitung dari nilai maksimum yang ada di sheet.
+- **`Status` jadwal** hanya boleh berubah lewat aplikasi: `scheduled` → `started` (`start-shift`) → `completed` (`checklist/submit`, hanya jika checklist 100% dan semua field handover wajib terisi).

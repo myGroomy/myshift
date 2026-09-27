@@ -1,9 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ok, fail } from "@/lib/api-response";
-import { getBranches } from "@/lib/google/registry";
-import { branchSpreadsheet } from "@/lib/google/branch-data";
+import { NextResponse, type NextRequest } from "next/server";
+import { fail, handleRouteError, ok } from "@/lib/api-response";
+import { getBranches, getEmployees } from "@/lib/google/registry";
+import { branchSpreadsheetFrom } from "@/lib/google/branch-data";
 import { readRows } from "@/lib/google/sheets-data";
-import { getSession } from "@/lib/auth";
+import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { todayInWIB } from "@/lib/domain/date";
+import { toCsv } from "@/lib/domain/csv";
+import { branchManagerSession, isResponse, resolveBranchId } from "@/lib/route-auth";
+import type { Branch } from "@/lib/google/registry";
 import type { SessionPayload } from "@/lib/session";
 
 interface LaporanRow {
@@ -16,157 +20,152 @@ interface LaporanRow {
   status: string;
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getSession(req);
-    if (!session) return fail("UNAUTHORIZED", "Session tidak valid", 401);
+const CSV_HEADERS = ["Tipe", "ID", "Tanggal", "Karyawan", "Nama", "Detail", "Status"];
 
-    const startDate = req.nextUrl.searchParams.get("startDate") ?? "";
-    const endDate = req.nextUrl.searchParams.get("endDate") ?? "";
-    const branchFilter = req.nextUrl.searchParams.get("branchId") ?? "";
+async function targetBranches(session: SessionPayload, branchFilter: string): Promise<Branch[]> {
+  const branches = (await getBranches()).filter((branch) => branch.aktif);
+  if (session.role === "admin") {
+    return branchFilter ? branches.filter((branch) => branch.branchId === branchFilter) : branches;
+  }
+  const branchId = resolveBranchId(session, branchFilter || null);
+  return branches.filter((branch) => branch.branchId === branchId);
+}
 
-    const branches = (await getBranches()).filter((b) => b.aktif);
-    const targetBranches = session.role === "admin"
-      ? (branchFilter ? branches.filter((b) => b.branchId === branchFilter) : branches)
-      : branches.filter((b) => b.branchId === session.activeBranchId);
+async function fetchLaporan(input: {
+  startDate: string;
+  endDate: string;
+  branchFilter: string;
+  session: SessionPayload;
+}): Promise<LaporanRow[]> {
+  const [branches, employees] = await Promise.all([
+    targetBranches(input.session, input.branchFilter),
+    getEmployees(),
+  ]);
+  const employeeNames = new Map(employees.map((employee) => [employee.employeeId, employee.nama]));
+  const nameOf = (employeeId: string) => employeeNames.get(employeeId) ?? "";
+  const inRange = (date: string) =>
+    !((input.startDate && date < input.startDate) || (input.endDate && date > input.endDate));
 
-    const results: LaporanRow[] = [];
-
-    for (const branch of targetBranches) {
-      const { spreadsheetId } = await branchSpreadsheet(branch.branchId);
+  const perBranch = await Promise.all(
+    branches.map(async (branch): Promise<LaporanRow[]> => {
+      const { spreadsheetId } = branchSpreadsheetFrom(branch);
       const [scheduleRows, swapRows, izinRows] = await Promise.all([
-        readRows(spreadsheetId, "Schedules!A:G"),
-        readRows(spreadsheetId, "Shift_Swaps!A:H"),
-        readRows(spreadsheetId, "Izin!A:H"),
+        readRows(spreadsheetId, branchSheetRange("Schedules")),
+        readRows(spreadsheetId, branchSheetRange("Shift_Swaps")),
+        readRows(spreadsheetId, branchSheetRange("Izin")),
       ]);
+      const schedulesById = new Map(scheduleRows.map((row) => [row.values[0] ?? "", row.values]));
+      const rows: LaporanRow[] = [];
 
       for (const row of scheduleRows) {
         const date = row.values[3] ?? "";
-        if ((startDate && date < startDate) || (endDate && date > endDate)) continue;
-        results.push({
+        if (!inRange(date)) continue;
+        const employeeId = row.values[1] ?? "";
+        rows.push({
           type: "Jadwal",
           id: row.values[0] ?? "",
           date,
-          employeeId: row.values[1] ?? "",
-          employeeName: "",
+          employeeId,
+          employeeName: nameOf(employeeId),
           details: `${row.values[2] ?? ""} — ${row.values[4] ?? "scheduled"}`,
           status: row.values[4] ?? "scheduled",
         });
       }
 
       for (const row of swapRows) {
-        const scheduleId = row.values[1] ?? "";
-        const scheduleRow = scheduleRows.find((r) => r.values[0] === scheduleId);
-        const date = scheduleRow?.values[3] ?? "";
-        if ((startDate && date < startDate) || (endDate && date > endDate)) continue;
-        results.push({
+        const date = schedulesById.get(row.values[1] ?? "")?.[3] ?? "";
+        if (!inRange(date)) continue;
+        const employeeId = row.values[2] ?? "";
+        rows.push({
           type: "Swap",
           id: row.values[0] ?? "",
           date,
-          employeeId: row.values[2] ?? "",
-          employeeName: "",
+          employeeId,
+          employeeName: nameOf(employeeId),
           details: `${row.values[3] ?? ""} — ${row.values[4] ?? ""}`,
           status: row.values[5] ?? "pending",
         });
       }
 
       for (const row of izinRows) {
-        const scheduleId = row.values[2] ?? "";
-        const scheduleRow = scheduleRows.find((r) => r.values[0] === scheduleId);
-        const date = scheduleRow?.values[3] ?? "";
-        if ((startDate && date < startDate) || (endDate && date > endDate)) continue;
-        results.push({
+        const date = schedulesById.get(row.values[2] ?? "")?.[3] ?? "";
+        if (!inRange(date)) continue;
+        const employeeId = row.values[1] ?? "";
+        rows.push({
           type: "Izin",
           id: row.values[0] ?? "",
           date,
-          employeeId: row.values[1] ?? "",
-          employeeName: "",
+          employeeId,
+          employeeName: nameOf(employeeId),
           details: `${row.values[3] ?? ""} — ${row.values[4] ?? ""}`,
           status: row.values[5] ?? "pending",
         });
       }
-    }
 
-    results.sort((a, b) => b.date.localeCompare(a.date));
-    return ok(results);
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return fail("INTERNAL_ERROR", err.message, 500);
-  }
+      return rows;
+    })
+  );
+
+  return perBranch.flat().sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export async function POST(req: NextRequest) {
+// Quoting + formula neutralization live in lib/domain/csv.ts (audit M-11: free-text reasons
+// used to be joined raw, which broke the CSV structure and allowed =cmd injection).
+function toCsvResponse(rows: LaporanRow[]) {
+  const csv = toCsv(
+    CSV_HEADERS,
+    rows.map((row) => [row.type, row.id, row.date, row.employeeId, row.employeeName, row.details, row.status])
+  );
+  return new NextResponse(csv, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="laporan-${todayInWIB()}.csv"`,
+    },
+  });
+}
+
+function rejectUnsupportedFormat(format: string) {
+  // Contract §10 lists xlsx, but no xlsx writer is available; failing loudly beats silently
+  // returning JSON that the UI would download as a .csv.
+  return fail("VALIDATION_ERROR", `format ${format} belum didukung, gunakan csv atau json`, {
+    data: { fields: ["format"] },
+  });
+}
+
+function readFilters(request: NextRequest, session: SessionPayload) {
+  return {
+    startDate: request.nextUrl.searchParams.get("startDate") ?? "",
+    endDate: request.nextUrl.searchParams.get("endDate") ?? "",
+    branchFilter: request.nextUrl.searchParams.get("branchId") ?? "",
+    session,
+  };
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await branchManagerSession(request);
+  if (isResponse(auth)) return auth;
   try {
-    const session = await getSession(req);
-    if (!session) return fail("UNAUTHORIZED", "Session tidak valid", 401);
-    const { format } = await req.json() as { format?: string };
-
-    const startDate = req.nextUrl.searchParams.get("startDate") ?? "";
-    const endDate = req.nextUrl.searchParams.get("endDate") ?? "";
-    const branchFilter = req.nextUrl.searchParams.get("branchId") ?? "";
-
-    const data = await fetchLaporan(startDate, endDate, branchFilter, session);
-
-    if (format === "csv" || !format) {
-      const csv = convertToCSV(data);
-      return new NextResponse(csv, {
-        headers: {
-          "Content-Type": "text/csv",
-          "Content-Disposition": `attachment; filename="laporan-${new Date().toISOString().slice(0, 10)}.csv"`,
-        },
-      });
-    }
-
-    return ok(data);
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    return fail("INTERNAL_ERROR", err.message, 500);
+    const format = request.nextUrl.searchParams.get("format") ?? "json";
+    const rows = await fetchLaporan(readFilters(request, auth));
+    if (format === "csv") return toCsvResponse(rows);
+    if (format !== "json" && format !== "") return rejectUnsupportedFormat(format);
+    return ok(rows);
+  } catch (error) {
+    return handleRouteError(error, "Gagal memuat laporan");
   }
 }
 
-async function fetchLaporan(startDate: string, endDate: string, branchFilter: string, session: SessionPayload) {
-  const branches = (await getBranches()).filter((b) => b.aktif);
-  const targetBranches = session.role === "admin"
-    ? (branchFilter ? branches.filter((b) => b.branchId === branchFilter) : branches)
-    : branches.filter((b) => b.branchId === session.activeBranchId);
-
-  const results: LaporanRow[] = [];
-
-  for (const branch of targetBranches) {
-    const { spreadsheetId } = await branchSpreadsheet(branch.branchId);
-    const [scheduleRows, swapRows, izinRows] = await Promise.all([
-      readRows(spreadsheetId, "Schedules!A:G"),
-      readRows(spreadsheetId, "Shift_Swaps!A:H"),
-      readRows(spreadsheetId, "Izin!A:H"),
-    ]);
-
-    for (const row of scheduleRows) {
-      const date = row.values[3] ?? "";
-      if ((startDate && date < startDate) || (endDate && date > endDate)) continue;
-      results.push({ type: "Jadwal", id: row.values[0] ?? "", date, employeeId: row.values[1] ?? "", employeeName: "", details: `${row.values[2] ?? ""} — ${row.values[4] ?? "scheduled"}`, status: row.values[4] ?? "scheduled" });
-    }
-    for (const row of swapRows) {
-      const scheduleId = row.values[1] ?? "";
-      const scheduleRow = scheduleRows.find((r) => r.values[0] === scheduleId);
-      const date = scheduleRow?.values[3] ?? "";
-      if ((startDate && date < startDate) || (endDate && date > endDate)) continue;
-      results.push({ type: "Swap", id: row.values[0] ?? "", date, employeeId: row.values[2] ?? "", employeeName: "", details: `${row.values[3] ?? ""} — ${row.values[4] ?? ""}`, status: row.values[5] ?? "pending" });
-    }
-    for (const row of izinRows) {
-      const scheduleId = row.values[2] ?? "";
-      const scheduleRow = scheduleRows.find((r) => r.values[0] === scheduleId);
-      const date = scheduleRow?.values[3] ?? "";
-      if ((startDate && date < startDate) || (endDate && date > endDate)) continue;
-      results.push({ type: "Izin", id: row.values[0] ?? "", date, employeeId: row.values[1] ?? "", employeeName: "", details: `${row.values[3] ?? ""} — ${row.values[4] ?? ""}`, status: row.values[5] ?? "pending" });
-    }
+export async function POST(request: NextRequest) {
+  const auth = await branchManagerSession(request);
+  if (isResponse(auth)) return auth;
+  try {
+    const body = await request.json().catch(() => ({}));
+    const format = typeof body.format === "string" ? body.format : "csv";
+    const rows = await fetchLaporan(readFilters(request, auth));
+    if (format === "csv") return toCsvResponse(rows);
+    if (format !== "json") return rejectUnsupportedFormat(format);
+    return ok(rows);
+  } catch (error) {
+    return handleRouteError(error, "Gagal memuat laporan");
   }
-
-  results.sort((a, b) => b.date.localeCompare(a.date));
-  return results;
-}
-
-function convertToCSV(data: LaporanRow[]): string {
-  const headers = ["Tipe", "ID", "Tanggal", "Karyawan", "Detail", "Status"];
-  const rows = data.map((r) => [r.type, r.id, r.date, r.employeeId, r.details, r.status].join(","));
-  return [headers.join(","), ...rows].join("\n");
 }

@@ -1,4 +1,5 @@
 import { sheets } from "@/lib/google/client";
+import { DomainError } from "@/lib/error-codes";
 
 export type SheetRow = { rowNumber: number; values: string[] };
 
@@ -112,8 +113,44 @@ export async function deleteRow(
   });
 }
 
+// Row-number based writes are only safe within a single read; prefer the *ById helpers
+// below for writes, since a row added/removed in between would otherwise shift the target.
+export async function readRowById(
+  spreadsheetId: string,
+  range: string,
+  id: string
+): Promise<SheetRow | undefined> {
+  const rows = await readRows(spreadsheetId, range);
+  return rows.find((row) => (row.values[0] ?? "").trim() === id);
+}
+
+export async function replaceRowById(
+  spreadsheetId: string,
+  sheetName: string,
+  range: string,
+  id: string,
+  values: string[]
+): Promise<boolean> {
+  const row = await readRowById(spreadsheetId, range, id);
+  if (!row) return false;
+  await replaceRow(spreadsheetId, sheetName, row.rowNumber, values);
+  return true;
+}
+
+export async function deleteRowById(
+  spreadsheetId: string,
+  sheetName: string,
+  range: string,
+  id: string
+): Promise<boolean> {
+  const row = await readRowById(spreadsheetId, range, id);
+  if (!row) return false;
+  await deleteRow(spreadsheetId, sheetName, row.rowNumber);
+  return true;
+}
+
 export function requireSpreadsheetId(branchId: string, spreadsheetId?: string) {
   if (!spreadsheetId)
-    throw new Error(`Spreadsheet cabang ${branchId} belum dikonfigurasi`);
+    throw new DomainError("SHEETS_SETUP_REQUIRED", `Spreadsheet cabang ${branchId} belum dikonfigurasi`);
   return spreadsheetId;
 }

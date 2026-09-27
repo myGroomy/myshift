@@ -1,13 +1,10 @@
-import { ok, fail } from "@/lib/api-response";
-import { verifySessionToken } from "@/lib/session";
+import { fail, ok } from "@/lib/api-response";
+import { getSession } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const cookie = request.cookies.get("myshift_session")?.value;
-  if (!cookie) return fail("UNAUTHORIZED", "Session tidak ada", 401);
-
-  const session = await verifySessionToken(cookie);
-  if (!session) return fail("INVALID_SESSION", "Session tidak valid", 401);
+  const session = await getSession(request);
+  if (!session) return fail("UNAUTHORIZED", "Session tidak valid");
 
   return ok({
     employeeId: session.employeeId,

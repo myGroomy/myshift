@@ -1,9 +1,10 @@
-import { fail, ok } from "@/lib/api-response";
+import { fail, handleRouteError, ok } from "@/lib/api-response";
 import { requiredText } from "@/lib/domain/master-validation";
 import { eligiblePartnerIds } from "@/lib/domain/ops-validation";
 import { loadSchedules, loadSwaps } from "@/lib/google/ops-data";
 import { appendRow } from "@/lib/google/sheets-data";
-import { nextSequentialId } from "@/lib/ids";
+import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { ID_PREFIX, nextSequentialId } from "@/lib/ids";
 import { isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
 import type { NextRequest } from "next/server";
 
@@ -17,11 +18,13 @@ export async function GET(request: NextRequest) {
     let result = records.map(({ rowNumber: _row, ...swap }) => swap);
     if (status) result = result.filter((swap) => swap.status === status);
     if (auth.role === "karyawan") {
-      result = result.filter((swap) => swap.requestedBy === auth.employeeId || swap.requestedWith === auth.employeeId);
+      result = result.filter(
+        (swap) => swap.requestedBy === auth.employeeId || swap.requestedWith === auth.employeeId
+      );
     }
     return ok(result);
   } catch (error) {
-    return fail("SHEETS_SETUP_REQUIRED", error instanceof Error ? error.message : "Spreadsheet cabang belum siap", 503);
+    return handleRouteError(error, "Gagal memuat pengajuan swap");
   }
 }
 
@@ -34,14 +37,23 @@ export async function POST(request: NextRequest) {
     const requestedWithEmployeeId = requiredText(body.requestedWithEmployeeId, "requestedWithEmployeeId");
     const reason = requiredText(body.reason, "reason");
     const branchId = resolveBranchId(auth, body.branchId ?? request.nextUrl.searchParams.get("branchId"));
-    const [{ spreadsheetId, records: schedules }, { records: swaps }] = await Promise.all([loadSchedules(branchId), loadSwaps(branchId)]);
+
+    const [{ spreadsheetId, records: schedules }, { records: swaps }] = await Promise.all([
+      loadSchedules(branchId),
+      loadSwaps(branchId),
+    ]);
     const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
-    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan", 404);
-    if (schedule.employeeId !== auth.employeeId) return fail("FORBIDDEN", "Hanya pemilik jadwal yang boleh ajukan swap", 403);
-    if (schedule.status !== "scheduled") return fail("INVALID_REQUEST", "Hanya jadwal yang belum dimulai yang bisa ditukar", 400);
-    if (swaps.some((swap) => swap.scheduleId === scheduleId && swap.status === "pending")) {
-      return fail("INVALID_REQUEST", "Sudah ada pengajuan swap pending untuk jadwal ini", 400);
+    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
+    if (schedule.employeeId !== auth.employeeId) {
+      return fail("FORBIDDEN", "Hanya pemilik jadwal yang boleh ajukan swap");
     }
+    if (schedule.status !== "scheduled") {
+      return fail("VALIDATION_ERROR", "Hanya jadwal yang belum dimulai yang bisa ditukar");
+    }
+    if (swaps.some((swap) => swap.scheduleId === scheduleId && swap.status === "pending")) {
+      return fail("DUPLICATE_SUBMIT", "Sudah ada pengajuan swap pending untuk jadwal ini");
+    }
+
     const partners = eligiblePartnerIds({
       requesterEmployeeId: auth.employeeId,
       requesterScheduleId: scheduleId,
@@ -49,21 +61,36 @@ export async function POST(request: NextRequest) {
       schedules,
       pendingSwapScheduleIds: swaps.filter((swap) => swap.status === "pending").map((swap) => swap.scheduleId),
     });
-    if (!partners.includes(requestedWithEmployeeId)) return fail("INVALID_REQUEST", "Partner tukar tidak cocok", 400);
-    const swapId = nextSequentialId(swaps.map((swap) => swap.swapId), "SWP-", 3);
-    await appendRow(spreadsheetId, "Shift_Swaps!A:H", [swapId, scheduleId, auth.employeeId, requestedWithEmployeeId, reason, "pending", "", ""]);
-    return ok({
+    if (!partners.includes(requestedWithEmployeeId)) {
+      return fail("VALIDATION_ERROR", "Partner tukar tidak cocok", { data: { fields: ["requestedWithEmployeeId"] } });
+    }
+
+    const swapId = nextSequentialId(swaps.map((swap) => swap.swapId), ID_PREFIX.swap);
+    await appendRow(spreadsheetId, branchSheetRange("Shift_Swaps"), [
       swapId,
       scheduleId,
-      requestedBy: auth.employeeId,
-      requestedWith: requestedWithEmployeeId,
+      auth.employeeId,
+      requestedWithEmployeeId,
       reason,
-      status: "pending",
-      approvedBy: "",
-      rejectReason: "",
-    }, { status: 201 });
+      "pending",
+      "",
+      "",
+    ]);
+
+    return ok(
+      {
+        swapId,
+        scheduleId,
+        requestedBy: auth.employeeId,
+        requestedWith: requestedWithEmployeeId,
+        reason,
+        status: "pending",
+        approvedBy: "",
+        rejectReason: "",
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Pengajuan swap tidak valid";
-    return fail(message.includes("Spreadsheet") ? "SHEETS_SETUP_REQUIRED" : "INVALID_REQUEST", message, 400);
+    return handleRouteError(error, "Pengajuan swap tidak valid");
   }
 }

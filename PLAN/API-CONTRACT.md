@@ -1,7 +1,7 @@
 # MYSHIFT — API Contract
 
-> **Versi:** 1.0.0
-> **Tanggal:** 2026-09-26
+> **Versi:** 1.1.0
+> **Tanggal:** 2026-09-27
 > **Turunan dari:** `FULL-PRD.md`
 > **Base URL:** `/api`
 > **Format response standar (ikut pola STOKIS):**
@@ -9,9 +9,19 @@
 > // Sukses
 > { "success": true, "data": { ... } }
 > // Gagal
-> { "success": false, "error": { "code": "STRING_CODE", "message": "Pesan untuk user" } }
+> { "success": false, "error": { "code": "STRING_CODE", "message": "Pesan untuk user", "data": { ... } } }
 > ```
 > Semua endpoint (kecuali `/api/auth/login`) memerlukan session cookie valid. Semua endpoint di-scope ke `branchId` aktif di sesi user, kecuali disebutkan lain.
+>
+> **Perubahan v1.1.0** (audit backend): error code disamakan dengan §11 (`VALIDATION_ERROR`, bukan `INVALID_REQUEST`), detail per-field dipindah ke `error.data`, lockout login diimplementasikan, `/api/laporan` menggantikan `/api/reports`, dashboard mengembalikan array (bentuk aktual), dan `GET /api/schedules/:id` ditambahkan.
+
+---
+
+## 0. Aturan umum
+
+- **Branch scope.** Semua endpoint per-cabang menerima `?branchId=` (opsional). Untuk `karyawan`/`kepala_cabang`, `branchId` harus salah satu cabang di sesi mereka — kalau tidak → `403 FORBIDDEN`. Untuk `admin`, `branchId` boleh cabang mana pun; kalau tidak dikirim, dipakai `activeBranchId` dari sesi admin.
+- **Revalidasi sesi.** Token HMAC berlaku 12 jam, tapi tiap request dicek ulang ke registry: karyawan nonaktif atau role yang berubah langsung kehilangan akses (401), tanpa menunggu expiry.
+- **Idempotensi (§12).** POST yang menulis baris baru menolak duplikat (`409 DUPLICATE_SUBMIT`), dan POST log checklist/handover bersifat upsert (bukan append kedua).
 
 ---
 
@@ -19,44 +29,62 @@
 
 ### `POST /api/auth/login`
 Body: `{ "username": string, "pin": string }`
-Response 200: `{ "success": true, "data": { "employeeId": string, "role": "admin"|"kepala_cabang"|"karyawan", "branches": [{ branchId, name }] } }`
+Response 200: `{ "success": true, "data": { "employeeId": string, "nama": string, "role": "admin"|"kepala_cabang"|"karyawan", "branches": [{ "branchId", "nama" }] } }`
+Response 400: `error.code = "VALIDATION_ERROR"` (username/PIN kosong atau PIN bukan 4-8 digit)
 Response 401: `error.code = "INVALID_CREDENTIALS"`
-Response 423: `error.code = "ACCOUNT_LOCKED"` (+ `data.lockedUntil`)
+Response 423: `error.code = "ACCOUNT_LOCKED"` + `error.data.lockedUntil` (ISO 8601)
+
+**Kebijakan lockout:** 5 percobaan gagal berturut-turut → akun terkunci 15 menit. Counter disimpan di `Employees.Failed_Login_Attempts` / `Employees.Locked_Until`, direset saat login sukses atau saat lock berakhir. Setiap kegagalan diberi delay 300 ms, dan username tak dikenal diperlakukan sama (anti-enumerasi).
 
 ### `POST /api/auth/logout`
-Response 200: `{ "success": true }`
+Response 200: `{ "success": true }` — cookie dibersihkan (`Max-Age=0`).
 
 ### `POST /api/auth/select-branch`
 Body: `{ "branchId": string }`
-Response 200: set branch aktif di sesi
+Response 200: `{ "data": { "activeBranchId": string } }` + cookie sesi baru (`iat`/`exp` di-refresh server-side).
+Response 400: `error.code = "VALIDATION_ERROR"` kalau cabang bukan milik user.
 
 ### `GET /api/auth/session`
-Response 200: info sesi berjalan (employeeId, role, branchId aktif) — dipakai frontend untuk cek status login
+Response 200: `{ "data": { "employeeId", "nama", "role", "branches", "activeBranchId" } }`
+Response 401: `error.code = "UNAUTHORIZED"` (cookie tidak ada, tidak valid, expired, atau karyawan sudah nonaktif/berubah role).
 
 ---
 
 ## 2. Employees (Admin only)
 
 ### `GET /api/employees?branchId=&status=`
-Response 200: `{ "data": Employee[] }`
+Response 200: `{ "data": EmployeePublic[] }` dengan
+`EmployeePublic = { employeeId, username, nama, role, cabangAktif, cabangTerafiliasi: string[], aktif }`.
+**`PIN_Hash` tidak pernah dikembalikan ke client.**
 
 ### `POST /api/employees`
 Body: `{ "name", "username", "pin", "role", "branchId" }`
-Response 201: `{ "data": Employee }`
+Response 201: `{ "data": { employeeId, username, name, role, branchId, isActive } }`
+Response 400: `error.code = "VALIDATION_ERROR"` (role/PIN/branch tidak valid, username sudah dipakai) — detail di `error.data.fields`.
 
 ### `PATCH /api/employees/:id`
 Body: partial `{ "name"?, "role"?, "branchId"?, "isActive"? }`
+- `role` divalidasi terhadap enum (typo ditolak, tidak lagi diam-diam jadi `karyawan`).
+- `branchId` wajib cabang yang ada dan aktif; `Cabang_Terafiliasi` **digabung** (tidak menimpa afiliasi lain), `Cabang_Aktif` ikut berubah.
 
 ### `POST /api/employees/:id/reset-pin`
-Body: `{ "pin": string }`
+Body: `{ "pin": string }` — sekaligus mereset `Failed_Login_Attempts`/`Locked_Until`.
 
 ---
 
 ## 3. Branches (Admin only)
 
 ### `GET /api/branches`
+Response 200: `{ "data": [{ branchId, nama, spreadsheetId, spreadsheetConfigured, aktif }] }`
+`spreadsheetId` dikembalikan **ter-mask** (mis. `1AbCdE…6789`) — ID Google internal tidak lagi dikirim utuh ke client; spreadsheet cabang tetap bisa dibuka lewat nama di `MYSHIFT_FOLDER`.
+
 ### `POST /api/branches`
 Body: `{ "name": string }`
+Response 201: `{ "data": { branchId, name, spreadsheetId, spreadsheetConfigured, aktif } }` (ID spreadsheet juga ter-mask)
+Response 503: `error.code = "SHEETS_SETUP_REQUIRED"` kalau provisioning belum dikonfigurasi.
+
+**Provisioning otomatis:** membuat spreadsheet cabang (copy `TEMPLATE_SPREADSHEET_ID` ke `MYSHIFT_FOLDER`, fallback spreadsheet baru), menulis header 9 sheet sesuai `SHEETS-SCHEMA.md`, lalu mengisi `Spreadsheet_ID`. Baris registry hanya ditulis setelah spreadsheet berhasil dibuat — tidak ada lagi cabang tanpa spreadsheet.
+
 ### `PATCH /api/branches/:id`
 Body: `{ "name"?, "isActive"? }`
 
@@ -65,69 +93,61 @@ Body: `{ "name"?, "isActive"? }`
 ## 4. Shift Templates (Admin only)
 
 ### `GET /api/shifts?branchId=`
-### `POST /api/shifts`
-Body: `{ "branchId", "name", "startTime", "endTime" }`
-### `PATCH /api/shifts/:id`
-### `DELETE /api/shifts/:id`
+### `POST /api/shifts` — Body: `{ "branchId", "name", "startTime", "endTime" }` → 201
+### `PATCH /api/shifts/:id` — Body: `{ "branchId", "name"?, "startTime"?, "endTime"? }`
+### `DELETE /api/shifts/:id?branchId=`
 
 ---
 
 ## 5. Schedules
 
 ### `GET /api/schedules?branchId=&startDate=&endDate=`
-Response 200: `{ "data": ScheduleEntry[] }` — dipakai untuk kalender admin & "jadwal saya" (difilter employeeId di frontend/backend sesuai role)
+Response 200: `{ "data": ScheduleEntry[] }`; `karyawan` difilter ke `employeeId` sendiri.
+
+### `GET /api/schedules/:id?branchId=`
+Response 200: `{ "data": { scheduleId, employeeId, employeeName, shiftId, shiftName, date, status, startedAt, branchId } }`
+Response 403 untuk `karyawan` yang bukan pemilik jadwal. Tanpa `branchId`, admin dicari lintas cabang aktif.
 
 ### `POST /api/schedules` (Admin)
-Body: `{ "employeeId", "shiftId", "date" }`
-Response 201: `{ "data": ScheduleEntry }`
-Response 200 dengan `data.conflictWarning: true` kalau bentrok terdeteksi (**tidak** di-block, hanya warning — sesuai keputusan PRD)
+Body: `{ "employeeId", "shiftId", "date", "branchId" }`
+Response 201: `{ "data": ScheduleEntry }` (field `conflictWarning: true` kalau bentrok terdeteksi — **tidak** di-block, sesuai keputusan PRD)
+Response 409: `error.code = "DUPLICATE_SUBMIT"` kalau kombinasi karyawan+shift+tanggal sudah ada.
 
-### `PATCH /api/schedules/:id` (Admin)
-Body: `{ "employeeId"?, "shiftId"?, "date"? }`
-
-### `DELETE /api/schedules/:id` (Admin)
+### `PATCH /api/schedules/:id` (Admin) — Body partial `{ employeeId?, shiftId?, date? }`
+### `DELETE /api/schedules/:id?branchId=` (Admin)
 
 ### `POST /api/schedules/:id/start-shift` (Karyawan pemilik jadwal)
-Menandai waktu mulai shift (bukan absensi formal — hanya timestamp).
-Response 200: `{ "data": { "scheduleId", "startedAt" } }`
+Menandai waktu mulai shift (bukan absensi formal). Response 200: `{ "data": { "scheduleId", "startedAt" } }`.
+Hanya dari status `scheduled` — kalau sudah `started`/`completed` → 400 `VALIDATION_ERROR`.
+
+### Lifecycle status shift
+`scheduled` → `started` → `completed`. Shift ditutup oleh `POST /api/schedules/:id/checklist/submit` (lihat §8).
 
 ---
 
 ## 6. Shift Swap
 
 ### `GET /api/swaps?status=&branchId=`
-Response 200: `{ "data": SwapRequest[] }`
-
-### `GET /api/swaps/eligible-partners?scheduleId=`
-Response 200: `{ "data": Employee[] }` — daftar karyawan yang jadwalnya "cocok" untuk ditukar (filter otomatis di backend, bukan bebas pilih siapapun)
-
-### `POST /api/swaps` (Karyawan)
-Body: `{ "scheduleId", "requestedWithEmployeeId", "reason" }`
-Response 201: `{ "data": SwapRequest }` (status: `pending`)
-
-### `POST /api/swaps/:id/approve` (Admin)
-### `POST /api/swaps/:id/reject` (Admin)
-Body: `{ "reason"? }`
+### `GET /api/swaps/eligible-partners?scheduleId=&branchId=`
+Response 200: daftar karyawan yang jadwalnya cocok untuk ditukar (filter di backend).
+### `POST /api/swaps` (Karyawan) — Body `{ "scheduleId", "requestedWithEmployeeId", "reason" }` → 201, status `pending`
+Response 409 `DUPLICATE_SUBMIT` kalau sudah ada pengajuan pending untuk jadwal itu.
+### `POST /api/swaps/:id/approve` (Admin) — menukar `Employee_ID` dua jadwal; kalau tulisan kedua gagal, yang pertama di-rollback.
+### `POST /api/swaps/:id/reject` (Admin) — Body `{ "reason"? }`
 
 ---
 
-## 7. Izin (Leave Requests)
-
-### `GET /api/izin-categories`
-Response 200: `{ "data": [{ "id", "label" }] }`
-
-### `POST /api/izin-categories` (Admin)
-### `DELETE /api/izin-categories/:id` (Admin)
+## 7. Izin
 
 ### `GET /api/izin?status=&branchId=`
-
-### `POST /api/izin` (Karyawan)
-Body: `{ "scheduleId", "categoryId", "note" }`
-Response 201: `{ "data": IzinRequest }` (status: `pending`)
-
+### `POST /api/izin` (Karyawan) — Body `{ "scheduleId", "categoryId", "note" }` → 201
+Validasi: pemilik jadwal, status jadwal masih `scheduled`, kategori ada & aktif, tidak ada pengajuan pending ganda.
 ### `POST /api/izin/:id/approve` (Admin)
-### `POST /api/izin/:id/reject` (Admin)
-Body: `{ "reason"? }`
+### `POST /api/izin/:id/reject` (Admin) — Body `{ "reason"? }`
+
+### `GET /api/izin-categories?branchId=` (semua role)
+### `POST /api/izin-categories` (Admin) → 201
+### `DELETE /api/izin-categories/:id?branchId=` (Admin) — soft delete (`Aktif=FALSE`)
 
 ---
 
@@ -135,74 +155,94 @@ Body: `{ "reason"? }`
 
 ### `GET /api/checklist-templates?branchId=&type=opening|closing` (Admin, Kepala Cabang)
 ### `POST /api/checklist-templates` (Admin, Kepala Cabang — scoped ke cabangnya)
-Body: `{ "branchId", "type", "description", "requiresPhoto": boolean }`
-### `PATCH /api/checklist-templates/:id`
+Body: `{ "type": "opening"|"closing", "description", "requiresPhoto": boolean }` → 201
+### `PATCH /api/checklist-templates/:id` — Body `{ description?, requiresPhoto?, active? }`
 ### `DELETE /api/checklist-templates/:id`
 
 ### `GET /api/schedules/:scheduleId/checklist`
-Response 200: `{ "data": { "items": ChecklistItem[], "completed": number, "total": number } }`
+Response 200: `{ "data": { "items": ChecklistItem[], "completed": number, "total": number } }` — hanya item `Aktif=TRUE`.
 
-### `POST /api/schedules/:scheduleId/checklist/:itemId/check` (Karyawan pemilik jadwal)
-Body: `{ "photoUrl"? }` (opsional, sesuai `requiresPhoto` item)
-Response 200: `{ "data": { "checked": true } }`
+### `POST /api/schedules/:scheduleId/checklist` (Karyawan pemilik jadwal)
+Body: `{ "itemId": string, "photoUrl"?: string }`
+Response 200: `{ "data": { "checked": true, "alreadyChecked": boolean } }`
+- Item non-aktif ditolak (404), `photoUrl` harus URL http(s) kalau dikirim.
+- Idempotent: centang ulang tidak menambah baris log kedua (foto diganti kalau dikirim ulang).
+
+> Catatan: v1.0.0 menulis `POST /api/schedules/:sid/checklist/:itemId/check`. Path itu tidak dipakai frontend; kontrak diselaraskan ke bentuk aktual di atas (itemId di body).
 
 ### `POST /api/schedules/:scheduleId/checklist/submit` (Karyawan)
-Response 200 kalau semua item checked
-Response 400: `error.code = "CHECKLIST_INCOMPLETE"` kalau ada item belum dicentang — **divalidasi di backend, bukan cuma frontend**
+Menutup shift: `started`/`scheduled` → `completed`.
+Response 200: `{ "data": { "submitted": true, "status": "completed" } }` (submit ulang idempotent: `alreadyClosed: true`).
+Response 400 `error.code = "CHECKLIST_INCOMPLETE"` + `error.data.fields` (item kosong) — divalidasi backend.
+Response 400 `error.code = "REQUIRED_FIELD_MISSING"` + `error.data.fields` kalau ada field handover wajib yang belum diisi.
 
 ---
 
 ## 9. Handover
 
-### `GET /api/handover-templates` (Admin)
-### `POST /api/handover-templates` (Admin)
-Body: `{ "label", "isRequired": boolean }`
-### `PATCH /api/handover-templates/:id`
+### `GET /api/handover-templates?branchId=` (Admin)
+### `POST /api/handover-templates` (Admin) — Body `{ "label", "isRequired": boolean }` → 201
+### `PATCH /api/handover-templates/:id` — Body `{ label?, isRequired? }`
 ### `DELETE /api/handover-templates/:id`
 
 ### `GET /api/schedules/:scheduleId/handover`
-Response 200: handover milik shift ini (kalau sudah diisi)
+Response 200: `{ "data": { "fields": [{ fieldId, label, isRequired, order, value }], "filledCount", "total", "completed" } }`
 
 ### `GET /api/schedules/:scheduleId/handover/previous`
-Response 200: handover dari shift sebelumnya (read-only, untuk konteks karyawan yang baru mulai shift)
+Response 200: handover shift sebelumnya (read-only) atau `null`.
 
 ### `POST /api/schedules/:scheduleId/handover` (Karyawan pemilik jadwal)
 Body: `{ "fields": [{ "fieldId", "value" }] }`
-Response 400: `error.code = "REQUIRED_FIELD_MISSING"` kalau field wajib kosong
+- `isRequired` **selalu** diambil dari `Handover_Template` di server, bukan dari body.
+- `fieldId` yang tidak ada di template → 400 `VALIDATION_ERROR` + `error.data.fields`.
+- Field wajib kosong → 400 `REQUIRED_FIELD_MISSING` + `error.data.fields`.
+- Upsert per (`Schedule_ID`, `Field_ID`): submit ulang menimpa, tidak menambah baris ganda.
+Response 200: `{ "data": { "submitted": true, "savedFields": number } }`
 
 ---
 
 ## 10. Dashboard & Laporan
 
 ### `GET /api/dashboard?branchId=` (Admin, Kepala Cabang)
-Response 200: `{ "data": { "activeBranches", "shiftsToday", "pendingApprovals", "branchStatus": [...] } }`
+Response 200: `{ "data": DashboardBranch[] }` dengan
+`DashboardBranch = { branchId, branchName, shiftsToday, shiftsStarted, shiftsCompleted, checklistPercent, handoverCount, pendingSwaps, pendingIzins }`.
+- `checklistPercent` = item tercentang / (jumlah shift hari ini × item checklist aktif), bukan "shift yang punya ≥1 centang".
+- "Hari ini" memakai kalender WIB (Asia/Jakarta), bukan UTC.
+- Cabang yang spreadsheetnya bermasalah di-skip (dicatat di log server) supaya tidak mematikan seluruh dashboard.
 
-### `GET /api/reports?branchId=&startDate=&endDate=` (Admin, Kepala Cabang)
-Response 200: rekap jadwal/swap/izin per periode
-
-### `GET /api/reports/export?branchId=&startDate=&endDate=&format=csv|xlsx`
-Response: file stream
+### `GET /api/laporan?branchId=&startDate=&endDate=&format=json|csv` (Admin, Kepala Cabang)
+### `POST /api/laporan?branchId=&startDate=&endDate=` — Body `{ "format": "json"|"csv" }`
+Response 200 `format=json` (default): `{ "data": LaporanRow[] }` dengan
+`LaporanRow = { type, id, date, employeeId, employeeName, details, status }` (rekap jadwal/swap/izin).
+Response 200 `format=csv`: file CSV (`text/csv`, CRLF, kutip sesuai RFC 4180, nilai yang diawali `= + - @` dinetralisasi, `employeeName` terisi).
+Response 400 `error.code = "VALIDATION_ERROR"` untuk format lain (mis. `xlsx` belum tersedia — lebih baik gagal jelas daripada mengirim JSON dengan ekstensi `.csv`).
 
 ---
 
 ## 11. Error Codes Standar
 
-| Code | Arti |
-|---|---|
-| `INVALID_CREDENTIALS` | Username/PIN salah |
-| `ACCOUNT_LOCKED` | Terkunci karena gagal login berkali-kali |
-| `UNAUTHORIZED` | Sesi tidak valid/expired |
-| `FORBIDDEN` | Role tidak punya akses ke resource ini |
-| `NOT_FOUND` | Resource tidak ditemukan |
-| `VALIDATION_ERROR` | Body request tidak valid (+ `data.fields` untuk detail per-field) |
-| `CHECKLIST_INCOMPLETE` | Submit checklist ditolak, ada item belum selesai |
-| `REQUIRED_FIELD_MISSING` | Handover submit ditolak, field wajib kosong |
-| `SCHEDULE_CONFLICT_WARNING` | Bukan error — flag informational di response sukses |
+| Code | HTTP | Arti |
+|---|---|---|
+| `INVALID_CREDENTIALS` | 401 | Username/PIN salah |
+| `ACCOUNT_LOCKED` | 423 | Terkunci karena gagal login berkali-kali (+ `error.data.lockedUntil`) |
+| `UNAUTHORIZED` | 401 | Sesi tidak valid/expired/nonaktif |
+| `FORBIDDEN` | 403 | Role tidak punya akses ke resource ini |
+| `NOT_FOUND` | 404 | Resource tidak ditemukan |
+| `VALIDATION_ERROR` | 400 | Body/parameter tidak valid (+ `error.data.fields`) |
+| `DUPLICATE_SUBMIT` | 409 | Pengajuan/jadwal identik sudah ada |
+| `CHECKLIST_INCOMPLETE` | 400 | Submit checklist ditolak, ada item belum selesai (+ `error.data.fields`) |
+| `REQUIRED_FIELD_MISSING` | 400 | Handover submit ditolak, field wajib kosong (+ `error.data.fields`) |
+| `SHEETS_SETUP_REQUIRED` | 503 | Spreadsheet cabang/template belum dikonfigurasi |
+| `INTERNAL_ERROR` | 500 | Kesalahan tak terduga — pesan internal (Google API) hanya masuk log server |
+| `SCHEDULE_CONFLICT_WARNING` | — | Bukan error — flag informational di response sukses |
+
+> `INVALID_REQUEST`, `INVALID_SESSION`, `PHOTO_REQUIRED`, `MISSING_BRANCH_ID`, `INVALID_BRANCH` (dipakai di kode sebelum audit) sudah dihapus dan dipetakan ke `VALIDATION_ERROR` / `UNAUTHORIZED` / `FORBIDDEN`.
 
 ---
 
 ## 12. Catatan Implementasi
 
-- Semua endpoint yang menulis ke Sheets (POST/PATCH/DELETE) harus idempotent-safe secara wajar — hindari double-submit dari double-tap di UI (disable tombol submit setelah diklik, bukan hanya server-side check).
+- Semua endpoint yang menulis ke Sheets (POST/PATCH/DELETE) harus idempotent-safe secara wajar — hindari double-submit dari double-tap di UI. Backend menahan duplikat (`DUPLICATE_SUBMIT`, upsert log, `alreadyChecked`/`alreadyClosed`).
 - Validasi checklist & handover **wajib** di backend (lihat §8, §9) — jangan andalkan disabled state di frontend saja, karena request API tetap bisa dipanggil langsung.
+- Penulisan baris memakai pencarian ulang berdasarkan ID saat menulis (bukan nomor baris hasil pembacaan lama), supaya baris tidak tertimpa saat ada perubahan bersamaan.
 - Tidak ada endpoint attendance/clock-in-out formal — hanya `start-shift` yang sekadar timestamp (lihat §5), sesuai batasan scope di PRD.

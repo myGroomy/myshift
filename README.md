@@ -27,17 +27,20 @@ Buat `.env.local` dari `.env.example`:
 ```env
 MYSHIFT_API_KEY=<random-string-min-32-chars>
 GOOGLE_SERVICE_ACCOUNT_EMAIL=<service-account-email>
-GOOGLE_PRIVATE_KEY=<service-account-private-key>
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=<service-account-private-key>
 REGISTRY_SPREADSHEET_ID=<registry-spreadsheet-id>
+MYSHIFT_SHARED_DRIVE_ID=<shared-drive-id>
+MYSHIFT_FOLDER=<shared-drive-folder-id>
 ```
 
 ### 2. Google Sheets Setup
 
 ```bash
 pnpm run setup:sheets
+MYSHIFT_SEED_PIN=123456 npx tsx scripts/seed-dummy-data.ts
 ```
 
-Script ini membuat Registry Spreadsheet dan spreadsheet per cabang dengan sheet yang dibutuhkan.
+`setup:sheets` menyiapkan Registry Spreadsheet. Seed command membuat spreadsheet cabang baru di folder Shared Drive yang dikonfigurasi dan mengisi data dummy (PIN dummy diambil dari `MYSHIFT_SEED_PIN`, tidak pernah ditulis di kode). Service account harus menjadi anggota Shared Drive dengan izin Content Manager.
 
 ### 3. Jalankan
 
@@ -46,6 +49,20 @@ pnpm run dev
 ```
 
 Buka http://localhost:3000
+
+## Development
+
+```bash
+pnpm lint        # oxlint
+pnpm typecheck   # tsc --noEmit
+pnpm test        # node --test (lib/domain, skema sheet, error contract)
+```
+
+## Catatan Keamanan
+
+- PIN di-hash scrypt (N=16384) dan **tidak pernah** dikembalikan API (baik plaintext maupun hash).
+- Login terkunci 15 menit setelah 5 percobaan gagal (`Employees.Failed_Login_Attempts` / `Locked_Until`), dengan delay tetap pada setiap kegagalan.
+- Sesi = cookie HMAC `httpOnly` + `SameSite=Lax` + `Secure` (production), berlaku 12 jam, dan role/status karyawan dicek ulang ke registry pada setiap request.
 
 ## Production
 

@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { request, AdminShell } from "@/components/phase1";
+import { Input, Select } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { DataTable, tdClass } from "@/components/ui/table";
+import { request } from "@/lib/api";
+import { AdminShell, StatusBadge } from "@/components/shell";
 import { useToast } from "@/components/ui/toast";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { controlClass } from "@/lib/ui";
+import { todayInWIB } from "@/lib/domain/date";
+import type { Branch } from "@/lib/types";
 
 type LaporanRow = {
   type: string;
@@ -18,79 +25,216 @@ type LaporanRow = {
   status: string;
 };
 
+type Session = {
+  role: "admin" | "kepala_cabang" | "karyawan";
+  activeBranchId: string;
+  branches: Branch[];
+};
+
 export default function LaporanPage() {
   const { toast } = useToast();
+  const [session, setSession] = useState<Session | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchFilter, setBranchFilter] = useState("");
+
   const [rows, setRows] = useState<LaporanRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [searched, setSearched] = useState(false);
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      request<Session>("/api/auth/session"),
+      request<Branch[]>("/api/branches").catch(() => []),
+    ])
+      .then(([s, bList]) => {
+        setSession(s);
+        setBranches(bList);
+        if (s.role === "admin") {
+          setBranchFilter(""); // all branches by default
+        } else {
+          setBranchFilter(s.activeBranchId || "");
+        }
+      })
+      .catch((e: unknown) => {
+        toast(e instanceof Error ? e.message : "Gagal memuat sesi", "error");
+      });
+  }, [toast]);
+
   async function load() {
     setLoading(true);
+    setSearched(true);
     try {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
+      if (branchFilter) params.set("branchId", branchFilter);
+
       const data = await request<LaporanRow[]>(`/api/laporan?${params}`);
       setRows(data);
-    } catch { setRows([]); }
-    setLoading(false);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal memuat laporan", "error");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function exportCSV() {
+    setExporting(true);
     try {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
-      const res = await fetch(`/api/laporan?${params}&format=csv`);
+      if (branchFilter) params.set("branchId", branchFilter);
+      params.set("format", "csv");
+
+      const res = await fetch(`/api/laporan?${params}`);
+      if (!res.ok) {
+        const text = await res.text();
+        let msg = `Gagal export (${res.status})`;
+        try {
+          const json = JSON.parse(text);
+          if (json.error?.message) msg = json.error.message;
+        } catch {}
+        throw new Error(msg);
+      }
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `laporan-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click(); URL.revokeObjectURL(url);
-      toast("Export CSV berhasil!", "success");
-    } catch { toast("Export gagal", "error"); }
+      a.href = url;
+      a.download = `laporan-${todayInWIB()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast("Export CSV berhasil diunduh!", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Export CSV gagal", "error");
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
-    <AdminShell title="Laporan">
-      <div className="mb-6 flex flex-wrap gap-3">
-        <input className="h-11 rounded-lg border-[#e5e5e5] px-4" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        <input className="h-11 rounded-lg border-[#e5e5e5] px-4" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-        <Button className="h-11 rounded-lg bg-[#0075de] text-white" onClick={load}>Cari</Button>
-        <Button className="h-11 rounded-lg border border-[#e5e5e5] bg-white" onClick={exportCSV}>Export CSV</Button>
+    <AdminShell
+      title="Laporan Operasional"
+      lead="Rekap jadwal terlaksana, riwayat tukar shift, dan izin staf per periode."
+    >
+      <div className="mb-6 grid max-w-4xl gap-3 sm:grid-cols-2 md:grid-cols-4">
+        {session?.role === "admin" && (
+          <div>
+            <Label htmlFor="branch-filter">Cabang</Label>
+            <Select
+              id="branch-filter"
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className={controlClass}
+            >
+              <option value="">Semua Cabang</option>
+              {branches.map((b) => (
+                <option key={b.branchId} value={b.branchId}>
+                  {b.nama}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+
+        <div>
+          <Label htmlFor="start-date">Dari Tanggal</Label>
+          <Input
+            id="start-date"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className={controlClass}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="end-date">Sampai Tanggal</Label>
+          <Input
+            id="end-date"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className={controlClass}
+          />
+        </div>
+
+        <div className="flex items-end gap-2">
+          <Button onClick={load} disabled={loading} size="lg" className="h-11 flex-1">
+            <span className="material-symbols-outlined text-sm">search</span>
+            {loading ? "Mencari..." : "Tampilkan"}
+          </Button>
+
+          <Button
+            onClick={exportCSV}
+            disabled={exporting}
+            variant="outline"
+            size="lg"
+            className="h-11"
+            title="Download file CSV spreadsheet"
+          >
+            <span className="material-symbols-outlined text-sm">download</span>
+            CSV
+          </Button>
+        </div>
       </div>
+
       {loading ? (
         <SkeletonTable rows={5} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon="assessment"
-          title="Belum ada laporan"
-          description="Atur filter tanggal lalu klik Cari untuk melihat laporan."
+          title={searched ? "Tidak ada catatan laporan" : "Belum memuat laporan"}
+          description={
+            searched
+              ? "Tidak ada aktivitas jadwal, swap, atau izin di rentang filter ini."
+              : "Atur tanggal atau klik Tampilkan untuk melihat data operasional."
+          }
+          actionLabel="Tampilkan Hari Ini"
+          actionHref="#"
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
-          <table className="w-full text-left text-sm">
-            <thead><tr className="bg-[#f0f1f5]"><th className="p-3">Tipe</th><th className="p-3">ID</th><th className="p-3">Tanggal</th><th className="p-3">Karyawan</th><th className="p-3">Detail</th><th className="p-3">Status</th></tr></thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <motion.tr
-                  key={`${row.type}-${row.id}-${i}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.05, duration: 0.3 }}
-                  className="border-t border-[#e5e5e5]"
-                >
-                  <td className="p-3">{row.type}</td>
-                  <td className="p-3">{row.id}</td>
-                  <td className="p-3">{row.date}</td>
-                  <td className="p-3">{row.employeeId}</td>
-                  <td className="p-3">{row.details}</td>
-                  <td className="p-3">{row.status}</td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={["Tipe", "ID", "Tanggal", "Karyawan", "Detail", "Status"]}>
+          {rows.map((row, i) => (
+            <motion.tr
+              key={`${row.type}-${row.id}-${i}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: Math.min(i * 0.02, 0.3), duration: 0.2 }}
+              className="border-t border-border"
+            >
+              <td className={tdClass}>
+                <span className="font-semibold text-foreground">{row.type}</span>
+              </td>
+              <td className={tdClass}>
+                <span className="font-mono text-xs text-muted-foreground">{row.id}</span>
+              </td>
+              <td className={tdClass}>{row.date}</td>
+              <td className={tdClass}>
+                <span className="font-medium text-foreground">
+                  {row.employeeName || row.employeeId}
+                </span>
+                {row.employeeName && (
+                  <span className="block font-mono text-[11px] text-muted-foreground">
+                    {row.employeeId}
+                  </span>
+                )}
+              </td>
+              <td className={tdClass}>{row.details}</td>
+              <td className={tdClass}>
+                <StatusBadge status={row.status} />
+              </td>
+            </motion.tr>
+          ))}
+        </DataTable>
       )}
     </AdminShell>
   );

@@ -1,3 +1,6 @@
+import { DomainError } from "@/lib/error-codes";
+import { canStartShift } from "@/lib/domain/shift-lifecycle";
+
 export type ScheduleLite = {
   scheduleId: string;
   employeeId: string;
@@ -12,26 +15,42 @@ export function eligiblePartnerIds(input: {
   schedules: ScheduleLite[];
   pendingSwapScheduleIds: string[];
 }) {
+  const pending = new Set(input.pendingSwapScheduleIds);
   return [...new Set(input.schedules
     .filter((schedule) =>
       schedule.scheduleId !== input.requesterScheduleId
       && schedule.employeeId !== input.requesterEmployeeId
       && schedule.date === input.requesterDate
       && schedule.status === "scheduled"
-      && !input.pendingSwapScheduleIds.includes(schedule.scheduleId)
+      && !pending.has(schedule.scheduleId)
     )
     .map((schedule) => schedule.employeeId))];
 }
 
 export function assertScheduleOwner(scheduleEmployeeId: string, actorId: string) {
-  if (scheduleEmployeeId !== actorId) throw new Error("Hanya pemilik jadwal yang boleh melakukan aksi ini");
+  if (scheduleEmployeeId !== actorId) {
+    throw new DomainError("FORBIDDEN", "Hanya pemilik jadwal yang boleh melakukan aksi ini");
+  }
 }
 
 export function assertCanStartShift(status: string) {
-  if (status !== "scheduled") throw new Error("Shift sudah dimulai atau selesai");
+  if (!canStartShift(status)) {
+    throw new DomainError("VALIDATION_ERROR", "Shift sudah dimulai atau selesai");
+  }
 }
 
-export function partnerScheduleOnDate(schedules: ScheduleLite[], employeeId: string, date: string, excludeScheduleId: string) {
+export function assertShiftNotClosed(status: string) {
+  if (status === "completed") {
+    throw new DomainError("VALIDATION_ERROR", "Shift sudah ditutup");
+  }
+}
+
+export function partnerScheduleOnDate<T extends ScheduleLite>(
+  schedules: T[],
+  employeeId: string,
+  date: string,
+  excludeScheduleId: string
+): T | undefined {
   return schedules.find((schedule) =>
     schedule.employeeId === employeeId
     && schedule.date === date

@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api-response";
+import { fail, handleRouteError, ok } from "@/lib/api-response";
 import { assertScheduleOwner } from "@/lib/domain/ops-validation";
 import { loadHandoverLogs, loadHandoverTemplates, loadSchedules } from "@/lib/google/ops-data";
 import { isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
@@ -13,39 +13,39 @@ export async function GET(request: NextRequest, context: Context) {
   try {
     const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
     const { records: schedules } = await loadSchedules(branchId);
-    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
-    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan", 404);
+    const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
+    if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
     if (auth.role === "karyawan") assertScheduleOwner(schedule.employeeId, auth.employeeId);
 
-    const scheduleDate = schedule.date;
-    const employeeId = schedule.employeeId;
-
-    const prevSchedule = schedules
-      .filter((s) => s.employeeId === employeeId && s.date < scheduleDate && s.scheduleId !== scheduleId)
+    const previous = schedules
+      .filter(
+        (entry) =>
+          entry.employeeId === schedule.employeeId &&
+          entry.date < schedule.date &&
+          entry.scheduleId !== scheduleId
+      )
       .sort((a, b) => b.date.localeCompare(a.date))[0];
 
-    if (!prevSchedule) return ok(null);
+    if (!previous) return ok(null);
 
-    const { records: templates } = await loadHandoverTemplates(branchId);
-    const { records: logs } = await loadHandoverLogs(branchId, prevSchedule.scheduleId);
-    const existingFields = logs.reduce<Record<string, string>>((acc, l) => {
-      acc[l.fieldId] = l.isi;
-      return acc;
-    }, {});
+    const [{ records: templates }, { records: logs }] = await Promise.all([
+      loadHandoverTemplates(branchId),
+      loadHandoverLogs(branchId, previous.scheduleId),
+    ]);
+    const existingFields = new Map(logs.map((log) => [log.fieldId, log.isi]));
 
-    const fields = templates
-      .sort((a, b) => a.order - b.order)
-      .map((t) => ({
-        fieldId: t.fieldId,
-        label: t.label,
-        isRequired: t.isRequired,
-        value: existingFields[t.fieldId] ?? "",
-      }));
-
-    return ok({ scheduleId: prevSchedule.scheduleId, fields });
+    return ok({
+      scheduleId: previous.scheduleId,
+      fields: [...templates]
+        .sort((a, b) => a.order - b.order)
+        .map((template) => ({
+          fieldId: template.fieldId,
+          label: template.label,
+          isRequired: template.isRequired,
+          value: existingFields.get(template.fieldId) ?? "",
+        })),
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Gagal memuat handover sebelumnya";
-    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
-    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
+    return handleRouteError(error, "Gagal memuat handover sebelumnya");
   }
 }

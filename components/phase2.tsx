@@ -1,253 +1,810 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DataTable, tdClass } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonTable } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import { KaryawanShell } from "@/components/bottom-nav";
-import { Footer } from "@/components/nav";
+import { AdminShell, RejectButton, StatusBadge } from "@/components/shell";
+import { request } from "@/lib/api";
+import type { Branch, Category, Izin, Schedule, Swap } from "@/lib/types";
+import { controlClass } from "@/lib/ui";
 
-export type Branch = { branchId: string; nama: string; aktif: boolean; spreadsheetId: string };
-export type Employee = { employeeId: string; username: string; nama: string; role: string; cabangAktif: string; aktif: boolean };
-export type Schedule = { scheduleId: string; employeeId: string; shiftId: string; date: string; status: string };
-export type Swap = { swapId: string; scheduleId: string; requestedBy: string; requestedWith: string; reason: string; status: string; approvedBy: string; rejectReason: string };
-export type Izin = { izinId: string; employeeId: string; scheduleId: string; categoryId: string; note: string; status: string; approvedBy: string; rejectReason: string };
-export type Category = { id: string; label: string; aktif: boolean };
-
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  const body = await response.json();
-  if (!response.ok || !body.success) throw new Error(body.error?.message ?? "Request gagal");
-  return body.data as T;
+function msg(error: unknown): string {
+  return error instanceof Error ? error.message : "Terjadi kesalahan";
 }
 
-function statusBadge(status: string) {
-  const cls = status === "approved" ? "bg-[#0075de] text-white" : status === "rejected" ? "bg-[#dc3545] text-white" : "bg-[#615d59] text-white";
-  return <span className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>{status}</span>;
-}
+type Session = {
+  employeeId: string;
+  nama: string;
+  role: "admin" | "kepala_cabang" | "karyawan";
+  activeBranchId: string;
+  branches: Branch[];
+};
 
-function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <main className="min-h-screen bg-[#faf9fe] text-[#000000]">
-      <div className="mx-auto max-w-6xl px-4 py-6">
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-6 text-2xl font-bold"
-        >
-          {title}
-        </motion.h1>
-        {children}
-        <Footer />
-      </div>
-    </main>
-  );
-}
+type SwapPartner = {
+  employeeId: string;
+  name: string;
+  role: string;
+  branchId: string;
+};
 
 export function SwapAjukanPage() {
   const router = useRouter();
-  const [session, setSession] = useState<{ employeeId: string; nama: string; activeBranchId: string; branches: Branch[] } | null>(null);
+  const { toast } = useToast();
+  const [session, setSession] = useState<Session | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [scheduleId, setScheduleId] = useState("");
   const [partnerId, setPartnerId] = useState("");
   const [reason, setReason] = useState("");
-  const [partners, setPartners] = useState<Employee[]>([]);
+  const [partners, setPartners] = useState<SwapPartner[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  useEffect(() => { request<{ employeeId: string; nama: string; activeBranchId: string; branches: Branch[] }>("/api/auth/session").then((s) => { setSession(s); }).catch(() => {}); }, []);
+  useEffect(() => {
+    request<Session>("/api/auth/session")
+      .then(setSession)
+      .catch((e: unknown) => toast(msg(e), "error"));
+  }, [toast]);
+
   useEffect(() => {
     if (!session?.activeBranchId) return;
-    void request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`).then(setSchedules).catch(() => {});
-  }, [session?.activeBranchId]);
+    request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`)
+      .then(setSchedules)
+      .catch((e: unknown) => toast(msg(e), "error"));
+  }, [session?.activeBranchId, toast]);
+
   useEffect(() => {
-    if (!scheduleId || !session?.activeBranchId) { setPartners([]); return; }
+    if (!scheduleId || !session?.activeBranchId) {
+      setPartners([]);
+      return;
+    }
     const params = new URLSearchParams({ scheduleId, branchId: session.activeBranchId });
-    void request<Employee[]>(`/api/swaps/eligible-partners?${params}`).then(setPartners).catch(() => setPartners([]));
-  }, [scheduleId, session?.activeBranchId]);
+    request<SwapPartner[]>(`/api/swaps/eligible-partners?${params}`)
+      .then(setPartners)
+      .catch((e: unknown) => {
+        toast(msg(e), "error");
+        setPartners([]);
+      });
+  }, [scheduleId, session?.activeBranchId, toast]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError(""); setLoading(true);
-    try { await request("/api/swaps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduleId, requestedWithEmployeeId: partnerId, reason }) }); router.push("/riwayat"); }
-    catch (e) { setError(e instanceof Error ? e.message : "Gagal"); } finally { setLoading(false); }
+    if (!scheduleId || !partnerId || !reason.trim()) return;
+    setLoading(true);
+    try {
+      await request("/api/swaps", {
+        method: "POST",
+        body: JSON.stringify({
+          scheduleId,
+          requestedWithEmployeeId: partnerId,
+          reason: reason.trim(),
+        }),
+      });
+      toast("Pengajuan swap terkirim", "success");
+      router.push("/riwayat");
+    } catch (e) {
+      toast(msg(e), "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const mySchedules = schedules.filter((s) => s.employeeId === session?.employeeId && s.status === "scheduled");
+  const mySchedules = schedules.filter(
+    (s) => s.employeeId === session?.employeeId && s.status === "scheduled"
+  );
 
   return (
-    <KaryawanShell title="Ajukan Swap Shift">
+    <KaryawanShell
+      title="Ajukan Tukar Shift (Swap)"
+      lead="Pilih jadwal Anda dan rekan yang bertugas di tanggal yang sama untuk saling bertukar."
+    >
       <form onSubmit={submit} className="mb-6 grid max-w-xl gap-4">
-        <div><Label>Jadwal Saya</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">Pilih jadwal</option>{mySchedules.map((s) => <option key={s.scheduleId} value={s.scheduleId}>{s.date} · {s.shiftId}</option>)}</select></div>
-        <div><Label>Partner Tukar</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={partnerId} onChange={(e) => setPartnerId(e.target.value)}><option value="">Pilih partner</option>{partners.map((p) => <option key={p.employeeId} value={p.employeeId}>{p.nama} ({p.employeeId})</option>)}</select></div>
-        <div><Label>Alasan</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan swap" required className="rounded-lg border-[#e5e5e5] px-4" /></div>
-        <Button type="submit" disabled={loading || !scheduleId || !partnerId} className="h-11 rounded-lg bg-[#0075de] text-white">{loading ? "Mengajukan..." : "Ajukan Swap"}</Button>
+        <div>
+          <Label htmlFor="jadwal-swap">Jadwal Saya yang Ingin Ditukar</Label>
+          <Select
+            id="jadwal-swap"
+            value={scheduleId}
+            onChange={(e) => setScheduleId(e.target.value)}
+            className={controlClass}
+            required
+          >
+            <option value="">Pilih jadwal</option>
+            {mySchedules.map((s) => (
+              <option key={s.scheduleId} value={s.scheduleId}>
+                {s.date} · {s.shiftId} ({s.scheduleId})
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="partner-swap">Rekan Kerja Pengganti (Sama Tanggal)</Label>
+          <Select
+            id="partner-swap"
+            value={partnerId}
+            onChange={(e) => setPartnerId(e.target.value)}
+            disabled={!scheduleId}
+            className={controlClass}
+            required
+          >
+            <option value="">
+              {!scheduleId
+                ? "Pilih jadwal Anda terlebih dahulu"
+                : partners.length === 0
+                ? "Tidak ada rekan yang cocok di tanggal ini"
+                : "Pilih rekan kerja"}
+            </option>
+            {partners.map((p) => (
+              <option key={p.employeeId} value={p.employeeId}>
+                {p.name} ({p.employeeId})
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="alasan-swap">Alasan Tukar Shift</Label>
+          <Input
+            id="alasan-swap"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Misal: Keperluan keluarga mendesak"
+            required
+            className={controlClass}
+          />
+        </div>
+
+        <Button
+          type="submit"
+          size="lg"
+          disabled={loading || !scheduleId || !partnerId || !reason.trim()}
+          className="h-11"
+        >
+          {loading ? "Mengajukan..." : "Kirim Permohonan Swap"}
+        </Button>
       </form>
-      {error && <p className="mb-4 text-[#dc3545]">{error}</p>}
-      <Footer />
     </KaryawanShell>
   );
 }
 
 export function RiwayatPage() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<"swap" | "izin">("swap");
-  const [items, setItems] = useState<(Swap | Izin)[]>([]);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [swaps, setSwaps] = useState<Swap[]>([]);
+  const [izins, setIzins] = useState<Izin[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    const endpoint = tab === "swap" ? "/api/swaps" : "/api/izin";
-    void request<(Swap | Izin)[]>(endpoint).then(setItems).catch(() => setItems([])).finally(() => setLoading(false));
-  }, [tab]);
+    const p1 = request<Swap[]>("/api/swaps").then(setSwaps).catch(() => setSwaps([]));
+    const p2 = request<Izin[]>("/api/izin").then(setIzins).catch(() => setIzins([]));
+    Promise.all([p1, p2])
+      .catch((e: unknown) => toast(msg(e), "error"))
+      .finally(() => setLoading(false));
+  }, [toast]);
 
-  const itemId = (item: Swap | Izin) => "swapId" in item ? item.swapId : item.izinId;
-  const itemScheduleId = (item: Swap | Izin) => item.scheduleId;
+  const rawList = tab === "swap" ? swaps : izins;
+  const filteredList =
+    statusFilter === "all"
+      ? rawList
+      : rawList.filter((item) => item.status === statusFilter);
 
   return (
-    <KaryawanShell title="Riwayat">
-      <div className="mb-4 flex gap-2">
-        <Button variant={tab === "swap" ? "default" : "outline"} onClick={() => setTab("swap")} className={tab === "swap" ? "bg-[#0075de] text-white" : ""}>Swap</Button>
-        <Button variant={tab === "izin" ? "default" : "outline"} onClick={() => setTab("izin")} className={tab === "izin" ? "bg-[#0075de] text-white" : ""}>Izin</Button>
-      </div>
-      {loading ? <p className="text-[#615d59]">Memuat...</p> : items.length === 0 ? <p className="text-[#615d59]">Tidak ada data.</p> : (
-        <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
-          <table className="w-full text-left text-sm">
-            <thead><tr className="bg-[#f0f1f5]"><th className="p-3">ID</th><th className="p-3">Jadwal</th><th className="p-3">Status</th><th className="p-3">Aksi</th></tr></thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={itemId(item)} className="border-t border-[#e5e5e5]">
-                  <td className="p-3">{itemId(item)}</td>
-                  <td className="p-3">{itemScheduleId(item)}</td>
-                  <td className="p-3">{statusBadge(item.status)}</td>
-                  <td className="p-3"><Button variant="link" onClick={() => router.push(`/shift/${itemScheduleId(item)}`)} className="text-[#0075de]">Lihat</Button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <KaryawanShell
+      title="Riwayat Pengajuan"
+      lead="Pantau status persetujuan permohonan tukar shift dan izin Anda."
+    >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label="Kategori pengajuan" className="flex rounded-lg border border-border p-1 bg-card">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "swap"}
+            onClick={() => setTab("swap")}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              tab === "swap"
+                ? "bg-accent font-semibold text-accent-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Tukar Shift ({swaps.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "izin"}
+            onClick={() => setTab("izin")}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              tab === "izin"
+                ? "bg-accent font-semibold text-accent-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Izin ({izins.length})
+          </button>
         </div>
+
+        <div className="w-44">
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={controlClass}
+            aria-label="Filter status pengajuan"
+          >
+            <option value="all">Semua Status</option>
+            <option value="pending">Menunggu (Pending)</option>
+            <option value="approved">Disetujui</option>
+            <option value="rejected">Ditolak</option>
+          </Select>
+        </div>
+      </div>
+
+      {loading ? (
+        <SkeletonTable rows={4} />
+      ) : filteredList.length === 0 ? (
+        <EmptyState
+          icon="history"
+          title={`Belum ada pengajuan ${tab}`}
+          description={
+            statusFilter === "all"
+              ? `Anda belum pernah mengajukan ${tab} shift.`
+              : `Tidak ada riwayat ${tab} dengan status ${statusFilter}.`
+          }
+          actionLabel={tab === "swap" ? "Ajukan Swap" : "Ajukan Izin"}
+          actionHref={tab === "swap" ? "/swap/ajukan" : "/izin/ajukan"}
+        />
+      ) : tab === "swap" ? (
+        <DataTable columns={["ID", "Jadwal", "Rekan Tukar", "Alasan", "Status", "Keterangan"]}>
+          {(filteredList as Swap[]).map((item) => (
+            <tr key={item.swapId} className="border-t border-border">
+              <td className={tdClass}>
+                <span className="font-mono text-xs">{item.swapId}</span>
+              </td>
+              <td className={tdClass}>
+                <Link
+                  href={`/shift/${item.scheduleId}`}
+                  className="font-mono text-xs text-primary underline-offset-4 hover:underline"
+                >
+                  {item.scheduleId}
+                </Link>
+              </td>
+              <td className={tdClass}>{item.requestedWith}</td>
+              <td className={tdClass}>{item.reason}</td>
+              <td className={tdClass}>
+                <StatusBadge status={item.status} />
+              </td>
+              <td className={tdClass}>
+                <span className="text-xs text-muted-foreground">
+                  {item.status === "approved"
+                    ? `Disetujui (${item.approvedBy || "Admin"})`
+                    : item.status === "rejected"
+                    ? `Ditolak: ${item.rejectReason || "-"}`
+                    : "Menunggu persetujuan"}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </DataTable>
+      ) : (
+        <DataTable columns={["ID", "Jadwal", "Kategori", "Catatan", "Status", "Keterangan"]}>
+          {(filteredList as Izin[]).map((item) => (
+            <tr key={item.izinId} className="border-t border-border">
+              <td className={tdClass}>
+                <span className="font-mono text-xs">{item.izinId}</span>
+              </td>
+              <td className={tdClass}>
+                <Link
+                  href={`/shift/${item.scheduleId}`}
+                  className="font-mono text-xs text-primary underline-offset-4 hover:underline"
+                >
+                  {item.scheduleId}
+                </Link>
+              </td>
+              <td className={tdClass}>{item.categoryId}</td>
+              <td className={tdClass}>{item.note}</td>
+              <td className={tdClass}>
+                <StatusBadge status={item.status} />
+              </td>
+              <td className={tdClass}>
+                <span className="text-xs text-muted-foreground">
+                  {item.status === "approved"
+                    ? `Disetujui (${item.approvedBy || "Admin"})`
+                    : item.status === "rejected"
+                    ? `Ditolak: ${item.rejectReason || "-"}`
+                    : "Menunggu persetujuan"}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </DataTable>
       )}
-      <Footer />
     </KaryawanShell>
   );
 }
 
 export function SwapApprovalPage() {
-  const [items, setItems] = useState<Swap[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const [session, setSession] = useState<Session | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending");
 
-  useEffect(() => { void request<Swap[]>("/api/swaps?status=pending").then(setItems).catch(() => setItems([])).finally(() => setLoading(false)); }, []);
+  const [items, setItems] = useState<Swap[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      request<Session>("/api/auth/session"),
+      request<Branch[]>("/api/branches").catch(() => []),
+    ])
+      .then(([s, bList]) => {
+        setSession(s);
+        setBranches(bList);
+        const initial = s.activeBranchId || bList[0]?.branchId || s.branches[0]?.branchId || "";
+        setBranchId(initial);
+        if (initial) void load(initial, statusFilter);
+      })
+      .catch((e: unknown) => {
+        setLoadError(msg(e));
+        setLoading(false);
+      });
+  }, []);
+
+  function load(targetBranch: string, targetStatus: string) {
+    if (!targetBranch) return;
+    setLoading(true);
+    setLoadError(null);
+    const params = new URLSearchParams({ branchId: targetBranch });
+    if (targetStatus !== "all") params.set("status", targetStatus);
+
+    request<Swap[]>(`/api/swaps?${params}`)
+      .then(setItems)
+      .catch((e: unknown) => {
+        const m = msg(e);
+        setLoadError(m);
+        toast(m, "error");
+        setItems([]);
+      })
+      .finally(() => setLoading(false));
+  }
+
+  function handleBranchChange(b: string) {
+    setBranchId(b);
+    load(b, statusFilter);
+  }
+
+  function handleStatusChange(s: string) {
+    setStatusFilter(s);
+    load(branchId, s);
+  }
 
   async function approve(swapId: string) {
-    try { await request(`/api/swaps/${swapId}/approve`, { method: "POST" }); setItems(items.filter((item) => item.swapId !== swapId)); }
-    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+    try {
+      await request(`/api/swaps/${swapId}/approve?branchId=${branchId}`, { method: "POST" });
+      setItems((prev) => prev.filter((item) => item.swapId !== swapId));
+      toast("Permohonan swap disetujui", "success");
+      load(branchId, statusFilter);
+    } catch (e) {
+      toast(msg(e), "error");
+    }
   }
-  async function reject(swapId: string) {
-    const reason = prompt("Alasan penolakan:");
-    if (!reason) return;
-    try { await request(`/api/swaps/${swapId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }); setItems(items.filter((item) => item.swapId !== swapId)); }
-    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+
+  async function reject(swapId: string, reason: string) {
+    try {
+      await request(`/api/swaps/${swapId}/reject?branchId=${branchId}`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      setItems((prev) => prev.filter((item) => item.swapId !== swapId));
+      toast("Permohonan swap ditolak", "success");
+      load(branchId, statusFilter);
+    } catch (e) {
+      toast(msg(e), "error");
+    }
   }
 
   return (
-    <AdminShell title="Approval Swap">
-      <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
-        <table className="w-full text-left text-sm">
-          <thead><tr className="bg-[#f0f1f5]"><th className="p-3">Swap ID</th><th className="p-3">Jadwal</th><th className="p-3">Diminta</th><th className="p-3">Alasan</th><th className="p-3">Aksi</th></tr></thead>
-          <tbody>
-            {loading ? <tr><td className="p-3" colSpan={5}>Memuat...</td></tr> : items.map((item) => (
-              <tr key={item.swapId} className="border-t border-[#e5e5e5]">
-                <td className="p-3">{item.swapId}</td>
-                <td className="p-3">{item.scheduleId}</td>
-                <td className="p-3">{item.requestedWith}</td>
-                <td className="p-3">{item.reason}</td>
-                <td className="p-3"><div className="flex gap-2"><Button variant="default" onClick={() => approve(item.swapId)} className="bg-[#0075de]">Setuju</Button><Button variant="destructive" onClick={() => reject(item.swapId)}>Tolak</Button></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <AdminShell
+      title="Approval Tukar Shift"
+      lead="Tinjau dan setujui permohonan pertukaran shift antar karyawan per cabang."
+    >
+      <div className="mb-6 flex flex-wrap items-end gap-3">
+        {session?.role === "admin" && (
+          <div className="w-56">
+            <Label htmlFor="branch-filter">Pilih Cabang</Label>
+            <Select
+              id="branch-filter"
+              value={branchId}
+              onChange={(e) => handleBranchChange(e.target.value)}
+              className={controlClass}
+            >
+              {branches.map((b) => (
+                <option key={b.branchId} value={b.branchId}>
+                  {b.nama} ({b.branchId})
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+
+        <div className="w-48">
+          <Label htmlFor="status-filter">Filter Status</Label>
+          <Select
+            id="status-filter"
+            value={statusFilter}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className={controlClass}
+          >
+            <option value="pending">Menunggu (Pending)</option>
+            <option value="approved">Disetujui</option>
+            <option value="rejected">Ditolak</option>
+            <option value="all">Semua Status</option>
+          </Select>
+        </div>
       </div>
+
+      {loading ? (
+        <SkeletonTable rows={4} />
+      ) : loadError ? (
+        <div className="rounded-lg border border-destructive-wash bg-destructive-wash p-6 text-center">
+          <p className="text-sm text-destructive-foreground">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={() => load(branchId, statusFilter)} className="mt-3">
+            Coba Lagi
+          </Button>
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon="check_circle"
+          title="Tidak ada permohonan"
+          description={
+            statusFilter === "pending"
+              ? "Tidak ada permohonan swap yang menunggu persetujuan di cabang ini."
+              : `Tidak ada permohonan swap dengan status ${statusFilter}.`
+          }
+        />
+      ) : (
+        <DataTable columns={["ID", "Jadwal", "Pemohon", "Rekan Tukar", "Alasan", "Status", "Aksi"]}>
+          {items.map((item) => (
+            <tr key={item.swapId} className="border-t border-border">
+              <td className={tdClass}>
+                <span className="font-mono text-xs">{item.swapId}</span>
+              </td>
+              <td className={tdClass}>
+                <span className="font-mono text-xs">{item.scheduleId}</span>
+              </td>
+              <td className={tdClass}>{item.requestedBy}</td>
+              <td className={tdClass}>{item.requestedWith}</td>
+              <td className={tdClass}>{item.reason}</td>
+              <td className={tdClass}>
+                <StatusBadge status={item.status} />
+              </td>
+              <td className={tdClass}>
+                {item.status === "pending" ? (
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => approve(item.swapId)}>
+                      Setuju
+                    </Button>
+                    <RejectButton onReject={(reason) => reject(item.swapId, reason)} />
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {item.status === "approved"
+                      ? `Oleh ${item.approvedBy || "Admin"}`
+                      : `Ditolak: ${item.rejectReason || "-"}`}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </DataTable>
+      )}
     </AdminShell>
   );
 }
 
 export function IzinAjukanPage() {
   const router = useRouter();
-  const [session, setSession] = useState<{ employeeId: string; activeBranchId: string } | null>(null);
+  const { toast } = useToast();
+  const [session, setSession] = useState<Session | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [scheduleId, setScheduleId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  useEffect(() => { request<{ employeeId: string; activeBranchId: string }>("/api/auth/session").then(setSession).catch(() => {}); }, []);
+  useEffect(() => {
+    request<Session>("/api/auth/session")
+      .then(setSession)
+      .catch((e: unknown) => toast(msg(e), "error"));
+  }, [toast]);
+
   useEffect(() => {
     if (!session?.activeBranchId) return;
-    void request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`).then(setSchedules).catch(() => {});
-    void request<Category[]>(`/api/izin-categories?branchId=${session.activeBranchId}`).then(setCategories).catch(() => {});
-  }, [session?.activeBranchId]);
+    request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`)
+      .then(setSchedules)
+      .catch((e: unknown) => toast(msg(e), "error"));
+
+    request<Category[]>(`/api/izin-categories?branchId=${session.activeBranchId}`)
+      .then(setCategories)
+      .catch((e: unknown) => toast(msg(e), "error"));
+  }, [session?.activeBranchId, toast]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError(""); setLoading(true);
-    try { await request("/api/izin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduleId, categoryId, note }) }); router.push("/riwayat"); }
-    catch (e) { setError(e instanceof Error ? e.message : "Gagal"); } finally { setLoading(false); }
+    if (!scheduleId || !categoryId || !note.trim()) return;
+    setLoading(true);
+    try {
+      await request("/api/izin", {
+        method: "POST",
+        body: JSON.stringify({ scheduleId, categoryId, note: note.trim() }),
+      });
+      toast("Pengajuan izin terkirim", "success");
+      router.push("/riwayat");
+    } catch (e) {
+      toast(msg(e), "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
+  const mySchedules = schedules.filter(
+    (s) => s.employeeId === session?.employeeId && s.status === "scheduled"
+  );
+  const activeCategories = categories.filter((c) => c.aktif);
+
   return (
-    <KaryawanShell title="Ajukan Izin">
+    <KaryawanShell
+      title="Ajukan Izin Tidak Masuk"
+      lead="Pilih jadwal shift dan alasan ketidakhadiran untuk diteruskan ke Admin."
+    >
       <form onSubmit={submit} className="mb-6 grid max-w-lg gap-4">
-        <div><Label>Jadwal</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">Pilih jadwal</option>{schedules.map((s) => <option key={s.scheduleId} value={s.scheduleId}>{s.date} · {s.shiftId}</option>)}</select></div>
-        <div><Label>Kategori</Label><select className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Pilih kategori</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-        <div><Label>Catatan</Label><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Alasan izin" required className="rounded-lg border-[#e5e5e5] px-4" /></div>
-        <Button type="submit" disabled={loading || !scheduleId || !categoryId} className="h-11 rounded-lg bg-[#0075de] text-white">{loading ? "Mengajukan..." : "Ajukan Izin"}</Button>
+        <div>
+          <Label htmlFor="jadwal-izin">Jadwal Shift yang Ditinggalkan</Label>
+          <Select
+            id="jadwal-izin"
+            value={scheduleId}
+            onChange={(e) => setScheduleId(e.target.value)}
+            className={controlClass}
+            required
+          >
+            <option value="">Pilih jadwal</option>
+            {mySchedules.map((s) => (
+              <option key={s.scheduleId} value={s.scheduleId}>
+                {s.date} · {s.shiftId} ({s.scheduleId})
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="kategori-izin">Kategori Izin</Label>
+          <Select
+            id="kategori-izin"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className={controlClass}
+            required
+          >
+            <option value="">Pilih kategori</option>
+            {activeCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="catatan-izin">Keterangan / Alasan</Label>
+          <Input
+            id="catatan-izin"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Misal: Sakit demam berobat ke dokter"
+            required
+            className={controlClass}
+          />
+        </div>
+
+        <Button
+          type="submit"
+          size="lg"
+          disabled={loading || !scheduleId || !categoryId || !note.trim()}
+          className="h-11"
+        >
+          {loading ? "Mengajukan..." : "Kirim Permohonan Izin"}
+        </Button>
       </form>
-      {error && <p className="mb-4 text-[#dc3545]">{error}</p>}
-      <Footer />
     </KaryawanShell>
   );
 }
 
 export function IzinApprovalPage() {
-  const [items, setItems] = useState<Izin[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const [session, setSession] = useState<Session | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending");
 
-  useEffect(() => { void request<Izin[]>("/api/izin?status=pending").then(setItems).catch(() => setItems([])).finally(() => setLoading(false)); }, []);
+  const [items, setItems] = useState<Izin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      request<Session>("/api/auth/session"),
+      request<Branch[]>("/api/branches").catch(() => []),
+    ])
+      .then(([s, bList]) => {
+        setSession(s);
+        setBranches(bList);
+        const initial = s.activeBranchId || bList[0]?.branchId || s.branches[0]?.branchId || "";
+        setBranchId(initial);
+        if (initial) void load(initial, statusFilter);
+      })
+      .catch((e: unknown) => {
+        setLoadError(msg(e));
+        setLoading(false);
+      });
+  }, []);
+
+  function load(targetBranch: string, targetStatus: string) {
+    if (!targetBranch) return;
+    setLoading(true);
+    setLoadError(null);
+    const params = new URLSearchParams({ branchId: targetBranch });
+    if (targetStatus !== "all") params.set("status", targetStatus);
+
+    request<Izin[]>(`/api/izin?${params}`)
+      .then(setItems)
+      .catch((e: unknown) => {
+        const m = msg(e);
+        setLoadError(m);
+        toast(m, "error");
+        setItems([]);
+      })
+      .finally(() => setLoading(false));
+  }
+
+  function handleBranchChange(b: string) {
+    setBranchId(b);
+    load(b, statusFilter);
+  }
+
+  function handleStatusChange(s: string) {
+    setStatusFilter(s);
+    load(branchId, s);
+  }
 
   async function approve(izinId: string) {
-    try { await request(`/api/izin/${izinId}/approve`, { method: "POST" }); setItems(items.filter((item) => item.izinId !== izinId)); }
-    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+    try {
+      await request(`/api/izin/${izinId}/approve?branchId=${branchId}`, { method: "POST" });
+      setItems((prev) => prev.filter((item) => item.izinId !== izinId));
+      toast("Permohonan izin disetujui", "success");
+      load(branchId, statusFilter);
+    } catch (e) {
+      toast(msg(e), "error");
+    }
   }
-  async function reject(izinId: string) {
-    const reason = prompt("Alasan penolakan:");
-    if (!reason) return;
-    try { await request(`/api/izin/${izinId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }); setItems(items.filter((item) => item.izinId !== izinId)); }
-    catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
+
+  async function reject(izinId: string, reason: string) {
+    try {
+      await request(`/api/izin/${izinId}/reject?branchId=${branchId}`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      setItems((prev) => prev.filter((item) => item.izinId !== izinId));
+      toast("Permohonan izin ditolak", "success");
+      load(branchId, statusFilter);
+    } catch (e) {
+      toast(msg(e), "error");
+    }
   }
 
   return (
-    <AdminShell title="Approval Izin">
-      <div className="overflow-x-auto rounded-lg border border-[#e5e5e5]">
-        <table className="w-full text-left text-sm">
-          <thead><tr className="bg-[#f0f1f5]"><th className="p-3">Izin ID</th><th className="p-3">Karyawan</th><th className="p-3">Jadwal</th><th className="p-3">Status</th><th className="p-3">Aksi</th></tr></thead>
-          <tbody>
-            {loading ? <tr><td className="p-3" colSpan={5}>Memuat...</td></tr> : items.map((item) => (
-              <tr key={item.izinId} className="border-t border-[#e5e5e5]">
-                <td className="p-3">{item.izinId}</td>
-                <td className="p-3">{item.employeeId}</td>
-                <td className="p-3">{item.scheduleId}</td>
-                <td className="p-3">{statusBadge(item.status)}</td>
-                <td className="p-3"><div className="flex gap-2"><Button variant="default" onClick={() => approve(item.izinId)} className="bg-[#0075de]">Setuju</Button><Button variant="destructive" onClick={() => reject(item.izinId)}>Tolak</Button></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <AdminShell
+      title="Approval Izin Karyawan"
+      lead="Tinjau dan setujui permohonan izin staf outlet per cabang."
+    >
+      <div className="mb-6 flex flex-wrap items-end gap-3">
+        {session?.role === "admin" && (
+          <div className="w-56">
+            <Label htmlFor="branch-izin-filter">Pilih Cabang</Label>
+            <Select
+              id="branch-izin-filter"
+              value={branchId}
+              onChange={(e) => handleBranchChange(e.target.value)}
+              className={controlClass}
+            >
+              {branches.map((b) => (
+                <option key={b.branchId} value={b.branchId}>
+                  {b.nama} ({b.branchId})
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+
+        <div className="w-48">
+          <Label htmlFor="status-izin-filter">Filter Status</Label>
+          <Select
+            id="status-izin-filter"
+            value={statusFilter}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className={controlClass}
+          >
+            <option value="pending">Menunggu (Pending)</option>
+            <option value="approved">Disetujui</option>
+            <option value="rejected">Ditolak</option>
+            <option value="all">Semua Status</option>
+          </Select>
+        </div>
       </div>
+
+      {loading ? (
+        <SkeletonTable rows={4} />
+      ) : loadError ? (
+        <div className="rounded-lg border border-destructive-wash bg-destructive-wash p-6 text-center">
+          <p className="text-sm text-destructive-foreground">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={() => load(branchId, statusFilter)} className="mt-3">
+            Coba Lagi
+          </Button>
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon="check_circle"
+          title="Tidak ada permohonan"
+          description={
+            statusFilter === "pending"
+              ? "Tidak ada permohonan izin yang menunggu persetujuan di cabang ini."
+              : `Tidak ada permohonan izin dengan status ${statusFilter}.`
+          }
+        />
+      ) : (
+        <DataTable columns={["ID", "Pemohon", "Jadwal", "Kategori", "Keterangan", "Status", "Aksi"]}>
+          {items.map((item) => (
+            <tr key={item.izinId} className="border-t border-border">
+              <td className={tdClass}>
+                <span className="font-mono text-xs">{item.izinId}</span>
+              </td>
+              <td className={tdClass}>{item.employeeId}</td>
+              <td className={tdClass}>
+                <span className="font-mono text-xs">{item.scheduleId}</span>
+              </td>
+              <td className={tdClass}>{item.categoryId}</td>
+              <td className={tdClass}>{item.note}</td>
+              <td className={tdClass}>
+                <StatusBadge status={item.status} />
+              </td>
+              <td className={tdClass}>
+                {item.status === "pending" ? (
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => approve(item.izinId)}>
+                      Setuju
+                    </Button>
+                    <RejectButton onReject={(reason) => reject(item.izinId, reason)} />
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {item.status === "approved"
+                      ? `Oleh ${item.approvedBy || "Admin"}`
+                      : `Ditolak: ${item.rejectReason || "-"}`}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </DataTable>
+      )}
     </AdminShell>
   );
 }

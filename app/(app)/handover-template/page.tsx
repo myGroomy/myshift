@@ -3,8 +3,15 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { request } from "@/components/phase1";
-import BottomNav from "@/components/bottom-nav";
+import { Input, Select } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { request } from "@/lib/api";
+import { AdminShell } from "@/components/shell";
+import { SkeletonTable } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
+import { controlClass } from "@/lib/ui";
+import type { Branch } from "@/lib/types";
 
 type HandoverField = {
   fieldId: string;
@@ -13,73 +20,208 @@ type HandoverField = {
   order: number;
 };
 
+type Session = {
+  role: "admin" | "kepala_cabang" | "karyawan";
+  activeBranchId: string;
+  branches: Branch[];
+};
+
 export default function HandoverTemplatePage() {
+  const { toast } = useToast();
+  
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState("");
+
   const [fields, setFields] = useState<HandoverField[]>([]);
   const [label, setLabel] = useState("");
   const [required, setRequired] = useState(false);
+
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    Promise.all([
+      request<Session>("/api/auth/session"),
+      request<Branch[]>("/api/branches").catch(() => []),
+    ])
+      .then(([s, bList]) => {
+        // setSession(s);
+        setBranches(bList);
+        const initialBranch =
+          s.activeBranchId || bList[0]?.branchId || s.branches[0]?.branchId || "";
+        setBranchId(initialBranch);
+        if (initialBranch) void loadFields(initialBranch);
+      })
+      .catch((e: unknown) => {
+        toast(e instanceof Error ? e.message : "Gagal memuat sesi", "error");
+        setLoading(false);
+      });
+  }, [toast]);
 
-  async function load() {
+  async function loadFields(targetBranch: string) {
+    if (!targetBranch) return;
+    setLoading(true);
     try {
-      const data = await request<HandoverField[]>("/api/handover-templates");
+      const data = await request<HandoverField[]>(
+        `/api/handover-templates?branchId=${targetBranch}`
+      );
       setFields(data);
-    } catch {}
-    finally { setLoading(false); }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal memuat template handover", "error");
+      setFields([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleBranchChange(newBranchId: string) {
+    setBranchId(newBranchId);
+    void loadFields(newBranchId);
   }
 
   async function handleAdd() {
-    if (!label.trim()) return;
+    if (!label.trim() || !branchId) return;
+    setSubmitting(true);
     try {
-      await request("/api/handover-templates", { method: "POST", body: JSON.stringify({ label, isRequired: required }) });
-      setLabel(""); void load();
-    } catch {}
+      await request(`/api/handover-templates?branchId=${branchId}`, {
+        method: "POST",
+        body: JSON.stringify({ label: label.trim(), isRequired: required }),
+      });
+      setLabel("");
+      setRequired(false);
+      toast("Field handover ditambahkan", "success");
+      void loadFields(branchId);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal menambah field handover", "error");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleDelete(fieldId: string) {
+    if (!confirm("Hapus field ini dari template handover?")) return;
+    setDeletingId(fieldId);
     try {
-      await fetch(`/api/handover-templates/${fieldId}`, { method: "DELETE" });
-      void load();
-    } catch {}
+      await request(`/api/handover-templates/${fieldId}?branchId=${branchId}`, {
+        method: "DELETE",
+      });
+      toast("Field handover dihapus", "success");
+      void loadFields(branchId);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal menghapus field", "error");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
-    <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]">
-      <div className="mx-auto max-w-6xl px-4 py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+    <AdminShell
+      title="Kelola Handover Template"
+      lead="Definisikan kolom form handover wajib dan opsional yang harus diisi staf di akhir shift."
+    >
+      <div className="mb-6 max-w-xl">
+        <Label htmlFor="branch-select">Pilih Cabang</Label>
+        <Select
+          id="branch-select"
+          value={branchId}
+          onChange={(e) => handleBranchChange(e.target.value)}
+          className={controlClass}
         >
-          <h1 className="mb-6 text-2xl font-bold">Kelola Handover Template</h1>
-          <div className="mb-6 rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-            <h2 className="mb-4 font-semibold">Tambah Field</h2>
-            <div className="grid gap-3">
-              <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label field" className="h-11 w-full rounded-lg border-[#e5e5e5] px-4" />
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />Field wajib</label>
-              <Button onClick={handleAdd} disabled={!label.trim()} className="h-11 w-full rounded-lg bg-[#0075de] text-white">Tambah</Button>
-            </div>
-          </div>
-          {loading ? <p className="text-[#615d59]">Memuat...</p> : (
-            <div className="space-y-3">
-              {fields.map((field) => (
-                <motion.div
-                  key={field.fieldId}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex items-center justify-between rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-                >
-                  <div><p className="font-medium">{field.label}</p><p className="text-xs text-[#615d59]">Wajib: {field.isRequired ? "Ya" : "Tidak"}</p></div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(field.fieldId)} className="text-[#dc3545]">Hapus</Button>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-        <BottomNav />
+          {branches.map((b) => (
+            <option key={b.branchId} value={b.branchId}>
+              {b.nama} ({b.branchId})
+            </option>
+          ))}
+        </Select>
       </div>
-    </main>
+
+      {/* Tambah Field Card */}
+      <div className="mb-8 max-w-xl rounded-lg border border-border bg-card p-5 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Tambah Field Handover Baru</h2>
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="label-input">Nama / Label Field</Label>
+            <Input
+              id="label-input"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Misal: Kondisi Kasir, Sisa Bahan Kritis, Catatan Komplain"
+              required
+              className={controlClass}
+            />
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={required}
+              onChange={(e) => setRequired(e.target.checked)}
+              className="size-4 rounded border-input"
+            />
+            <span>Field wajib diisi staf sebelum shift dapat ditutup</span>
+          </label>
+
+          <Button
+            onClick={handleAdd}
+            disabled={!label.trim() || submitting || !branchId}
+            size="lg"
+            className="w-full sm:w-auto"
+          >
+            {submitting ? "Menyimpan..." : "Tambah Field Handover"}
+          </Button>
+        </div>
+      </div>
+
+      {/* List fields */}
+      <div className="max-w-xl">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Daftar Field Handover ({fields.length})
+        </h3>
+
+        {loading ? (
+          <SkeletonTable rows={4} />
+        ) : fields.length === 0 ? (
+          <EmptyState
+            icon="assignment"
+            title="Belum ada field handover"
+            description="Tambahkan field pertanyaan agar staf mencatat informasi penting ke shift berikutnya."
+          />
+        ) : (
+          <div className="space-y-3">
+            {fields.map((field) => (
+              <motion.div
+                key={field.fieldId}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 shadow-sm"
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">{field.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    ID: {field.fieldId} ·{" "}
+                    {field.isRequired ? (
+                      <span className="font-semibold text-destructive">* Wajib Diisi</span>
+                    ) : (
+                      "Opsional"
+                    )}
+                  </p>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={deletingId === field.fieldId}
+                  onClick={() => handleDelete(field.fieldId)}
+                  className="text-destructive hover:bg-destructive-wash"
+                >
+                  {deletingId === field.fieldId ? "..." : "Hapus"}
+                </Button>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </AdminShell>
   );
 }

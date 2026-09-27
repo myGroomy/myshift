@@ -2,61 +2,99 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/jadwal-saya", label: "Jadwal", icon: "calendar_today" },
-  { href: "/jadwal", label: "Semua Jadwal", icon: "view_day" },
-  { href: "/shift-template", label: "Template", icon: "content_paste" },
-  { href: "/", label: "Beranda", icon: "home" },
+  { href: "/swap/ajukan", label: "Swap", icon: "swap_horiz" },
+  { href: "/izin/ajukan", label: "Izin", icon: "event_busy" },
+  { href: "/riwayat", label: "Riwayat", icon: "history" },
+  { href: "/profil", label: "Profil", icon: "person" },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(href));
 
   return (
-    <motion.nav
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#e5e5e5] bg-white shadow-[0_-1px_3px_rgba(0,0,0,0.04)] dark:bg-[#1a1b1f] dark:border-[#3a3a3e]"
+    <nav
+      aria-label="Navigasi karyawan"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-sm"
     >
-      <div className="mx-auto max-w-6xl">
-        <div className="grid h-16 grid-cols-4">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <motion.div
-                className={`flex flex-col items-center justify-center gap-0.5 text-xs transition-colors ${isActive(item.href) ? "text-[#0075de]" : "text-[#615d59]"}`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+      <ul className="mx-auto grid max-w-[1200px] grid-cols-5 px-2">
+        {navItems.map((item) => {
+          const current = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                aria-current={current ? "page" : undefined}
+                className={cn(
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-[11px] font-medium transition-colors",
+                  current
+                    ? "bg-accent font-semibold text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                <span className="material-symbols-outlined text-lg">{item.icon}</span>
+                <span className="material-symbols-outlined text-xl">{item.icon}</span>
                 <span>{item.label}</span>
-              </motion.div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </motion.nav>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
-export function KaryawanShell({ title, children }: { title: string; children: React.ReactNode }) {
+export function KaryawanShell({
+  title,
+  lead,
+  actions,
+  children,
+}: {
+  title: string;
+  lead?: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <main className="min-h-screen bg-[#faf9fe] pb-20 pt-4 text-[#000000]">
-      <div className="mx-auto max-w-6xl px-4">
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-6 text-2xl font-bold"
-        >
-          {title}
-        </motion.h1>
+    <div className="min-h-[100dvh] bg-background pb-20 text-foreground">
+      <header className="border-b border-border">
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-3 px-4 sm:px-6">
+          <Link href="/jadwal-saya" className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <span className="grid size-6 place-items-center rounded-sm bg-primary text-[11px] font-bold text-primary-foreground">
+              MS
+            </span>
+            MYSHIFT
+          </Link>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button asChild variant="ghost" size="icon" className="size-8" title="Pindah cabang">
+              <Link href="/pilih-cabang" aria-label="Pilih cabang">
+                <span className="material-symbols-outlined text-lg">storefront</span>
+              </Link>
+            </Button>
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      <main
+        id="main"
+        className="mx-auto w-full max-w-[1200px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8"
+      >
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance">{title}</h1>
+            {lead ? <p className="mt-1 text-sm text-muted-foreground">{lead}</p> : null}
+          </div>
+          {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        </div>
         {children}
-      </div>
+      </main>
+
       <BottomNav />
-    </main>
+    </div>
   );
 }

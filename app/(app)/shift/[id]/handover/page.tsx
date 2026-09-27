@@ -3,10 +3,14 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { request } from "@/components/phase1";
-import BottomNav from "@/components/bottom-nav";
+import { Textarea } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { request } from "@/lib/api";
+import { KaryawanShell } from "@/components/bottom-nav";
 import { useToast } from "@/components/ui/toast";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 type HandoverField = {
   fieldId: string;
@@ -15,84 +19,188 @@ type HandoverField = {
   value: string;
 };
 
-type HandoverResponse = { fields: HandoverField[]; filledCount: number; total: number; completed: boolean };
-type PreviousHandover = { scheduleId: string; fields: { label: string; value: string }[] } | null;
+type HandoverResponse = {
+  fields: HandoverField[];
+  filledCount: number;
+  total: number;
+  completed: boolean;
+};
+
+type PreviousHandover = {
+  scheduleId: string;
+  fields: { label: string; value: string }[];
+} | null;
 
 export default function HandoverPage() {
   const { id } = useParams<{ id: string }>();
+  
   const { toast } = useToast();
+
   const [data, setData] = useState<HandoverResponse | null>(null);
   const [previous, setPrevious] = useState<PreviousHandover>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { void load(); }, [id]);
+  function load() {
+    if (!id) return;
+    setLoading(true);
+    setLoadError(null);
 
-  async function load() {
-    try {
-      const d = await request<HandoverResponse>(`/api/schedules/${id}/handover`);
-      setData(d);
-      const p = await request<PreviousHandover>(`/api/schedules/${id}/handover/previous`);
-      setPrevious(p);
-    } catch {}
+    Promise.all([
+      request<HandoverResponse>(`/api/schedules/${id}/handover`),
+      request<PreviousHandover>(`/api/schedules/${id}/handover/previous`).catch(() => null),
+    ])
+      .then(([current, prev]) => {
+        setData(current);
+        setPrevious(prev);
+      })
+      .catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : "Gagal memuat form handover";
+        setLoadError(msg);
+        toast(msg, "error");
+      })
+      .finally(() => setLoading(false));
   }
 
-  async function handleChange(fieldId: string, value: string) {
-    setData((prev) => prev ? { ...prev, fields: prev.fields.map((f) => f.fieldId === fieldId ? { ...f, value } : f) } : null);
+  useEffect(() => {
+    load();
+  }, [id]);
+
+  function handleChange(fieldId: string, value: string) {
+    setData((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        fields: prev.fields.map((f) => (f.fieldId === fieldId ? { ...f, value } : f)),
+      };
+    });
   }
+
+  // Live count based on client text:
+  const fields = data?.fields ?? [];
+  const filledCountLive = fields.filter((f) => f.value.trim().length > 0).length;
+  const allRequiredFilled = fields.every((f) => !f.isRequired || f.value.trim().length > 0);
 
   async function handleSubmit() {
     if (!data) return;
     setSubmitting(true);
     try {
-      await request(`/api/schedules/${id}/handover`, { method: "POST", body: JSON.stringify({ fields: data.fields }) });
-      toast("Handover tersubmit!", "success");
-    } catch (e) { toast(e instanceof Error ? e.message : "Gagal", "error"); }
-    finally { setSubmitting(false); }
+      await request(`/api/schedules/${id}/handover`, {
+        method: "POST",
+        body: JSON.stringify({ fields: data.fields }),
+      });
+      toast("Handover berhasil disimpan!", "success");
+      load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal menyimpan handover", "error");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  const allRequiredFilled = data?.fields.every((f) => !f.isRequired || f.value.trim()) ?? false;
-
   return (
-    <main className="min-h-screen bg-[#faf9fe] pb-20 text-[#000000]">
-      <div className="mx-auto max-w-6xl px-4 py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="mb-6 text-2xl font-bold">Handover Shift</h1>
-          {previous && previous.fields.length > 0 && (
-            <div className="mb-6 rounded-lg border border-[#0075de] bg-[#e8f0fe] p-4">
-              <h2 className="mb-2 font-semibold">Handover Shift Sebelumnya ({previous.scheduleId})</h2>
-              <div className="space-y-2">
-                {previous.fields.map((f, i) => <div key={i}><p className="text-sm text-[#615d59]">{f.label}</p><p className="text-sm">{f.value || "-"}</p></div>)}
+    <KaryawanShell
+      title="Handover Shift"
+      lead="Catat informasi penting, sisa stok, atau kendala toko untuk shift selanjutnya."
+    >
+      {loading ? (
+        <div className="max-w-2xl space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : loadError ? (
+        <div className="max-w-2xl rounded-lg border border-destructive-wash bg-destructive-wash p-6 text-center">
+          <span className="material-symbols-outlined text-4xl text-destructive-foreground">error</span>
+          <p className="mt-2 text-sm text-destructive-foreground">{loadError}</p>
+          <Button variant="outline" onClick={load} className="mt-4">
+            Coba Lagi
+          </Button>
+        </div>
+      ) : (
+        <div className="max-w-2xl space-y-6">
+          {/* Previous shift handover info */}
+          {previous && previous.fields && previous.fields.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg border border-primary/30 bg-accent/40 p-5 shadow-sm"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+                <span className="material-symbols-outlined text-base">history</span>
+                Catatan Shift Sebelumnya ({previous.scheduleId})
               </div>
-            </div>
-          )}
-          {!data ? <p className="text-[#615d59]">Memuat...</p> : (
-            <div className="space-y-4">
-              <div className="mb-2 text-sm text-[#615d59]">{data.filledCount}/{data.total} field terisi</div>
-              <div className="space-y-3">
-                {data.fields.map((field) => (
-                  <motion.div
-                    key={field.fieldId}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="rounded-lg border border-[#e5e5e5] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-                  >
-                    <label className="mb-2 font-medium">{field.label}{field.isRequired && <span className="ml-1 text-[#dc3545]">*</span>}</label>
-                    <textarea value={field.value} onChange={(e) => handleChange(field.fieldId, e.target.value)} placeholder={field.isRequired ? "Field wajib..." : "Opsional..."} className="w-full rounded-lg border-[#e5e5e5] px-4 py-2 text-sm" rows={3} />
-                  </motion.div>
+              <div className="mt-3 divide-y divide-border/60 text-sm">
+                {previous.fields.map((f, i) => (
+                  <div key={i} className="py-2 first:pt-0 last:pb-0">
+                    <p className="text-xs font-medium text-muted-foreground">{f.label}</p>
+                    <p className="mt-0.5 whitespace-pre-wrap text-foreground">
+                      {f.value || <span className="italic text-muted-foreground">(kosong)</span>}
+                    </p>
+                  </div>
                 ))}
               </div>
-              <Button disabled={!allRequiredFilled || submitting} onClick={handleSubmit} className="h-11 rounded-lg bg-[#0075de] text-white">{submitting ? "Mengirim..." : "Submit Handover"}</Button>
-              {!allRequiredFilled && <p className="mt-2 text-sm text-[#dc3545]">Isi semua field wajib sebelum submit</p>}
-            </div>
+            </motion.div>
           )}
-        </motion.div>
-        <BottomNav />
-      </div>
-    </main>
+
+          {/* Current handover form */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {filledCountLive} dari {fields.length} field terisi
+              </span>
+              <span className={allRequiredFilled ? "text-success font-medium" : "text-warning font-medium"}>
+                {allRequiredFilled ? "Field wajib lengkap" : "Ada field wajib yang belum diisi"}
+              </span>
+            </div>
+
+            {fields.map((field) => (
+              <div key={field.fieldId} className="rounded-lg border border-border bg-card p-5 shadow-sm">
+                <Label htmlFor={field.fieldId} className="mb-2 block text-sm font-semibold text-foreground">
+                  {field.label}
+                  {field.isRequired && (
+                    <span className="ml-1 text-xs font-semibold text-destructive">* wajib</span>
+                  )}
+                </Label>
+                <Textarea
+                  id={field.fieldId}
+                  value={field.value}
+                  onChange={(e) => handleChange(field.fieldId, e.target.value)}
+                  placeholder={
+                    field.isRequired
+                      ? "Isi catatan wajib ini untuk shift berikutnya..."
+                      : "Catatan opsional..."
+                  }
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+            ))}
+
+            <div className="pt-2">
+              <Button
+                disabled={!allRequiredFilled || submitting}
+                onClick={handleSubmit}
+                size="lg"
+                className="h-11 w-full"
+              >
+                {submitting ? "Menyimpan Catatan..." : "Simpan Handover"}
+              </Button>
+              {!allRequiredFilled && (
+                <p className="mt-2 text-center text-xs text-destructive">
+                  Semua field bertanda * wajib diisi sebelum menyimpan handover.
+                </p>
+              )}
+            </div>
+
+            <div className="text-center">
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/shift/${id}`}>← Kembali ke Detail Shift</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </KaryawanShell>
   );
 }

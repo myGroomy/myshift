@@ -1,5 +1,8 @@
 import { branchSpreadsheet } from "@/lib/google/branch-data";
-import { readRows, replaceRow, appendRow } from "@/lib/google/sheets-data";
+import { appendRow, readRows, replaceRow, replaceRowById } from "@/lib/google/sheets-data";
+import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { ID_PREFIX, nextSequentialId } from "@/lib/ids";
+import { DomainError } from "@/lib/error-codes";
 
 export type ScheduleRecord = {
   rowNumber: number;
@@ -81,9 +84,15 @@ export type HandoverLogRecord = {
   createdAt: string;
 };
 
+function toBool(value: string | undefined, fallback: boolean) {
+  const text = (value ?? "").trim().toUpperCase();
+  if (!text) return fallback;
+  return text === "TRUE";
+}
+
 export async function loadSchedules(branchId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Schedules!A:G");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Schedules"));
   return {
     spreadsheetId,
     records: rows.map(({ rowNumber, values }): ScheduleRecord => ({
@@ -101,7 +110,7 @@ export async function loadSchedules(branchId: string) {
 
 export async function loadSwaps(branchId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Shift_Swaps!A:H");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Shift_Swaps"));
   return {
     spreadsheetId,
     records: rows.map(({ rowNumber, values }): SwapRecord => ({
@@ -120,7 +129,7 @@ export async function loadSwaps(branchId: string) {
 
 export async function loadIzin(branchId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Izin!A:H");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Izin"));
   return {
     spreadsheetId,
     records: rows.map(({ rowNumber, values }): IzinRecord => ({
@@ -139,36 +148,36 @@ export async function loadIzin(branchId: string) {
 
 export async function loadCategories(branchId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Kategori_Izin!A:C");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Kategori_Izin"));
   return {
     spreadsheetId,
     records: rows.map(({ rowNumber, values }): CategoryRecord => ({
       rowNumber,
       id: values[0] ?? "",
       label: values[1] ?? "",
-      aktif: (values[2] ?? "TRUE").toUpperCase() === "TRUE",
+      aktif: toBool(values[2], true),
     })),
   };
 }
 
 export async function loadChecklistTemplates(branchId: string, type?: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Checklist_Template!A:G");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Checklist_Template"));
   const records: ChecklistTemplateRecord[] = rows.map(({ rowNumber, values }): ChecklistTemplateRecord => ({
     rowNumber,
     itemId: values[0] ?? "",
     type: values[1] ?? "",
     description: values[2] ?? "",
-    requiresPhoto: (values[3] ?? "FALSE").toUpperCase() === "TRUE",
+    requiresPhoto: toBool(values[3], false),
     order: Number(values[4] ?? "0") || 0,
-    active: (values[5] ?? "TRUE").toUpperCase() === "TRUE",
+    active: toBool(values[5], true),
   }));
-  return { spreadsheetId, records: type ? records.filter((r) => r.type === type) : records };
+  return { spreadsheetId, records: type ? records.filter((record) => record.type === type) : records };
 }
 
 export async function loadChecklistLogs(branchId: string, scheduleId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Checklist_Log!A:F");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Checklist_Log"));
   const records: ChecklistLogRecord[] = rows.map(({ rowNumber, values }): ChecklistLogRecord => ({
     rowNumber,
     logId: values[0] ?? "",
@@ -178,17 +187,17 @@ export async function loadChecklistLogs(branchId: string, scheduleId: string) {
     checkedAt: values[4] ?? "",
     photoUrl: values[5] ?? "",
   }));
-  return { spreadsheetId, records: records.filter((r) => r.scheduleId === scheduleId) };
+  return { spreadsheetId, records: records.filter((record) => record.scheduleId === scheduleId) };
 }
 
 export async function loadHandoverTemplates(branchId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Handover_Template!A:D");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Handover_Template"));
   const records: HandoverTemplateRecord[] = rows.map(({ rowNumber, values }): HandoverTemplateRecord => ({
     rowNumber,
     fieldId: values[0] ?? "",
     label: values[1] ?? "",
-    isRequired: (values[2] ?? "FALSE").toUpperCase() === "TRUE",
+    isRequired: toBool(values[2], false),
     order: Number(values[3] ?? "0") || 0,
   }));
   return { spreadsheetId, records };
@@ -196,7 +205,7 @@ export async function loadHandoverTemplates(branchId: string) {
 
 export async function loadHandoverLogs(branchId: string, scheduleId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, "Handover_Log!A:F");
+  const rows = await readRows(spreadsheetId, branchSheetRange("Handover_Log"));
   const records: HandoverLogRecord[] = rows.map(({ rowNumber, values }): HandoverLogRecord => ({
     rowNumber,
     logId: values[0] ?? "",
@@ -206,15 +215,90 @@ export async function loadHandoverLogs(branchId: string, scheduleId: string) {
     createdBy: values[4] ?? "",
     createdAt: values[5] ?? "",
   }));
-  return { spreadsheetId, records: records.filter((r) => r.scheduleId === scheduleId) };
+  return { spreadsheetId, records: records.filter((record) => record.scheduleId === scheduleId) };
 }
 
-export async function appendChecklistLog(spreadsheetId: string, values: string[]) {
-  await appendRow(spreadsheetId, "Checklist_Log!A:F", values);
+// Idempotent: a second tap on the same item does not create a duplicate log row.
+export async function appendChecklistLogIfAbsent(input: {
+  spreadsheetId: string;
+  scheduleId: string;
+  itemId: string;
+  checkedBy: string;
+  checkedAt: string;
+  photoUrl: string;
+}): Promise<boolean> {
+  const rows = await readRows(input.spreadsheetId, branchSheetRange("Checklist_Log"));
+  const existing = rows.find(
+    (row) => row.values[1] === input.scheduleId && row.values[2] === input.itemId
+  );
+
+  if (existing) {
+    const previousPhoto = existing.values[5] ?? "";
+    if (input.photoUrl && input.photoUrl !== previousPhoto) {
+      await replaceRow(input.spreadsheetId, "Checklist_Log", existing.rowNumber, [
+        existing.values[0] ?? "",
+        input.scheduleId,
+        input.itemId,
+        existing.values[3] || input.checkedBy,
+        existing.values[4] || input.checkedAt,
+        input.photoUrl,
+      ]);
+    }
+    return false;
+  }
+
+  const logId = nextSequentialId(rows.map((row) => row.values[0] ?? ""), ID_PREFIX.checklistLog);
+  await appendRow(input.spreadsheetId, branchSheetRange("Checklist_Log"), [
+    logId,
+    input.scheduleId,
+    input.itemId,
+    input.checkedBy,
+    input.checkedAt,
+    input.photoUrl,
+  ]);
+  return true;
 }
 
-export async function appendHandoverLog(spreadsheetId: string, values: string[]) {
-  await appendRow(spreadsheetId, "Handover_Log!A:F", values);
+// Idempotent upsert keyed on (Schedule_ID, Field_ID): re-submitting a handover rewrites the
+// existing rows instead of appending a second set (contract §12 idempotency).
+export async function saveHandoverLogs(input: {
+  spreadsheetId: string;
+  scheduleId: string;
+  entries: { fieldId: string; value: string }[];
+  createdBy: string;
+  createdAt: string;
+}): Promise<void> {
+  const rows = await readRows(input.spreadsheetId, branchSheetRange("Handover_Log"));
+  const existingByField = new Map(
+    rows.filter((row) => row.values[1] === input.scheduleId).map((row) => [row.values[2] ?? "", row])
+  );
+  const usedIds = rows.map((row) => row.values[0] ?? "");
+
+  for (const entry of input.entries) {
+    const existing = existingByField.get(entry.fieldId);
+    if (existing) {
+      await replaceRow(input.spreadsheetId, "Handover_Log", existing.rowNumber, [
+        existing.values[0] ?? "",
+        input.scheduleId,
+        entry.fieldId,
+        entry.value,
+        input.createdBy,
+        input.createdAt,
+      ]);
+      continue;
+    }
+
+    const logId = nextSequentialId(usedIds, ID_PREFIX.handoverLog);
+    usedIds.push(logId);
+    await appendRow(input.spreadsheetId, branchSheetRange("Handover_Log"), [
+      logId,
+      input.scheduleId,
+      entry.fieldId,
+      entry.value,
+      input.createdBy,
+      input.createdAt,
+    ]);
+  }
 }
 
 export function scheduleValues(record: ScheduleRecord) {
@@ -229,14 +313,29 @@ export function izinValues(record: IzinRecord) {
   return [record.izinId, record.employeeId, record.scheduleId, record.categoryId, record.note, record.status, record.approvedBy, record.rejectReason];
 }
 
+function assertSaved(saved: boolean, message: string) {
+  if (!saved) throw new DomainError("NOT_FOUND", message);
+}
+
+// Writes resolve the target row by ID at write time — a row number read earlier can be
+// stale after a concurrent insert/delete and would overwrite the wrong row (audit M-9).
 export async function saveSchedule(spreadsheetId: string, record: ScheduleRecord) {
-  await replaceRow(spreadsheetId, "Schedules", record.rowNumber, scheduleValues(record));
+  assertSaved(
+    await replaceRowById(spreadsheetId, "Schedules", branchSheetRange("Schedules"), record.scheduleId, scheduleValues(record)),
+    "Jadwal tidak ditemukan"
+  );
 }
 
 export async function saveSwap(spreadsheetId: string, record: SwapRecord) {
-  await replaceRow(spreadsheetId, "Shift_Swaps", record.rowNumber, swapValues(record));
+  assertSaved(
+    await replaceRowById(spreadsheetId, "Shift_Swaps", branchSheetRange("Shift_Swaps"), record.swapId, swapValues(record)),
+    "Pengajuan swap tidak ditemukan"
+  );
 }
 
 export async function saveIzin(spreadsheetId: string, record: IzinRecord) {
-  await replaceRow(spreadsheetId, "Izin", record.rowNumber, izinValues(record));
+  assertSaved(
+    await replaceRowById(spreadsheetId, "Izin", branchSheetRange("Izin"), record.izinId, izinValues(record)),
+    "Pengajuan izin tidak ditemukan"
+  );
 }

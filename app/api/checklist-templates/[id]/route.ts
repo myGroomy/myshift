@@ -1,54 +1,53 @@
-import { fail, ok } from "@/lib/api-response";
+import { fail, handleRouteError, ok } from "@/lib/api-response";
 import { branchSpreadsheet } from "@/lib/google/branch-data";
-import { adminSession, isResponse, resolveBranchId } from "@/lib/route-auth";
-import { readRows, replaceRow, deleteRow } from "@/lib/google/sheets-data";
+import { branchManagerSession, isResponse, resolveBranchId } from "@/lib/route-auth";
+import { optionalBoolean, optionalText } from "@/lib/domain/master-validation";
+import { deleteRowById, readRows, replaceRowById } from "@/lib/google/sheets-data";
+import { BRANCH_HEADERS, branchSheetRange, padRow } from "@/lib/google/sheet-schema";
 import type { NextRequest } from "next/server";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, context: Context) {
-  const auth = await adminSession(request);
+  const auth = await branchManagerSession(request);
   if (isResponse(auth)) return auth;
   const { id: itemId } = await context.params;
   try {
     const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
-    const body = await request.json() as { description?: string; requiresPhoto?: boolean };
-    const { description, requiresPhoto } = body;
-
+    const body = await request.json();
     const { spreadsheetId } = await branchSpreadsheet(branchId);
-    const rows = await readRows(spreadsheetId, "Checklist_Template!A:G");
-    const row = rows.find((r) => r.values[0] === itemId);
-    if (!row) return fail("NOT_FOUND", "Item tidak ditemukan", 404);
+    const rows = await readRows(spreadsheetId, branchSheetRange("Checklist_Template"));
+    const row = rows.find((entry) => entry.values[0] === itemId);
+    if (!row) return fail("NOT_FOUND", "Item tidak ditemukan");
 
-    const newDesc = description ?? row.values[2] ?? "";
-    const newPhoto = requiresPhoto !== undefined ? (requiresPhoto ? "TRUE" : "FALSE") : (row.values[3] ?? "FALSE");
-    await replaceRow(spreadsheetId, "Checklist_Template", row.rowNumber, [itemId, row.values[1] ?? "", newDesc, newPhoto, row.values[4] ?? "0", row.values[5] ?? "TRUE"]);
+    const values = padRow(row.values, BRANCH_HEADERS.Checklist_Template.length);
+    values[0] = itemId;
+    values[2] = optionalText(body.description, "description", values[2] ?? "");
+    values[3] = optionalBoolean(body.requiresPhoto, "requiresPhoto", (values[3] ?? "TRUE").toUpperCase() === "TRUE")
+      ? "TRUE"
+      : "FALSE";
+    if (body.active !== undefined) {
+      values[5] = optionalBoolean(body.active, "active", true) ? "TRUE" : "FALSE";
+    }
 
+    await replaceRowById(spreadsheetId, "Checklist_Template", branchSheetRange("Checklist_Template"), itemId, values);
     return ok({ itemId });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Gagal mengupdate template";
-    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
-    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
+    return handleRouteError(error, "Gagal mengupdate template checklist");
   }
 }
 
 export async function DELETE(request: NextRequest, context: Context) {
-  const auth = await adminSession(request);
+  const auth = await branchManagerSession(request);
   if (isResponse(auth)) return auth;
   const { id: itemId } = await context.params;
   try {
     const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
     const { spreadsheetId } = await branchSpreadsheet(branchId);
-    const rows = await readRows(spreadsheetId, "Checklist_Template!A:G");
-    const row = rows.find((r) => r.values[0] === itemId);
-    if (!row) return fail("NOT_FOUND", "Item tidak ditemukan", 404);
-
-    await deleteRow(spreadsheetId, "Checklist_Template", row.rowNumber);
-
+    const deleted = await deleteRowById(spreadsheetId, "Checklist_Template", branchSheetRange("Checklist_Template"), itemId);
+    if (!deleted) return fail("NOT_FOUND", "Item tidak ditemukan");
     return ok({ deleted: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Gagal menghapus template";
-    const code = message.includes("Cabang") ? "FORBIDDEN" : "INTERNAL_ERROR";
-    return fail(code, message, code === "FORBIDDEN" ? 403 : 500);
+    return handleRouteError(error, "Gagal menghapus template checklist");
   }
 }
