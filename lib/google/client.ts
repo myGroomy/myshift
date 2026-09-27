@@ -1,14 +1,33 @@
 import { google } from "googleapis";
 
-const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!;
-const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY!.replace(/\\n/g, "\n");
+// Lazy singleton — initialized on first use, not at module load.
+// This prevents build-time crashes when env vars are not yet configured.
+let _sheets: ReturnType<typeof google.sheets> | null = null;
 
-// Singleton JWT — token is cached and auto-refreshed within the same warm instance.
-// This avoids re-negotiating OAuth2 on every request (saves 200–400 ms per cold call).
-const auth = new google.auth.JWT({
-  email,
-  key: privateKey,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+function getSheets() {
+  if (_sheets) return _sheets;
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+
+  if (!email || !privateKey) {
+    throw new Error(
+      "Google Sheets API not configured. Set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY."
+    );
+  }
+
+  const auth = new google.auth.JWT({
+    email,
+    key: privateKey.replace(/\\n/g, "\n"),
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+
+  _sheets = google.sheets({ version: "v4", auth });
+  return _sheets;
+}
+
+export const sheets = new Proxy({} as ReturnType<typeof google.sheets>, {
+  get(_target, prop) {
+    return (getSheets() as unknown as Record<string | symbol, unknown>)[prop];
+  },
 });
-
-export const sheets = google.sheets({ version: "v4", auth });
