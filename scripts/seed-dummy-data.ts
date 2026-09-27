@@ -12,13 +12,9 @@ const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY!.replace(/\\n/
 
 const auth = new google.auth.JWT({ email, key: privateKey, scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"] });
 const sheets = google.sheets({ version: "v4", auth });
-const drive = google.drive({ version: "v3", auth });
 
 const registryId = process.env.REGISTRY_SPREADSHEET_ID!;
 const folderId = process.env.MYSHIFT_FOLDER;
-const sharedDriveId = process.env.MYSHIFT_SHARED_DRIVE_ID;
-
-type SharedDriveConfig = { folderId: string; sharedDriveId: string };
 
 async function getExistingRows(sheetName: string): Promise<string[][]> {
   try {
@@ -42,31 +38,6 @@ async function appendRows(sheetName: string, rows: string[][]): Promise<void> {
   });
 }
 
-function requireSharedDriveConfig(): SharedDriveConfig {
-  if (!folderId || !sharedDriveId) {
-    throw new Error("MYSHIFT_FOLDER and MYSHIFT_SHARED_DRIVE_ID are required to create branch spreadsheets in a Shared Drive");
-  }
-  return { folderId, sharedDriveId };
-}
-
-async function assertSharedDriveFolder({ folderId, sharedDriveId }: SharedDriveConfig): Promise<void> {
-  const folder = await drive.files.get({
-    fileId: folderId,
-    fields: "id,driveId,mimeType,trashed",
-    supportsAllDrives: true,
-  });
-
-  if (folder.data.driveId !== sharedDriveId) {
-    throw new Error(`MYSHIFT_FOLDER ${folderId} is not inside Shared Drive ${sharedDriveId}`);
-  }
-  if (folder.data.mimeType !== "application/vnd.google-apps.folder") {
-    throw new Error(`MYSHIFT_FOLDER ${folderId} is not a Google Drive folder`);
-  }
-  if (folder.data.trashed) {
-    throw new Error(`MYSHIFT_FOLDER ${folderId} is in the trash`);
-  }
-}
-
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -86,20 +57,25 @@ async function main() {
 
   const newBranches = branches.filter((b) => !existingBranchIds.has(b.id));
   if (newBranches.length > 0) {
-    const sharedDriveConfig = requireSharedDriveConfig();
-    await assertSharedDriveFolder(sharedDriveConfig);
-
     for (const branch of newBranches) {
-      const branchSs = await drive.files.create({
-        supportsAllDrives: true,
+      const branchSs = await sheets.spreadsheets.create({
         requestBody: {
-          name: `MYSHIFT ${branch.name}`,
-          mimeType: "application/vnd.google-apps.spreadsheet",
-          parents: [sharedDriveConfig.folderId],
+          properties: { title: `MYSHIFT ${branch.name}` },
+          sheets: [
+            { properties: { title: "Schedules" } },
+            { properties: { title: "Shifts" } },
+            { properties: { title: "Kategori_Izin" } },
+            { properties: { title: "Izin" } },
+            { properties: { title: "Checklist" } },
+            { properties: { title: "Checklist_Templates" } },
+            { properties: { title: "Handover" } },
+            { properties: { title: "Handover_Templates" } },
+            { properties: { title: "Absen" } },
+          ],
         },
-        fields: "id",
+        fields: "spreadsheetId",
       });
-      const branchSsId = branchSs.data.id;
+      const branchSsId = branchSs.data.spreadsheetId;
       if (!branchSsId) throw new Error(`Failed to create spreadsheet for ${branch.id}`);
 
       for (const [sheetName, headers] of Object.entries(BRANCH_HEADERS)) {
