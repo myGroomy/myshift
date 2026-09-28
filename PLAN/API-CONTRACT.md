@@ -1,7 +1,7 @@
 # MYSHIFT — API Contract
 
-> **Versi:** 1.1.0
-> **Tanggal:** 2026-09-27
+> **Versi:** 1.2.0
+> **Tanggal:** 2026-09-28
 > **Turunan dari:** `FULL-PRD.md`
 > **Base URL:** `/api`
 > **Format response standar (ikut pola STOKIS):**
@@ -14,6 +14,12 @@
 > Semua endpoint (kecuali `/api/auth/login`) memerlukan session cookie valid. Semua endpoint di-scope ke `branchId` aktif di sesi user, kecuali disebutkan lain.
 >
 > **Perubahan v1.1.0** (audit backend): error code disamakan dengan §11 (`VALIDATION_ERROR`, bukan `INVALID_REQUEST`), detail per-field dipindah ke `error.data`, lockout login diimplementasikan, `/api/laporan` menggantikan `/api/reports`, dashboard mengembalikan array (bentuk aktual), dan `GET /api/schedules/:id` ditambahkan.
+>
+> **Perubahan v1.2.0** (db refactor): Registry jadi sumber konfigurasi template (§3 + `SHEETS-SCHEMA.md` §1 —
+> sheet `TEMPLATES` menggantikan env var `TEMPLATE_SPREADSHEET_ID` / `MYSHIFT_FOLDER`). `Daftar_Cabang`
+> dapat kolom `Folder_Drive_ID` + `Provision_Status`, provisioning jadi row-first, ada
+> `POST /api/branches/:id/retry-provision`, dan ada endpoint unggah foto checklist (§8). Error code
+> baru: `PROVISION_FAILED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`.
 
 ---
 
@@ -75,18 +81,54 @@ Body: `{ "pin": string }` — sekaligus mereset `Failed_Login_Attempts`/`Locked_
 ## 3. Branches (Admin only)
 
 ### `GET /api/branches`
-Response 200: `{ "data": [{ branchId, nama, spreadsheetId, spreadsheetConfigured, aktif }] }`
-`spreadsheetId` dikembalikan **ter-mask** (mis. `1AbCdE…6789`) — ID Google internal tidak lagi dikirim utuh ke client; spreadsheet cabang tetap bisa dibuka lewat nama di `MYSHIFT_FOLDER`.
+Response 200: `{ "data": [{ branchId, nama, spreadsheetId, spreadsheetConfigured, folderConfigured, provisionStatus, aktif }] }`
+`spreadsheetId` dikembalikan **ter-mask** (mis. `1AbCdE…6789`) — ID Google internal tidak lagi dikirim utuh ke client; spreadsheet cabang tetap bisa dibuka lewat folder cabangnya di Drive.
+
+- `spreadsheetConfigured` — `Provision_Status === "ready" && Spreadsheet_ID` terisi
+- `folderConfigured` — `Folder_Drive_ID` terisi
+- `provisionStatus` — `pending` | `ready` | `failed`
+
+`provisionStatus` ada supaya UI admin bisa membedakan "cabang belum selesai di-provision" dari
+"cabang rusak", tanpa harus menebak dari `spreadsheetConfigured` saja.
 
 ### `POST /api/branches`
 Body: `{ "name": string }`
-Response 201: `{ "data": { branchId, name, spreadsheetId, spreadsheetConfigured, aktif } }` (ID spreadsheet juga ter-mask)
-Response 503: `error.code = "SHEETS_SETUP_REQUIRED"` kalau provisioning belum dikonfigurasi.
+Response 201: `{ "data": { branchId, name, spreadsheetId, spreadsheetConfigured, folderConfigured, provisionStatus, aktif } }` (ID spreadsheet juga ter-mask)
+Response 503: `error.code = "SHEETS_SETUP_REQUIRED"` kalau `TEMPLATES` di registry belum terisi `Template_Spreadsheet_ID` / `Parent_Folder_ID`.
+Response 502: `error.code = "PROVISION_FAILED"` — folder atau spreadsheet gagal dibuat. Registry tidak menyisakan baris half-configured; detail error Google hanya masuk log server.
 
-**Provisioning otomatis:** membuat spreadsheet cabang (copy `TEMPLATE_SPREADSHEET_ID` ke `MYSHIFT_FOLDER`, fallback spreadsheet baru), menulis header 9 sheet sesuai `SHEETS-SCHEMA.md`, lalu mengisi `Spreadsheet_ID`. Baris registry hanya ditulis setelah spreadsheet berhasil dibuat — tidak ada lagi cabang tanpa spreadsheet.
+**Provisioning otomatis (row-first):** urutan disengaja supaya ID cabang ter-reserve sebelum panggil
+Drive yang lambat:
+
+1. Validasi `name`, turunkan `CBG###` berikutnya, susun nama folder.
+2. Tulis baris registry dengan `Provision_Status=pending` (`Spreadsheet_ID`/`Folder_Drive_ID` kosong).
+3. Buat folder cabang di `TEMPLATES.Parent_Folder_ID`.
+4. `drive.files.copy` template dari `TEMPLATES.Template_Spreadsheet_ID` ke folder itu, tulis header 9 sheet.
+5. Update baris → `Spreadsheet_ID`, `Folder_Drive_ID`, `Provision_Status=ready`.
+
+Kalau langkah 3–4 gagal: baris ditandai `failed` lalu **dihapus**, dan error dilempar — jadi tidak
+ada cabang yatim di registry. Objek Drive yang terlanjur dibuat mungkin tertinggal; ID-nya
+dikembalikan di `error.data.orphans` supaya jadi sampah yang terlihat, bukan diam-diam. Sisa
+tersebut bisa dibersihkan manual dari Drive atau otomatis oleh cron terpisah (belum ada di scope ini).
 
 ### `PATCH /api/branches/:id`
 Body: `{ "name"?, "isActive"? }`
+- Hanya `Nama_Cabang` dan `Aktif` yang boleh ditulis. `Spreadsheet_ID`, `Folder_Drive_ID`, dan
+  `Provision_Status` dipertahankan utuh dari baris yang dibaca.
+
+### `POST /api/branches/:id/retry-provision` (Admin only)
+Body: kosong.
+Response 200: `{ "data": { branchId, spreadsheetId, folderConfigured, provisionStatus } }` (ID ter-mask)
+Response 409: `VALIDATION_ERROR` kalau `Provision_Status` sudah `ready` — provisioning ulang bukan
+jalan keluar untuk cabang yang sudah siap, dan menimpa spreadsheet yang isinya sudah terpakai
+justru lebih berisiko daripada errornya.
+Response 502: `PROVISION_FAILED`.
+Response 503: `SHEETS_SETUP_REQUIRED`.
+
+Menjalankan ulang langkah 3–5 di atas untuk cabang yang gagal. Folder cabang yang sudah ada
+dipakai lagi (dari `Folder_Drive_ID`), jadi foto checklist lama tidak hilang. Baris registry
+cabang ini tidak pernah dihapus oleh endpoint ini — hanya cabang yang masih `pending`/`failed`
+yang diterima.
 
 ---
 
@@ -170,6 +212,27 @@ Response 200: `{ "data": { "checked": true, "alreadyChecked": boolean } }`
 
 > Catatan: v1.0.0 menulis `POST /api/schedules/:sid/checklist/:itemId/check`. Path itu tidak dipakai frontend; kontrak diselaraskan ke bentuk aktual di atas (itemId di body).
 
+### `POST /api/schedules/:scheduleId/checklist/photo` (Karyawan pemilik jadwal)
+`multipart/form-data`, satu field `file`. Upload foto bukti sebelum dicentang di endpoint di atas.
+Response 200: `{ "data": { photoUrl: string, fileId: string } }`
+Response 400: `VALIDATION_ERROR` (field `file` bukan file / kosong).
+Response 403: `FORBIDDEN` (bukan pemilik jadwal, atau shift sudah `completed`).
+Response 404: `NOT_FOUND` (schedule atau item checklist tidak ada).
+
+Aturan upload (divalidasi backend, bukan hanya `accept` di `<input type=file>`):
+
+- MIME type harus salah satu dari `image/jpeg`, `image/png`, `image/webp`, `image/heic`. Selain itu
+  → 415 `UNSUPPORTED_FILE_TYPE`. `image/svg+xml` sengaja ditolak: SVG bisa berisi skrip.
+- Ukuran maksimal **5 MB** → 413 `FILE_TOO_LARGE`.
+- Disimpan ke `Folder_Drive_ID/Checklist Foto/` dengan nama
+  `<Schedule_ID>_<Item_ID>_<timestamp>.<ext>`. File di luar folder cabang → 502 `PROVISION_FAILED`
+  (folder cabang belum ada).
+- `photoUrl` yang dikembalikan adalah URL viewer Drive (`https://drive.google.com/uc?id=<fileId>`),
+  yang langsung bisa dikirim ke `POST /api/schedules/:id/checklist` dan disimpan di
+  `Checklist_Log.Foto_URL`.
+
+> Batas 5 MB dipilih supaya aman di bawah limit body Vercel (10 MB) tanpa perlu streaming.
+
 ### `POST /api/schedules/:scheduleId/checklist/submit` (Karyawan)
 Menutup shift: `started`/`scheduled` → `completed`.
 Response 200: `{ "data": { "submitted": true, "status": "completed" } }` (submit ulang idempotent: `alreadyClosed: true`).
@@ -232,7 +295,10 @@ Response 400 `error.code = "VALIDATION_ERROR"` untuk format lain (mis. `xlsx` be
 | `DUPLICATE_SUBMIT` | 409 | Pengajuan/jadwal identik sudah ada |
 | `CHECKLIST_INCOMPLETE` | 400 | Submit checklist ditolak, ada item belum selesai (+ `error.data.fields`) |
 | `REQUIRED_FIELD_MISSING` | 400 | Handover submit ditolak, field wajib kosong (+ `error.data.fields`) |
-| `SHEETS_SETUP_REQUIRED` | 503 | Spreadsheet cabang/template belum dikonfigurasi |
+| `SHEETS_SETUP_REQUIRED` | 503 | `TEMPLATES` di registry belum terisi `Template_Spreadsheet_ID` / `Parent_Folder_ID` |
+| `PROVISION_FAILED` | 502 | Gagal membuat folder/spreadsheet/foto cabang (+ `error.data.orphans` kalau ada objek Drive yang tertinggal) |
+| `FILE_TOO_LARGE` | 413 | Unggahan foto melebihi 5 MB |
+| `UNSUPPORTED_FILE_TYPE` | 415 | MIME file foto tidak dalam allowlist gambar |
 | `INTERNAL_ERROR` | 500 | Kesalahan tak terduga — pesan internal (Google API) hanya masuk log server |
 | `SCHEDULE_CONFLICT_WARNING` | — | Bukan error — flag informational di response sukses |
 
