@@ -1,4 +1,3 @@
-import { sheets } from "@/lib/google/client";
 import { readRows, type SheetRow } from "@/lib/google/sheets-data";
 import { REGISTRY_SHEETS, registrySheetRange } from "@/lib/google/sheet-schema";
 import { parseAttempts } from "@/lib/domain/login-lockout";
@@ -21,7 +20,20 @@ export interface Branch {
   branchId: string;
   nama: string;
   spreadsheetId: string;
+  folderId: string;
+  provisionStatus: ProvisionStatus;
   aktif: boolean;
+}
+
+export const PROVISION_STATUS_VALUES = ["pending", "ready", "failed"] as const;
+export type ProvisionStatus = (typeof PROVISION_STATUS_VALUES)[number];
+
+// Unknown/blank is treated as `pending`: a row written before the Provision_Status column
+// existed has no Drive folder yet, so it still needs provisioning. Guessing `ready` would hide
+// a half-configured branch behind a green checkmark in the admin UI.
+export function parseProvisionStatus(value: string | undefined): ProvisionStatus {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return PROVISION_STATUS_VALUES.find((status) => status === normalized) ?? "pending";
 }
 
 export type EmployeeRow = SheetRow & { employee: Employee; attempts: number; lockedUntil: string };
@@ -70,8 +82,23 @@ function toBranch(values: string[]): Branch {
     branchId: (values[0] ?? "").trim(),
     nama: (values[1] ?? "").trim(),
     spreadsheetId: (values[2] ?? "").trim(),
-    aktif: parseAktif(values[3] ?? ""),
+    folderId: (values[3] ?? "").trim(),
+    provisionStatus: parseProvisionStatus(values[4]),
+    aktif: parseAktif(values[5] ?? ""),
   };
+}
+
+// Row values as a 6-wide tuple, so callers writing a branch row back cannot accidentally drop
+// or reorder the auto columns (PATCH /api/branches/:id).
+export function branchRowValues(branch: Branch): string[] {
+  return [
+    branch.branchId,
+    branch.nama,
+    branch.spreadsheetId,
+    branch.folderId,
+    branch.provisionStatus,
+    branch.aktif ? "TRUE" : "FALSE",
+  ];
 }
 
 function registryId() {
@@ -100,10 +127,5 @@ export async function getBranchRows(): Promise<Array<SheetRow & { branch: Branch
 }
 
 export async function getBranches(): Promise<Branch[]> {
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: registryId(),
-    range: registrySheetRange(REGISTRY_SHEETS.branches),
-  });
-  const rows = res.data.values ?? [];
-  return rows.slice(1).map(toBranch);
+  return (await getBranchRows()).map((row) => row.branch);
 }

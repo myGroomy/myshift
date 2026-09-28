@@ -5,6 +5,7 @@ import {
   BRANCH_SHEET_NAMES,
   EMPLOYEE_ROW_WIDTH,
   REGISTRY_HEADERS,
+  REGISTRY_SHEETS,
   branchSheetRange,
   columnLetter,
   headerRange,
@@ -16,7 +17,17 @@ import {
 // Fixture transcribed from PLAN/SHEETS-SCHEMA.md §1–§2. Readers are positional, so a rename
 // or reorder here without updating the doc (or vice versa) must fail this test.
 const REGISTRY_SCHEMA: Array<[keyof typeof REGISTRY_HEADERS, string[]]> = [
-  ["Daftar_Cabang", ["Cabang_ID", "Nama_Cabang", "Spreadsheet_ID", "Aktif"]],
+  [
+    "Daftar_Cabang",
+    [
+      "Cabang_ID",
+      "Nama_Cabang",
+      "Spreadsheet_ID",
+      "Folder_Drive_ID",
+      "Provision_Status",
+      "Aktif",
+    ],
+  ],
   [
     "Employees",
     [
@@ -33,6 +44,7 @@ const REGISTRY_SCHEMA: Array<[keyof typeof REGISTRY_HEADERS, string[]]> = [
     ],
   ],
   ["Settings_Global", ["Key", "Value"]],
+  ["TEMPLATES", ["Template_Spreadsheet_ID", "Parent_Folder_ID"]],
 ];
 
 const BRANCH_SCHEMA: Array<[keyof typeof BRANCH_HEADERS, string[]]> = [
@@ -67,7 +79,19 @@ test("ranges are derived from the header width", () => {
   assert.equal(branchSheetRange("Schedules"), "Schedules!A:G");
   assert.equal(branchSheetRange("Shifts"), "Shifts!A:D");
   assert.equal(registrySheetRange("Employees"), "Employees!A:J");
+  assert.equal(registrySheetRange("Daftar_Cabang"), "Daftar_Cabang!A:F");
+  assert.equal(registrySheetRange("TEMPLATES"), "TEMPLATES!A:B");
   assert.equal(headerRange("Shifts", 4), "Shifts!A1:D1");
+});
+
+test("every registry sheet has a pinned header row", () => {
+  for (const name of Object.values(REGISTRY_SHEETS)) {
+    assert.ok(REGISTRY_HEADERS[name]?.length, `REGISTRY_HEADERS is missing ${name}`);
+    assert.ok(
+      REGISTRY_SCHEMA.some(([sheet]) => sheet === name),
+      `test fixture is missing ${name} — add it so the schema stays pinned`
+    );
+  }
 });
 
 test("columnLetter handles rollover past Z", () => {

@@ -6,12 +6,22 @@ export const REGISTRY_SHEETS = {
   branches: "Daftar_Cabang",
   employees: "Employees",
   settings: "Settings_Global",
+  templates: "TEMPLATES",
 } as const;
 
 export type RegistrySheetName = (typeof REGISTRY_SHEETS)[keyof typeof REGISTRY_SHEETS];
 
 export const REGISTRY_HEADERS: Record<RegistrySheetName, readonly string[]> = {
-  Daftar_Cabang: ["Cabang_ID", "Nama_Cabang", "Spreadsheet_ID", "Aktif"],
+  // `Aktif` stays last: Folder_Drive_ID and Provision_Status were inserted before it, the
+  // original four columns were not reordered (SHEETS-SCHEMA.md §1).
+  Daftar_Cabang: [
+    "Cabang_ID",
+    "Nama_Cabang",
+    "Spreadsheet_ID",
+    "Folder_Drive_ID",
+    "Provision_Status",
+    "Aktif",
+  ],
   Employees: [
     "Employee_ID",
     "Username",
@@ -25,6 +35,9 @@ export const REGISTRY_HEADERS: Record<RegistrySheetName, readonly string[]> = {
     "Locked_Until",
   ],
   Settings_Global: ["Key", "Value"],
+  // Single source of truth for branch provisioning config. Replaces the retired
+  // TEMPLATE_SPREADSHEET_ID / MYSHIFT_FOLDER env vars (SHEETS-SCHEMA.md §1).
+  TEMPLATES: ["Template_Spreadsheet_ID", "Parent_Folder_ID"],
 };
 
 export const BRANCH_HEADERS = {
