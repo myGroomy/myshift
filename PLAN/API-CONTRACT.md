@@ -214,19 +214,32 @@ Response 200: `{ "data": { "checked": true, "alreadyChecked": boolean } }`
 
 ### `POST /api/schedules/:scheduleId/checklist/photo` (Karyawan pemilik jadwal)
 `multipart/form-data`, satu field `file`. Upload foto bukti sebelum dicentang di endpoint di atas.
+Query: `?itemId=<Item_ID>` (wajib, item checklist yang difoto — bukan field form) dan `branchId` opsional
+untuk karyawan multi-cabang, sama seperti endpoint jadwal lain.
+
+> `itemId` sengaja di query param, bukan field form: body tetap "satu field `file>" sesuai bentuk di
+> atas, dan validasi item (404 kalau tidak ada / non-aktif) terjadi sebelum body dibaca.
+
 Response 200: `{ "data": { photoUrl: string, fileId: string } }`
-Response 400: `VALIDATION_ERROR` (field `file` bukan file / kosong).
-Response 403: `FORBIDDEN` (bukan pemilik jadwal, atau shift sudah `completed`).
+Response 400: `VALIDATION_ERROR` (field `file` bukan file / kosong, atau `itemId` tidak diisi).
+Response 403: `FORBIDDEN` (bukan pemilik jadwal).
 Response 404: `NOT_FOUND` (schedule atau item checklist tidak ada).
+Response 413: `FILE_TOO_LARGE`. Response 415: `UNSUPPORTED_FILE_TYPE`. Response 502: `PROVISION_FAILED`.
+
+Shift yang sudah `completed` → 400 `VALIDATION_ERROR` via `assertShiftNotClosed`, sama seperti
+`POST /api/schedules/:scheduleId/checklist` (bukan 403: ini condition/state, bukan hak akses).
 
 Aturan upload (divalidasi backend, bukan hanya `accept` di `<input type=file>`):
 
 - MIME type harus salah satu dari `image/jpeg`, `image/png`, `image/webp`, `image/heic`. Selain itu
   → 415 `UNSUPPORTED_FILE_TYPE`. `image/svg+xml` sengaja ditolak: SVG bisa berisi skrip.
 - Ukuran maksimal **5 MB** → 413 `FILE_TOO_LARGE`.
-- Disimpan ke `Folder_Drive_ID/Checklist Foto/` dengan nama
-  `<Schedule_ID>_<Item_ID>_<timestamp>.<ext>`. File di luar folder cabang → 502 `PROVISION_FAILED`
-  (folder cabang belum ada).
+- Disimpan ke `Folder_Drive_ID/Checklist Foto/` (subfolder dibuat otomatis saat upload pertama)
+  dengan nama `<Schedule_ID>_<Item_ID>_<timestamp>.<ext>`. File di luar folder cabang →
+  502 `PROVISION_FAILED` (folder cabang belum ada).
+- Ekstensi `.ext` **diturunkan dari whitelist MIME di atas**, bukan dari nama file kiriman — jadi
+  `.svg` tidak pernah bisa dibuat meski part-nya diklaim `image/jpeg`. Nama disanitasi dengan aturan
+  yang sama seperti folder cabang (`lib/google/provisioning.ts` `driveSafeName`) dan dipotong 60 char.
 - `photoUrl` yang dikembalikan adalah URL viewer Drive (`https://drive.google.com/uc?id=<fileId>`),
   yang langsung bisa dikirim ke `POST /api/schedules/:id/checklist` dan disimpan di
   `Checklist_Log.Foto_URL`.
