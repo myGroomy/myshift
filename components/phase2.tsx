@@ -10,7 +10,7 @@ import { DataTable, tdClass } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { KaryawanShell } from "@/components/bottom-nav";
+import { KaryawanShell } from "@/components/karyawan-shell";
 import { AdminShell, RejectButton, StatusBadge } from "@/components/shell";
 import { request } from "@/lib/api";
 import type { Branch, Category, Izin, Schedule, Swap } from "@/lib/types";

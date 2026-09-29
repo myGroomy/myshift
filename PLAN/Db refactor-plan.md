@@ -96,8 +96,17 @@ Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bis
 > admin manusia (`taufikalwan47@gmail.com=owner` + 3 service account `writer`); retry saat `failed`
 > reuse folder & salinan tanpa baris/salinan kedua; foto checklist masuk `<folder>/Checklist Foto/`;
 > cabang `pending` → 503 `SHEETS_SETUP_REQUIRED`, nonaktif → 404 `NOT_FOUND`; cabang uji + folder-nya
-> dibersihkan. Sisa: `CBG001` masih `pending` (belum pernah punya spreadsheet) dan bisa
-> diprovisioning lewat `POST /api/branches/:id/retry-provision`.
+> dibersihkan.
+>
+> **Posisi data per 2026-09-29:** `CBG001` sudah diprovisioning (`ready`, spreadsheet + folder terisi,
+> `getBranch()` bisa membacanya). Cara provisioning cabang yang tertinggal tanpa HTTP:
+> `pnpm provision:branch -- --id=<Cabang_ID>` — logikanya sama dengan
+> `POST /api/branches/:id/retry-provision`, keduanya memanggil `provisionExistingBranch()` di
+> `lib/google/branch-provisioning.ts` supaya tidak bisa melenceng.
+>
+> Catatan operasional: cabang yang statusnya belum `ready` membuat **semua** endpoint
+> per-cabang membalas `503 SHEETS_SETUP_REQUIRED` dengan pesan "Provision_Status masih pending" —
+> itu perilaku yang dimaksud (lebih baik daripada membaca spreadsheet yang tidak ada), bukan bug.
 
 ---
 

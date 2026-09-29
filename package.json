@@ -16,7 +16,8 @@
     "spike:drive": "tsx scripts/spike-drive-writes.ts",
     "check:bridge": "tsx scripts/check-drive-bridge.ts",
     "probe:bridge": "tsx scripts/probe-bridge.ts",
-    "check:provisioning": "tsx scripts/check-provisioning.ts"
+    "check:provisioning": "tsx scripts/check-provisioning.ts",
+    "provision:branch": "tsx scripts/provision-branch.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

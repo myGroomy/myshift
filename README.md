@@ -46,7 +46,10 @@ pnpm run template:branch       # generate PLAN/templates/MYSHIFT-Template-Cabang
 pnpm run template:import -- --parent=<folderId>   # .xlsx -> Google Sheet native (via bridge)
 pnpm run verify:template       # cek header 9 sheet sesuai SHEETS-SCHEMA.md §2
 pnpm run check:bridge          # uji end-to-end copy + upload lewat bridge (bersihkan sendiri)
+pnpm run check:provisioning    # acceptance provisioning end-to-end (bersihkan sendiri)
 pnpm run spike:drive           # cek jalur service account: folder OK, file ditolak (kuota)
+pnpm run provision:branch -- --list          # status provisioning tiap cabang
+pnpm run provision:branch -- --id=CBG001     # provision/retry cabang tanpa lewat HTTP
 MYSHIFT_SEED_PIN=123456 npx tsx scripts/seed-dummy-data.ts
 ```
 

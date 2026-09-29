@@ -10,7 +10,7 @@ import { DataTable, tdClass } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { KaryawanShell } from "@/components/bottom-nav";
+import { KaryawanShell } from "@/components/karyawan-shell";
 import { AdminShell, StatusBadge } from "@/components/shell";
 import { request } from "@/lib/api";
 import { todayInWIB } from "@/lib/domain/date";
@@ -783,6 +783,7 @@ export function SchedulePage({ mine = false }: { mine?: boolean }) {
   const [session, setSession] = useState<{ employeeId: string; activeBranchId: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [startingId, setStartingId] = useState<string | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
 
   const load = (id: string) => {
     if (!id) {
@@ -804,6 +805,52 @@ export function SchedulePage({ mine = false }: { mine?: boolean }) {
         .catch(() => setShifts([]));
     }
   };
+
+  async function duplicateLastWeek() {
+    if (!branchId) return;
+    setDuplicating(true);
+    try {
+      const todayDate = new Date();
+      const lastWeekStart = new Date(todayDate);
+      lastWeekStart.setDate(todayDate.getDate() - 7);
+      const lastWeekEnd = new Date(todayDate);
+      lastWeekEnd.setDate(todayDate.getDate() - 1);
+
+      const startStr = lastWeekStart.toISOString().slice(0, 10);
+      const endStr = lastWeekEnd.toISOString().slice(0, 10);
+
+      const pastSchedules = items.filter((s) => s.date >= startStr && s.date <= endStr);
+      if (pastSchedules.length === 0) {
+        toast("Tidak ada jadwal minggu lalu (7 hari terakhir) untuk diduplikat.", "info");
+        return;
+      }
+
+      let createdCount = 0;
+      for (const oldSch of pastSchedules) {
+        const oldDate = new Date(oldSch.date);
+        oldDate.setDate(oldDate.getDate() + 7);
+        const newDateStr = oldDate.toISOString().slice(0, 10);
+
+        await request("/api/schedules", {
+          method: "POST",
+          body: JSON.stringify({
+            branchId,
+            employeeId: oldSch.employeeId,
+            shiftId: oldSch.shiftId,
+            date: newDateStr,
+          }),
+        }).catch(() => null);
+        createdCount++;
+      }
+
+      toast(`${createdCount} jadwal minggu lalu berhasil diduplikat ke minggu ini!`, "success");
+      load(branchId);
+    } catch (e) {
+      toast(msg(e), "error");
+    } finally {
+      setDuplicating(false);
+    }
+  }
 
   useEffect(() => {
     if (mine) {
@@ -894,8 +941,19 @@ export function SchedulePage({ mine = false }: { mine?: boolean }) {
           onSubmit={submit}
           className="mb-8 grid max-w-4xl gap-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:grid-cols-4"
         >
-          <div className="sm:col-span-4">
+          <div className="sm:col-span-4 flex items-center justify-between border-b border-border/60 pb-3">
             <h2 className="text-sm font-semibold text-foreground">Plot Jadwal Baru</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={duplicating || !branchId}
+              onClick={duplicateLastWeek}
+              className="text-xs"
+            >
+              <span className="material-symbols-outlined text-sm">content_copy</span>
+              {duplicating ? "Menduplikat..." : "Duplikat Minggu Lalu"}
+            </Button>
           </div>
 
           <div>

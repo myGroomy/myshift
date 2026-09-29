@@ -1,220 +1,676 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence, type Variants } from "motion/react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Plus,
+  Calendar,
+  ArrowLeftRight,
+  FileText,
+  CheckSquare,
+  Handshake,
+  Menu,
+  X,
+} from "lucide-react";
+import { SandTransitionImage } from "@/components/sand-transition";
 
-type StepKey = 1 | 2 | 3 | 4;
-
-const stepData: Record<StepKey, { title: string; desc: string }> = {
-  1: {
-    title: "Admin Menyusun Roster Tanpa Khawatir Tabrakan",
-    desc: "Pilih nama staf dari daftar aktif dan plot jam masuk. Jika staf sudah masuk di cabang lain, sistem memberi indikator peringatan.",
-  },
-  2: {
-    title: "Karyawan Mengajukan Tukar Shift Sendiri",
-    desc: "Karyawan ajukan tukar shift langsung dari browser ponselnya. Rekan yang dituju menerima notifikasi konfirmasi.",
-  },
-  3: {
-    title: "Centang SOP Opening & Closing",
-    desc: "Sebelum staf mengakhiri gilirannya, daftar SOP wajib dicentang lengkap termasuk upload foto bukti.",
-  },
-  4: {
-    title: "Handover Berjalan & Data Masuk ke Spreadsheet",
-    desc: "Catatan penting dari shift sebelumnya otomatis tersimpan rapi di spreadsheet Google pemilik.",
-  },
-};
-
-const faqs = [
+const chaptersData = [
   {
-    q: "Apakah data shift bisa diakses dan diedit lewat Google Sheets biasa?",
-    a: "Ya. Semua data shift, permohonan swap, checklist, dan log handover tersinkron langsung ke Google Sheets pemilik. Pemilik bebas membuat rumus tambahan, ekspor laporan, atau mengarsipkan data kapan pun.",
+    name: "Penjadwalan Shift",
+    image: "https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=800&q=80",
+    desc: "Admin menyusun roster tanpa khawatir tabrakan",
   },
   {
-    q: "Bagaimana jika ada jadwal staf yang bentrok di dua cabang berbeda?",
-    a: "Sistem memberi indikator visual peringatan saat Admin atau Kepala Cabang mencoba memasukkan nama staf yang sudah dialokasikan di outlet lain pada waktu yang sama.",
+    name: "Swap Shift",
+    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80",
+    desc: "Karyawan mengajukan tukar shift sendiri",
   },
   {
-    q: "Apakah bisa langsung dipakai untuk banyak cabang sekaligus?",
-    a: "Sangat bisa. Arsitektur MYSHIFT dirancang bagi bisnis kuliner multi-outlet mulai dari 2 cabang hingga puluhan cabang.",
+    name: "Pengajuan Izin",
+    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80",
+    desc: "Kategori izin kustom untuk kebutuhan cabang",
   },
   {
-    q: "Apakah ada fitur absensi clock-in/out atau penggajian (payroll)?",
-    a: "Tidak. MYSHIFT fokus murni pada manajemen operasional shift toko, swap staf, checklist kepatuhan SOP harian, dan handover catatan stok antar tim.",
+    name: "Checklist SOP",
+    image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800&q=80",
+    desc: "Daftar tugas standar wajib dicentang lengkap",
+  },
+  {
+    name: "Handover Digital",
+    image: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&q=80",
+    desc: "Catatan kritis diteruskan ke shift berikutnya",
   },
 ];
 
+const fadeUp: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+};
+
+const letterBlock: Variants = {
+  initial: { y: 120, opacity: 0 },
+  animate: {
+    y: 0,
+    opacity: 1,
+    transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1] as const },
+  },
+};
+
+const staggerHeader: Variants = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
+};
+const staggerLogo: Variants = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
+};
+const staggerLeft: Variants = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.15, delayChildren: 0.6 } },
+};
+const staggerRight: Variants = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.15, delayChildren: 0.9 } },
+};
+
+const navLinks = ["Fitur", "Cara Kerja", "FAQ", "Tentang"];
+
+const actionPills = [
+  { icon: Calendar, label: "Penjadwalan" },
+  { icon: ArrowLeftRight, label: "Swap Shift" },
+  { icon: FileText, label: "Izin" },
+  { icon: CheckSquare, label: "Checklist" },
+  { icon: Handshake, label: "Handover" },
+];
+
 export default function LandingPage() {
-  const [activeStep, setActiveStep] = useState<StepKey>(1);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const current = stepData[activeStep];
+  const [showVideo, setShowVideo] = useState(false);
+  const [activeChapter, setActiveChapter] = useState(2);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowVideo(true), 2800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveChapter((prev) => (prev + 1) % 5);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b border-border bg-background">
-        <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-tight">
-            <span className="grid size-6 place-items-center rounded-sm bg-primary text-[11px] font-bold text-primary-foreground">
-              MS
-            </span>
-            MYSHIFT
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-            <a href="#fitur" className="transition-colors hover:text-foreground">Fitur</a>
-            <a href="#cara-kerja" className="transition-colors hover:text-foreground">Cara Kerja</a>
-            <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
-          </nav>
-          <Button asChild size="sm">
-            <Link href="/login">Masuk</Link>
-          </Button>
-        </div>
-      </header>
-
-      <main>
-        <section className="border-b border-border">
-          <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-            <div className="mx-auto max-w-2xl text-center">
-              <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-                Atur Shift Kerja Cabang, Tanpa Bentrok & Ribet
-              </h1>
-              <p className="mt-4 text-base text-muted-foreground">
-                Solusi pengatur jadwal shift, tukar shift, checklist SOP harian, dan handover antar tim untuk outlet F&B multi-cabang.
-              </p>
-              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Button asChild size="lg" className="w-full sm:w-auto">
-                  <Link href="/login">Masuk Aplikasi</Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                  <a href="#cara-kerja">Lihat Cara Kerja</a>
-                </Button>
-              </div>
-            </div>
+    <div className="relative w-full min-h-screen bg-[#fcfcfc] text-[#111] overflow-x-hidden">
+      {/* SECTION 1: HERO */}
+      <section className="relative w-full min-h-screen flex flex-col overflow-hidden">
+        {/* Background Video */}
+        {showVideo && (
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            >
+              <source
+                src="https://cdn.coverr.co/videos/coverr-coffee-shop-1584/1080p.mp4"
+                type="video/mp4"
+              />
+            </video>
+            <div className="absolute inset-0 bg-black/40" />
           </div>
-        </section>
+        )}
 
-        <section id="fitur" className="border-b border-border">
-          <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-            <div className="mb-10 max-w-2xl">
-              <h2 className="text-2xl font-bold tracking-tight">Fitur Utama</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Lima modul esensial yang saling terhubung otomatis, menjaga disiplin kerja tim mulai dari buka outlet sampai tutup kasir.
-              </p>
+        {/* 1A: HEADER */}
+        <motion.header
+          className="pt-6 px-6 md:px-16 relative z-20"
+          initial="initial"
+          animate="animate"
+          variants={staggerHeader}
+        >
+          {/* Logo */}
+          <motion.h1
+            variants={staggerLogo}
+            className="text-2xl md:text-3xl font-semibold tracking-tight"
+          >
+            {"MYSHIFT".split("").map((letter, i) => (
+              <motion.span
+                key={i}
+                variants={letterBlock}
+                className="inline-block"
+              >
+                {letter}
+              </motion.span>
+            ))}
+          </motion.h1>
+
+          {/* 1B: SUB-NAV BAR */}
+          <motion.div
+            variants={fadeUp}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="flex justify-between items-start mt-8"
+          >
+            {/* Left column */}
+            <div className="w-[15%] text-[10px] md:text-[11px] font-mono tracking-[0.2em] uppercase">
+              <div className="text-gray-500">Multi</div>
+              <div className="text-gray-500">Cabang</div>
+              <div className="text-gray-500">F&B</div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { icon: "schedule", title: "Penjadwalan Shift", desc: "Admin pilih cabang, staf, dan template shift. Sistem auto-detect menolak jika ada staf terjadwal ganda." },
-                { icon: "swap_horiz", title: "Swap Shift", desc: "Karyawan ajukan tukar shift ke rekan yang berkualifikasi sama. Shift berganti resmi setelah disetujui." },
-                { icon: "event_busy", title: "Pengajuan Izin", desc: "Kategori izin kustom. Slot kosong langsung di-highlight agar Kepala Cabang sigap mencari pengganti." },
-                { icon: "checklist", title: "Checklist SOP", desc: "Daftar tugas standar per cabang. Wajib verifikasi foto sebelum shift diakhiri." },
-                { icon: "handshake", title: "Handover Digital", desc: "Catatan kritis stok menipis, kondisi mesin, atau memo VIP langsung diteruskan ke shift berikutnya." },
-                { icon: "table_chart", title: "Laporan & Audit", desc: "Semua log handover tersimpan aman di cloud spreadsheet untuk audit berkala oleh Owner." },
-              ].map((f) => (
-                <div key={f.title} className="rounded-lg border border-border bg-card p-5">
-                  <span className="material-symbols-outlined mb-3 text-2xl text-primary">{f.icon}</span>
-                  <h3 className="mb-1 text-base font-semibold">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+
+            {/* Arrow separator */}
+            <div className="w-[5%] hidden md:flex justify-center">
+              <ArrowRight size={14} strokeWidth={1} className="text-gray-400" />
+            </div>
+
+            {/* Center column */}
+            <div className="flex-1 md:w-[30%] text-[10px] md:text-[11px] font-mono tracking-[0.2em] uppercase text-gray-800 leading-relaxed">
+              <span className="hidden md:inline">
+                Mengelola shift kerja cabang dengan rapi, transparan, dan tanpa bentrok.
+              </span>
+              <span className="md:hidden">
+                Mengelola shift kerja cabang dengan rapi, transparan, dan tanpa bentrok.
+              </span>
+            </div>
+
+            {/* Arrow separator */}
+            <div className="w-[5%] hidden md:flex justify-center">
+              <ArrowRight size={14} strokeWidth={1} className="text-gray-400" />
+            </div>
+
+            {/* Right column - Nav links */}
+            <div className="w-[15%] hidden md:block text-[10px] md:text-[11px] font-mono tracking-[0.2em] uppercase text-gray-800">
+              {navLinks.map((link) => (
+                <div key={link} className="hover:text-black hover:underline cursor-pointer">
+                  {link}
                 </div>
               ))}
             </div>
-          </div>
-        </section>
 
-        <section id="cara-kerja" className="border-b border-border">
-          <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-            <div className="mb-10 max-w-2xl">
-              <h2 className="text-2xl font-bold tracking-tight">Cara Kerja</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Empat langkah cepat operasional harian.
-              </p>
-            </div>
-            <div className="grid gap-8 lg:grid-cols-12">
-              <div className="space-y-2 lg:col-span-5">
-                {([1, 2, 3, 4] as StepKey[]).map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setActiveStep(n)}
-                    className={`w-full rounded-lg border p-4 text-left transition-colors ${
-                      activeStep === n
-                        ? "border-border bg-accent text-accent-foreground"
-                        : "border-border bg-card text-foreground hover:bg-muted"
-                    }`}
+            {/* Hamburger button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="z-60 flex flex-col gap-[6px] md:hidden"
+              aria-label="Toggle menu"
+            >
+              <motion.div
+                className="h-[1.5px] bg-black"
+                animate={{
+                  width: isMobileMenuOpen ? 24 : 32,
+                  rotate: isMobileMenuOpen ? 45 : 0,
+                  y: isMobileMenuOpen ? 3.75 : 0,
+                }}
+                transition={{ duration: 0.3 }}
+              />
+              <motion.div
+                className="h-[1.5px] bg-black"
+                animate={{
+                  width: isMobileMenuOpen ? 24 : 40,
+                  rotate: isMobileMenuOpen ? -45 : 0,
+                  y: isMobileMenuOpen ? -3.75 : 0,
+                }}
+                transition={{ duration: 0.3 }}
+              />
+            </button>
+          </motion.div>
+        </motion.header>
+
+        {/* 1C: MOBILE MENU OVERLAY */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              className="bg-[#fcfcfc] border-b border-gray-200 shadow-xl md:hidden relative z-50"
+            >
+              <div className="px-6 py-8 space-y-6">
+                {navLinks.map((link) => (
+                  <div
+                    key={link}
+                    className="text-sm font-mono tracking-[0.2em] uppercase text-gray-800"
+                    onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <span className="flex items-center gap-3">
-                      <span className={`grid size-7 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                        activeStep === n ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      }`}>
-                        {n}
-                      </span>
-                      <span className="text-sm font-medium">{stepData[n].title}</span>
-                    </span>
-                  </button>
+                    {link}
+                  </div>
                 ))}
               </div>
-              <div className="rounded-lg border border-border bg-card p-6 lg:col-span-7">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-subtle-foreground">
-                  Langkah {activeStep}
-                </p>
-                <h3 className="mb-2 text-lg font-semibold">{current.title}</h3>
-                <p className="text-sm text-muted-foreground">{current.desc}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 1E: LEFT SIDEBAR CONTENT */}
+        <motion.div
+          className="px-10 md:px-16 mt-20 sm:mt-28 md:mt-32 w-[320px] relative z-10"
+          initial="initial"
+          animate="animate"
+          variants={staggerLeft}
+        >
+          {/* Section indicator */}
+          <motion.div variants={fadeUp} className="flex items-center gap-4 mb-8">
+            <span className="text-xs font-mono text-gray-500">01</span>
+            <div className="w-16 h-[1.5px] bg-black/20" />
+          </motion.div>
+
+          {/* Headline */}
+          <motion.h2
+            variants={fadeUp}
+            className="text-[3.5rem] md:text-[5rem] font-normal tracking-tight leading-[1] text-white"
+          >
+            ATUR SHIFT
+            <br />
+            KERJA CABANG
+          </motion.h2>
+
+          {/* Description */}
+          <motion.p
+            variants={fadeUp}
+            className="mt-6 text-[13px] md:text-[14px] text-white/80 w-[240px] leading-[1.6]"
+          >
+            Kelola jadwal, swap shift, dan checklist SOP dalam satu platform yang rapi dan transparan.
+          </motion.p>
+
+          {/* CTA Button */}
+          <motion.div variants={fadeUp} className="mt-8">
+            <Link
+              href="/login"
+              className="group relative inline-flex items-center gap-3 bg-[#1c2b42] px-6 py-3.5 border border-[#1c2b42] rounded-md shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-[0.5px] hover:shadow-[3px_3px_0px_rgba(17,17,17,0.5)] active:translate-y-0 active:shadow-none"
+            >
+              {/* Sliding background */}
+              <div className="absolute inset-0 bg-[#fcfcfc] -translate-x-[101%] group-hover:translate-x-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
+              {/* Icon */}
+              <Calendar
+                size={18}
+                className="relative z-10 text-white group-hover:text-[#111] group-hover:scale-110 group-hover:-rotate-12 group-hover:-translate-y-1 transition-all duration-300"
+              />
+              {/* Text */}
+              <span className="relative z-10 text-[15px] font-medium text-white group-hover:text-[#111] transition-colors duration-300">
+                Mulai Sekarang
+              </span>
+            </Link>
+          </motion.div>
+        </motion.div>
+
+        {/* 1F: RIGHT SIDEBAR (hidden on mobile) */}
+        <motion.div
+          className="w-[200px] mt-12 md:mt-20 absolute right-10 md:right-16 top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-8 z-10"
+          initial="initial"
+          animate="animate"
+          variants={staggerRight}
+        >
+          {/* Specimen info */}
+          <motion.div variants={fadeUp}>
+            <h3 className="text-[10px] font-bold font-mono tracking-widest uppercase text-white/90">
+              Platform Shift
+            </h3>
+            <p className="mt-2 text-[12px] text-white/60 leading-[1.6]">
+              Untuk UMKM F&B multi-cabang. Tanpa instalasi, langsung pakai dari browser.
+            </p>
+          </motion.div>
+
+          {/* Stats */}
+          <motion.div variants={fadeUp} className="space-y-3">
+            <div>
+              <div className="text-[10px] font-mono tracking-widest uppercase text-white/50">
+                Cabang
               </div>
+              <div className="text-[13px] font-medium text-white">2 - 50+ outlet</div>
             </div>
-          </div>
-        </section>
-
-        <section id="faq" className="border-b border-border">
-          <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-            <div className="mx-auto max-w-2xl">
-              <h2 className="mb-8 text-2xl font-bold tracking-tight">Pertanyaan yang Sering Diajukan</h2>
-              <div className="space-y-2">
-                {faqs.map((item, i) => {
-                  const isOpen = openFaq === i;
-                  return (
-                    <div key={i} className="rounded-lg border border-border bg-card">
-                      <button
-                        className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-medium"
-                        onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                        aria-expanded={isOpen}
-                      >
-                        <span>{item.q}</span>
-                        <span className="material-symbols-outlined text-muted-foreground">{isOpen ? "remove" : "add"}</span>
-                      </button>
-                      {isOpen && (
-                        <div className="border-t border-border px-5 py-4 text-sm text-muted-foreground">
-                          {item.a}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            <div>
+              <div className="text-[10px] font-mono tracking-widest uppercase text-white/50">
+                Karyawan
               </div>
+              <div className="text-[13px] font-medium text-white">10 - 500+ staf</div>
             </div>
-          </div>
-        </section>
+          </motion.div>
 
-        <section>
-          <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-            <div className="rounded-lg bg-inverse-surface px-6 py-12 text-center sm:px-12 lg:py-16">
-              <h2 className="mx-auto max-w-xl text-2xl font-bold tracking-tight text-inverse-foreground text-balance sm:text-3xl">
-                Siap Merapikan Operasional Shift Outlet Anda?
-              </h2>
-              <p className="mx-auto mt-3 max-w-lg text-sm text-inverse-foreground/80">
-                Tinggalkan rekap WhatsApp yang berantakan. Berdayakan tim gerai Anda dengan sistem kerja yang rapi, transparan, dan terpercaya.
-              </p>
-              <Button asChild size="lg" className="mt-8">
-                <Link href="/login">Masuk ke MYSHIFT</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
-      </main>
+          {/* View Details button */}
+          <motion.div variants={fadeUp}>
+            <Link
+              href="/login"
+              className="group flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-full border border-white/40 flex items-center justify-center group-hover:border-white group-hover:bg-white transition-all duration-300">
+                <Plus
+                  size={16}
+                  strokeWidth={1.5}
+                  className="text-white/60 group-hover:text-[#111] transition-colors duration-300"
+                />
+              </div>
+              <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-white/60 group-hover:text-white transition-colors duration-300">
+                Lihat Detail
+              </span>
+            </Link>
+          </motion.div>
+        </motion.div>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 lg:px-8">
-          <p className="text-xs text-muted-foreground">
-            MYSHIFT © 2026. Platform manajemen shift F&B UMKM.
-          </p>
+        {/* 1G: BOTTOM-LEFT "SCROLL TO EXPLORE" */}
+        <motion.div
+          className="absolute bottom-10 left-[2.5rem] md:left-[4rem] hidden md:flex items-center gap-4 z-10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.2, duration: 0.8 }}
+        >
+          <div className="w-12 h-12 rounded-full border border-white/30 flex items-center justify-center gap-[4px]">
+            <div className="w-[1px] h-[12px] bg-white/60" />
+            <div className="w-[1px] h-[12px] bg-white/60" />
+          </div>
+          <span className="text-[10px] font-mono tracking-widest uppercase text-white/50 font-semibold">
+            Scroll to explore
+          </span>
+        </motion.div>
+      </section>
+
+      {/* SECTION 2: "FITUR MYSHIFT" */}
+      <section className="relative w-full min-h-[75vh] md:min-h-screen bg-[#fcfcfc] flex flex-col items-center pt-24 md:pt-32 pb-0 z-20">
+        {/* 2A: SECTION LABEL */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="text-[10px] md:text-[11px] font-mono tracking-[0.2em] mb-12"
+        >
+          <span className="text-gray-500">[ 02 ]</span>{" "}
+          <span className="text-gray-900 font-bold uppercase">Fitur MYSHIFT</span>
+        </motion.div>
+
+        {/* 2B: MAIN HEADING */}
+        <motion.h2
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="text-[2.2rem] md:text-[3.5rem] lg:text-[4.2rem] leading-[1.1] font-medium tracking-tight text-[#111] max-w-[1000px] text-center px-6"
+        >
+          Semua yang kamu butuhkan untuk mengelola shift kerja cabang.
+        </motion.h2>
+
+        {/* 2C: ACTION PILLS */}
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4 mt-12 md:mt-16 mb-10 md:mb-24 px-6">
+          {actionPills.map((pill, i) => (
+            <motion.div
+              key={pill.label}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1, duration: 0.5 }}
+              className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-gray-300 text-[11px] font-medium uppercase tracking-wider bg-white/50 backdrop-blur-sm text-gray-800 cursor-pointer hover:border-[#1c2b42] hover:bg-[#1c2b42] hover:text-white transition-all duration-300"
+            >
+              <pill.icon size={14} strokeWidth={2} />
+              {pill.label}
+            </motion.div>
+          ))}
         </div>
-      </footer>
+
+        {/* 2D: SPACER */}
+        <div className="min-h-[220px] md:min-h-[450px]" />
+
+        {/* 2E: BOTTOM TEXT */}
+        <div className="absolute bottom-0 left-0 right-0 px-8 md:px-16 pb-8 md:pb-12 pointer-events-none">
+          <div className="flex justify-between">
+            <span className="text-[10px] font-mono tracking-widest uppercase text-gray-500 font-medium hidden md:block">
+              KAMI TIDAK HANYA MENGATUR JADWAL.
+            </span>
+            <span className="text-[10px] font-mono tracking-widest uppercase text-gray-500 font-medium hidden md:block">
+              MYSHIFT (C) 2026
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3: "CARA KERJA" (Dark Section) */}
+      <section className="relative w-full bg-[#0a0a0a] text-white flex flex-col z-30">
+        {/* 3A: OVERLAPPING IMAGE */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[160vw] md:w-[1100px] pointer-events-none z-0">
+          <motion.img
+            src="https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=1200&q=80"
+            alt="Restaurant team"
+            className="w-full h-auto"
+            initial={{ y: "-65%", opacity: 0 }}
+            whileInView={{ y: "-78%", opacity: 1 }}
+            viewport={{ once: true, margin: "100px" }}
+            transition={{ duration: 1.4, ease: "easeOut" }}
+          />
+        </div>
+
+        {/* 3B: HEADING AREA */}
+        <div className="px-8 md:px-16 pt-32 md:pt-48 mb-16 relative z-10">
+          <div className="flex flex-col xl:flex-row justify-between gap-12">
+            {/* Left -- Main heading */}
+            <motion.h2
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.8 }}
+              className="text-[1.8rem] md:text-[3rem] lg:text-[3.8rem] xl:text-[4rem] leading-[1.15] font-medium tracking-tight text-white"
+            >
+              Dari jadwal sampai laporan,{" "}
+              <span className="inline-flex gap-2 md:gap-3 align-middle mx-2 md:mx-4 translate-y-[-4px]">
+                {[Calendar, ArrowLeftRight, CheckSquare].map((Icon, i) => (
+                  <span
+                    key={i}
+                    className="w-10 h-10 md:w-14 md:h-14 rounded-full border border-gray-600 bg-black text-gray-400 flex items-center justify-center hover:bg-white hover:text-black hover:border-white transition-all duration-300 cursor-pointer"
+                  >
+                    <Icon size={22} />
+                  </span>
+                ))}
+              </span>{" "}
+              semua otomatis.
+            </motion.h2>
+
+            {/* Right -- Tagline + pills */}
+            <div className="flex flex-col justify-end">
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="text-[9px] md:text-[10px] font-mono tracking-widest text-gray-400 uppercase mb-6 leading-relaxed"
+              >
+                KAMI TIDAK HANYA MENGATUR JADWAL
+                <br />
+                KAMI MEMBANGUN SISTEM KERJA YANG RAPI
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className="flex gap-3"
+              >
+                {["Otomatis", "Transparan", "Terpercaya"].map((pill) => (
+                  <span
+                    key={pill}
+                    className="px-5 py-2 rounded-full border border-gray-600 text-[9px] font-mono tracking-widest uppercase text-gray-300 hover:bg-white hover:text-black hover:border-white transition-all duration-300 cursor-pointer"
+                  >
+                    {pill}
+                  </span>
+                ))}
+              </motion.div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3C: TWO-COLUMN PANEL */}
+        <div className="relative z-10">
+          <div className="h-[1px] bg-gray-800" />
+          <div className="flex flex-col md:flex-row">
+            {/* Left panel (35%) - Chapter image */}
+            <div className="md:w-[35%] border-b md:border-b-0 md:border-r border-gray-800 min-h-[400px] md:min-h-[500px] relative">
+              <div className="absolute top-8 left-8 text-gray-500 text-xl tracking-[0.3em]">
+                ***
+              </div>
+              <SandTransitionImage
+                src={chaptersData[activeChapter].image}
+                alt={chaptersData[activeChapter].name}
+                className="absolute inset-0 w-[80%] h-[80%] m-auto"
+              />
+              <div className="absolute bottom-8 left-8 right-8 flex items-center gap-2">
+                <span className="text-[10px] font-mono tracking-widest text-[#888] uppercase">
+                  Chapter
+                </span>
+                <motion.span
+                  key={activeChapter}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="text-[10px] font-mono tracking-widest text-white uppercase"
+                >
+                  {String(activeChapter + 1).padStart(2, "0")}
+                </motion.span>
+                <span className="text-[10px] font-mono tracking-widest text-[#333]">
+                  / {String(chaptersData.length).padStart(2, "0")}
+                </span>
+              </div>
+            </div>
+
+            {/* Right panel (65%) - Chapter list */}
+            <div className="md:w-[65%]">
+              {/* Top bar */}
+              <div className="border-b border-gray-800 p-8 flex justify-between items-center">
+                <span className="text-[10px] font-mono text-gray-400 tracking-widest">
+                  Jelajahi fitur. Pahami cara kerjanya.
+                </span>
+                <motion.span
+                  key={activeChapter}
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="text-[10px] font-mono text-gray-400 tracking-widest"
+                >
+                  Chapter {String(activeChapter + 1).padStart(2, "0")}
+                </motion.span>
+              </div>
+
+              {/* Chapter list */}
+              <div>
+                {chaptersData.map((chapter, i) => (
+                  <motion.div
+                    key={chapter.name}
+                    onClick={() => setActiveChapter(i)}
+                    className={`border-b border-gray-800/80 py-8 px-8 cursor-pointer transition-colors duration-300 ${
+                      activeChapter === i
+                        ? "text-white"
+                        : "text-[#444] hover:text-[#999]"
+                    }`}
+                    whileHover={{ x: 4 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-2xl md:text-[2rem] font-medium tracking-tight">
+                          {chapter.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">{chapter.desc}</p>
+                      </div>
+                      <AnimatePresence>
+                        {activeChapter === i && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.5 }}
+                          >
+                            <ArrowUpRight
+                              size={22}
+                              strokeWidth={1}
+                              className="text-gray-400"
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 3D: BOTTOM FOOTER */}
+          <div className="h-[1px] bg-gray-800" />
+          <div className="px-8 py-8 text-[10px] font-mono tracking-widest text-gray-500 uppercase bg-[#0a0a0a]">
+            Membangun sistem kerja yang rapi untuk F&B UMKM
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4: CTA + FOOTER */}
+      <section className="relative w-full">
+        {/* CTA with background image */}
+        <div className="relative h-[60vh] md:h-[70vh] overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"
+            alt="Restaurant interior"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-[#1c2b42]/80" />
+          <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
+            <motion.h2
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.8 }}
+              className="text-[2rem] md:text-[3.5rem] lg:text-[4rem] font-medium tracking-tight text-white max-w-3xl leading-[1.1]"
+            >
+              Siap merapikan operasional shift outlet Anda?
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="mt-4 text-white/70 max-w-lg text-sm md:text-base"
+            >
+              Tinggalkan rekap WhatsApp yang berantakan. Berdayakan tim gerai Anda dengan sistem kerja yang rapi, transparan, dan terpercaya.
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="mt-8"
+            >
+              <Link
+                href="/login"
+                className="group relative inline-flex items-center gap-3 bg-white px-8 py-4 border border-white rounded-md shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-[0.5px] hover:shadow-[3px_3px_0px_rgba(255,255,255,0.3)]"
+              >
+                <div className="absolute inset-0 bg-[#1c2b42] -translate-x-[101%] group-hover:translate-x-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
+                <span className="relative z-10 text-[15px] font-medium text-[#1c2b42] group-hover:text-white transition-colors duration-300">
+                  Masuk ke MYSHIFT
+                </span>
+                <ArrowRight
+                  size={18}
+                  className="relative z-10 text-[#1c2b42] group-hover:text-white transition-colors duration-300"
+                />
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="bg-[#0a0a0a] text-white py-12 px-6 md:px-16">
+          <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div>
+              <div className="text-lg font-semibold tracking-tight">MYSHIFT</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Platform manajemen shift F&B UMKM multi-cabang.
+              </p>
+            </div>
+            <div className="flex gap-6 text-xs text-gray-500">
+              <a href="#" className="hover:text-white transition-colors">Fitur</a>
+              <a href="#" className="hover:text-white transition-colors">Cara Kerja</a>
+              <a href="#" className="hover:text-white transition-colors">FAQ</a>
+              <a href="#" className="hover:text-white transition-colors">Kontak</a>
+            </div>
+          </div>
+          <div className="max-w-[1200px] mx-auto mt-8 pt-8 border-t border-gray-800">
+            <p className="text-[10px] font-mono tracking-widest text-gray-600 uppercase">
+              MYSHIFT (c) 2026. Platform manajemen shift F&B UMKM.
+            </p>
+          </div>
+        </footer>
+      </section>
     </div>
   );
 }

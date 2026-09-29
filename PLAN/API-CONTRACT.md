@@ -156,6 +156,15 @@ yang sudah tidak sesuai (template berubah, penulisan terputus) diganti salinan b
 selalu menunjuk ke salinan yang lolos verifikasi. Baris registry cabang ini tidak pernah dihapus
 oleh endpoint ini — hanya cabang yang masih `pending`/`failed` yang diterima.
 
+> Logika provisioning di endpoint ini ada di `provisionExistingBranch()`
+> (`lib/google/branch-provisioning.ts`) dan dipakai juga oleh CLI `pnpm provision:branch -- --id=CBG001`,
+> untuk cabang yang provisioning-nya tertinggal dan tidak mau lewat HTTP. Keduanya memanggil
+> fungsi yang sama, jadi tidak bisa melenceng.
+>
+> Cabang yang belum `ready` membuat seluruh endpoint per-cabang membalas
+> `503 SHEETS_SETUP_REQUIRED` (lihat §0 "Cabang harus siap pakai") — ini perilaku yang dimaksud,
+> bukan kegagalan: membaca spreadsheet yang belum ada hanya menghasilkan error yang lebih membingungkan.
+
 ---
 
 ## 4. Shift Templates (Admin only)

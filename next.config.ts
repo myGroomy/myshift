@@ -20,9 +20,10 @@ const securityHeaders = [
       // runtime was both unnecessary and an allowed-script-origin. 'unsafe-eval' stays dev-only.
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob: https://images.unsplash.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self'",
+      "connect-src 'self' https://cdn.coverr.co",
+      "media-src 'self' https://cdn.coverr.co",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

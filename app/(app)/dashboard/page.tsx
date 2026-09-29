@@ -144,12 +144,12 @@ export default function DashboardPage() {
                 </Button>
                 {item.pendingSwaps > 0 && (
                   <Button asChild size="sm" variant="secondary" className="text-xs">
-                    <Link href="/approval/swap">Swap ({item.pendingSwaps})</Link>
+                    <Link href="/approval?tab=swap">Swap ({item.pendingSwaps})</Link>
                   </Button>
                 )}
                 {item.pendingIzins > 0 && (
                   <Button asChild size="sm" variant="secondary" className="text-xs">
-                    <Link href="/approval/izin">Izin ({item.pendingIzins})</Link>
+                    <Link href="/approval?tab=izin">Izin ({item.pendingIzins})</Link>
                   </Button>
                 )}
               </div>

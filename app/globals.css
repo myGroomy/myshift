@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -35,30 +36,26 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-app);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-/* Atlassian ramp — see DESIGN.md §2. Values come from
-   PLAN/kerangka-ui/extracted/atlassian/DESIGN.md, not the #0075de prototype palette. */
 :root {
   --radius-sm: 3px;
   --radius-md: 4px;
   --radius-lg: 8px;
   --radius-xl: 24px;
 
-  --font-app: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-
-  --background: #f8f8f8;
-  --foreground: #1a1b1f;
+  --background: #fcfcfc;
+  --foreground: #111111;
   --card: #ffffff;
-  --card-foreground: #1a1b1f;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #1a1b1f;
+  --popover-foreground: #111111;
 
-  --muted: #f4f3f8;
-  --muted-foreground: #45474a;
-  --subtle-foreground: #5d5e61;
+  --muted: #f4f4f4;
+  --muted-foreground: #666666;
+  --subtle-foreground: #888888;
 
   --primary: #1c2b42;
   --primary-foreground: #ffffff;
@@ -80,32 +77,32 @@
   --warning: #8a5a00;
   --warning-wash: #fbf3e3;
 
-  --inverse-surface: #2f3034;
+  --inverse-surface: #1c2b42;
   --inverse-foreground: #f1f0f5;
 
-  --border: #c5c6ca;
+  --border: #e0e0e0;
   --input: #75777a;
   --ring: #1c2b42;
 }
 
 .dark {
-  --background: #1a1b1f;
+  --background: #0a0a0a;
   --foreground: #f1f0f5;
-  --card: #232528;
+  --card: #1a1a1a;
   --card-foreground: #f1f0f5;
-  --popover: #232528;
+  --popover: #1a1a1a;
   --popover-foreground: #f1f0f5;
 
-  --muted: #2f3034;
-  --muted-foreground: #c5c6ca;
-  --subtle-foreground: #9a9ba0;
+  --muted: #2a2a2a;
+  --muted-foreground: #999999;
+  --subtle-foreground: #777777;
 
   --primary: #9db8dc;
   --primary-foreground: #10161f;
   --secondary: #b8c7e5;
   --secondary-foreground: #10161f;
 
-  --accent: #2f3034;
+  --accent: #2a2a2a;
   --accent-foreground: #d1e0ff;
 
   --info-wash: #1e2733;
@@ -121,9 +118,9 @@
   --warning-wash: #2b2314;
 
   --inverse-surface: #f1f0f5;
-  --inverse-foreground: #1a1b1f;
+  --inverse-foreground: #0a0a0a;
 
-  --border: #3a3b40;
+  --border: #333333;
   --input: #565860;
   --ring: #9db8dc;
 }
@@ -140,11 +137,23 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    overflow-x: hidden;
   }
 
-  /* Data reads as columns: times, counts, and IDs must not jitter. */
+  ::selection {
+    @apply bg-primary text-primary-foreground;
+  }
+
   .tnum {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .text-mega {
+    font-size: 21vw;
+    line-height: 0.75;
+    letter-spacing: -0.04em;
   }
 }
 

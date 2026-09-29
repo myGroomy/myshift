@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { AdminShell } from "@/components/shell";
-import { KaryawanShell } from "@/components/bottom-nav";
+import { KaryawanShell } from "@/components/karyawan-shell";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shell";
 

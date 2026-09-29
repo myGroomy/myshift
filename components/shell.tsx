@@ -42,9 +42,10 @@ export function AdminShell({
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
       <Nav />
+      {/* pb-28 memberi ruang untuk dock di layar kecil; dock disembunyikan di lg+ (nav horizontal). */}
       <main
         id="main"
-        className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-8"
+        className="mx-auto w-full max-w-[1200px] flex-1 px-4 pt-5 pb-28 sm:px-6 lg:px-8 lg:py-8"
       >
         <motion.div
           initial={{ opacity: 0, y: 8 }}
