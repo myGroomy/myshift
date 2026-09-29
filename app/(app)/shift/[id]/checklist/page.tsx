@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -30,6 +30,12 @@ type ChecklistResponse = {
   total: number;
 };
 
+// Mirrors the whitelist in lib/google/photo-upload.ts, restated here rather than imported: that
+// module pulls in the Drive client, which must not reach the browser bundle. The `accept` string
+// and this list are two halves of the same filter; the server is the authority.
+const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
 export default function ChecklistPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -46,6 +52,21 @@ export default function ChecklistPage() {
   const [photoUrlInput, setPhotoUrlInput] = useState("");
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Upload state for the file picker. The uploaded file becomes a Drive URL that feeds the same
+  // handleCheck path as the manual field, so a photo uploaded from the phone behaves identically to
+  // one pasted by hand.
+  const [uploading, setUploading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  function resetPhotoModal() {
+    setPhotoModalItem(null);
+    setPhotoUrlInput("");
+    setUploadedUrl("");
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   function load() {
     if (!id) return;
@@ -77,8 +98,7 @@ export default function ChecklistPage() {
         body: JSON.stringify({ itemId, photoUrl: photoUrl || undefined }),
       });
       toast("Item checklist dicentang", "success");
-      setPhotoModalItem(null);
-      setPhotoUrlInput("");
+      resetPhotoModal();
       load();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menyimpan centang", "error");
@@ -94,12 +114,46 @@ export default function ChecklistPage() {
     }
 
     if (item.requiresPhoto) {
+      resetPhotoModal();
       setPhotoModalItem(item);
-      setPhotoUrlInput("");
       return;
     }
 
     handleCheck(item.itemId);
+  }
+
+  // Client-side checks are for a fast error message only — the backend re-validates type, size and
+  // ownership (API-CONTRACT §8). A file that slips past these still gets rejected server-side.
+  async function handleFilePicked(file: File | undefined) {
+    if (!file || !photoModalItem) return;
+    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+      toast("Format foto harus JPEG, PNG, WEBP, atau HEIC.", "error");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      toast("Ukuran foto maksimal 5 MB.", "error");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      // No Content-Type header: the browser must set it so the multipart boundary is included.
+      const data = await request<{ photoUrl: string; fileId: string }>(
+        `/api/schedules/${id}/checklist/photo?itemId=${encodeURIComponent(photoModalItem.itemId)}`,
+        { method: "POST", body: form }
+      );
+      setUploadedUrl(data.photoUrl);
+      toast("Foto berhasil diunggah", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal mengunggah foto", "error");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleSubmit() {
@@ -281,18 +335,45 @@ export default function ChecklistPage() {
                 </h3>
               </div>
               <button
-                onClick={() => setPhotoModalItem(null)}
+                onClick={resetPhotoModal}
                 className="text-muted-foreground hover:text-foreground"
+                aria-label="Tutup"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
             <p className="mt-2 text-xs text-muted-foreground">
-              Masukkan tautan foto bukti SOP (misal link Google Drive, Cloudinary, atau URL publik foto).
+              Unggah foto bukti langsung dari perangkat, atau tempel tautan foto bila sudah ada di
+              Drive.
             </p>
 
             <div className="mt-4 space-y-3">
+              <div>
+                <Label htmlFor="photo-file">Unggah Foto Bukti</Label>
+                <input
+                  id="photo-file"
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_PHOTO_TYPES.join(",")}
+                  disabled={uploading}
+                  onChange={(e) => handleFilePicked(e.target.files?.[0])}
+                  className="block w-full cursor-pointer rounded-md border border-border bg-background p-2 text-sm text-foreground file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  JPEG, PNG, WEBP, atau HEIC. Maksimal 5 MB.
+                </p>
+                {uploading && (
+                  <p className="mt-1 text-xs text-muted-foreground">Mengunggah foto ke Drive...</p>
+                )}
+                {uploadedUrl && !uploading && (
+                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-success">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    Foto tersimpan, siap dicentang.
+                  </p>
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="photo-url">Tautan URL Foto Bukti</Label>
                 <Input
@@ -301,20 +382,32 @@ export default function ChecklistPage() {
                   value={photoUrlInput}
                   onChange={(e) => setPhotoUrlInput(e.target.value)}
                   placeholder="https://drive.google.com/... atau https://..."
-                  required
                   className={controlClass}
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Opsional bila foto sudah diunggah di atas.
+                </p>
               </div>
 
               <div className="flex gap-2 pt-2">
                 <Button
-                  onClick={() => handleCheck(photoModalItem.itemId, photoUrlInput.trim())}
-                  disabled={!photoUrlInput.trim() || checkingId === photoModalItem.itemId}
+                  onClick={() =>
+                    handleCheck(photoModalItem.itemId, uploadedUrl || photoUrlInput.trim())
+                  }
+                  disabled={
+                    (!uploadedUrl && !photoUrlInput.trim()) ||
+                    checkingId === photoModalItem.itemId ||
+                    uploading
+                  }
                   className="flex-1"
                 >
-                  {checkingId === photoModalItem.itemId ? "Menyimpan..." : "Simpan & Centang"}
+                  {checkingId === photoModalItem.itemId
+                    ? "Menyimpan..."
+                    : uploading
+                      ? "Mengunggah..."
+                      : "Simpan & Centang"}
                 </Button>
-                <Button variant="ghost" onClick={() => setPhotoModalItem(null)}>
+                <Button variant="ghost" onClick={resetPhotoModal}>
                   Batal
                 </Button>
               </div>
