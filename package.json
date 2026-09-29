@@ -11,7 +11,12 @@
     "test": "node --import tsx --test \"test/*.test.ts\"",
     "setup:sheets": "tsx scripts/setup-sheets.ts",
     "template:branch": "tsx scripts/build-branch-template.ts",
-    "template:import": "tsx scripts/import-branch-template.ts"
+    "template:import": "tsx scripts/import-branch-template.ts",
+    "verify:template": "tsx scripts/verify-template.ts",
+    "spike:drive": "tsx scripts/spike-drive-writes.ts",
+    "check:bridge": "tsx scripts/check-drive-bridge.ts",
+    "probe:bridge": "tsx scripts/probe-bridge.ts",
+    "check:provisioning": "tsx scripts/check-provisioning.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

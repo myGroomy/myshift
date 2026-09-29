@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Apps Script source (gas/Code.js). It runs on Google's V8 runtime, not Node: `doPost`/`doGet`
+    // are entry points Google calls by name, so every linter sees them as unused. The same exclusion
+    // lives in .oxlintrc.json (the `pnpm lint` runner).
+    "gas/**",
   ]),
 ]);
 

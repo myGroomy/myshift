@@ -16,6 +16,8 @@ import { config } from "dotenv";
 import type { drive_v3 } from "googleapis";
 import { drive } from "../lib/google/client";
 import { writeBranchHeaders } from "../lib/google/provisioning";
+import { assertBridgeConfigured, bridgeImportFile } from "../lib/google/drive-bridge";
+import { getTemplateConfig } from "../lib/google/registry";
 
 config({ path: ".env.local" });
 
@@ -39,14 +41,17 @@ function arg(name: string): string | undefined {
 const force = process.argv.includes("--force");
 const sourceId = arg("source") ?? DEFAULT_SOURCE_ID;
 
-// The parent folder normally comes from the TEMPLATES sheet (single source of truth), but that row
-// is written by the migration step, so a first-time run may not have it yet — hence the flag.
+// Parent folder comes from the TEMPLATES sheet (the single source of truth, SHEETS-SCHEMA §1);
+// `--parent=` only overrides it. Requiring the flag used to make this step fail with a manual
+// instruction even when the registry was already filled in.
 async function resolveParentFolder(): Promise<string> {
   const flag = arg("parent")?.trim();
   if (flag) return flag;
+  const { parentFolderId } = await getTemplateConfig();
+  if (parentFolderId) return parentFolderId;
   throw new Error(
-    "Folder induk belum diisi di sheet TEMPLATES. Jalankan dengan --parent=<folderId> dulu, " +
-      "lalu tulis nilainya ke TEMPLATES.Parent_Folder_ID (PLAN/SHEETS-SCHEMA.md §2 langkah 4)."
+    "Folder induk belum diisi di sheet TEMPLATES. Isi TEMPLATES.Parent_Folder_ID " +
+      "(PLAN/SHEETS-SCHEMA.md §2 langkah 4) atau jalankan dengan --parent=<folderId>."
   );
 }
 
@@ -64,6 +69,16 @@ async function findExistingTemplate(parentId: string): Promise<string | null> {
 }
 
 async function importFromXlsx(sourceId: string, name: string, parentId: string): Promise<string> {
+  // Default path: the Apps Script bridge converts the .xlsx, because the service account has zero
+  // Drive storage and a `files.create` from it is refused with 403 (PLAN/Db refactor-plan.md
+  // Step 0b). `--via=service-account` forces the old path, for an account that *does* have storage —
+  // it is never used implicitly.
+  if (!process.argv.includes("--via=service-account")) {
+    assertBridgeConfigured();
+    const imported = await bridgeImportFile({ sourceFileId: sourceId, parentFolderId: parentId, name });
+    return imported.fileId;
+  }
+
   const source = await drive.files.get(
     { fileId: sourceId, alt: "media", supportsAllDrives: true },
     { responseType: "arraybuffer" },

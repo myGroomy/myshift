@@ -116,8 +116,10 @@ const statusTone: Record<string, string> = {
   approved: "bg-success-wash text-success",
   active: "bg-success-wash text-success",
   completed: "bg-success-wash text-success",
+  ready: "bg-success-wash text-success",
   started: "bg-info-wash text-info-foreground",
   pending: "bg-warning-wash text-warning",
+  failed: "bg-destructive-wash text-destructive-foreground",
   rejected: "bg-destructive-wash text-destructive-foreground",
 };
 

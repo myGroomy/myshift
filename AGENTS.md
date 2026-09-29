@@ -47,6 +47,17 @@ Hosting   : Vercel
 
 Jangan ganti stack tanpa konfirmasi eksplisit dari user — meskipun ada alternatif yang "lebih baik" secara teknis. Keputusan ini demi konsistensi dengan aplikasi sibling.
 
+**Pengecualian terkonfirmasi (user, 2026-09-29): Drive bridge Apps Script — bukan GAS sebagai database.**
+`gas/Code.js` adalah Web App tipis yang hanya mengeksekusi 3 operasi **pembuatan file Drive** yang
+butuh kuota pemilik akun: konversi `.xlsx` template jadi Google Sheet, `files.copy` template ke folder
+cabang, dan upload foto checklist. Alasan: service account aplikasi punya `storageQuota.limit = 0`,
+sehingga Drive menolak semua file yang dibuatnya (`PLAN/Db refactor-plan.md` Step 0b) — sedangkan baca
+dan tulis *isi* spreadsheet tetap lewat Google Sheets API v4 seperti biasa. Aturan yang harus
+dipertahankan: script **tetap bodoh** (tidak tahu skema/bisnis — semua aturan hidup di aplikasi dan
+punya test), dijaga shared secret dari Script Properties, hanya boleh menulis ke dalam folder MYSHIFT,
+idempotent-by-name, dan disetujui eksplisit oleh user. Melanggar salah satunya = kembali ke larangan
+"GAS bukan bagian stack".
+
 ## 5. Standar Kode (Wajib — pelajaran audit aplikasi sibling)
 
 Aplikasi lain di ekosistem sudah diaudit, ditemukan pola masalah berulang. **Jangan ulangi di MYSHIFT:**

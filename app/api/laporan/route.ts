@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fail, handleRouteError, ok } from "@/lib/api-response";
 import { getBranches, getEmployees } from "@/lib/google/registry";
-import { branchSpreadsheetFrom } from "@/lib/google/branch-data";
+import { branchSpreadsheetFrom, usableBranches } from "@/lib/google/branch-data";
 import { readRows } from "@/lib/google/sheets-data";
 import { branchSheetRange } from "@/lib/google/sheet-schema";
 import { todayInWIB } from "@/lib/domain/date";
@@ -23,7 +23,10 @@ interface LaporanRow {
 const CSV_HEADERS = ["Tipe", "ID", "Tanggal", "Karyawan", "Nama", "Detail", "Status"];
 
 async function targetBranches(session: SessionPayload, branchFilter: string): Promise<Branch[]> {
-  const branches = (await getBranches()).filter((branch) => branch.aktif);
+  // `usableBranches` also drops branches whose provisioning never finished: laporan reads every
+  // branch in a single Promise.all, so one pending branch used to fail the whole report (a branch
+  // that is merely not set up yet must not blank out the numbers for the rest).
+  const branches = usableBranches(await getBranches());
   if (session.role === "admin") {
     return branchFilter ? branches.filter((branch) => branch.branchId === branchFilter) : branches;
   }

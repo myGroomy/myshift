@@ -98,6 +98,18 @@ export function BranchesPage() {
     }
   }
 
+  // Retry half-finished provisioning (API-CONTRACT §3 `retry-provision`). The endpoint refuses a
+  // `ready` branch, so the button is only offered for `pending`/`failed` rows.
+  async function retryProvision(branch: Branch) {
+    try {
+      await request(`/api/branches/${branch.branchId}/retry-provision`, { method: "POST" });
+      toast(`Provisioning ${branch.branchId} selesai`, "success");
+      load();
+    } catch (e) {
+      toast(msg(e), "error");
+    }
+  }
+
   return (
     <AdminShell
       title="Kelola Cabang"
@@ -150,7 +162,7 @@ export function BranchesPage() {
           description="Tambahkan cabang pertama untuk mulai mengelola shift."
         />
       ) : (
-        <DataTable columns={["ID", "Nama Cabang", "Spreadsheet", "Status", "Aksi"]}>
+        <DataTable columns={["ID", "Nama Cabang", "Spreadsheet", "Status", "Provisioning", "Aksi"]}>
           {items.map((item) => (
             <tr key={item.branchId} className="border-t border-border">
               <td className={tdClass}>
@@ -166,6 +178,11 @@ export function BranchesPage() {
               </td>
               <td className={tdClass}>
                 <StatusBadge status={item.aktif ? "active" : "inactive"} />
+              </td>
+              {/* A branch whose provisioning never finished is unusable — the API rejects it — so its
+                  state has to be visible here, not just in the registry sheet. */}
+              <td className={tdClass}>
+                <StatusBadge status={item.provisionStatus ?? "pending"} />
               </td>
               <td className={tdClass}>
                 <div className="flex gap-2">
@@ -187,6 +204,11 @@ export function BranchesPage() {
                   >
                     {item.aktif ? "Nonaktifkan" : "Aktifkan"}
                   </Button>
+                  {(item.provisionStatus ?? "pending") !== "ready" && (
+                    <Button variant="outline" size="sm" onClick={() => retryProvision(item)}>
+                      Retry
+                    </Button>
+                  )}
                 </div>
               </td>
             </tr>

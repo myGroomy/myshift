@@ -8,6 +8,9 @@ import type { NextRequest } from "next/server";
 
 type Context = { params: Promise<{ id: string }> };
 
+// Same budget as POST /api/branches: the copy runs through the Apps Script Drive bridge.
+export const maxDuration = 60;
+
 // Re-runs steps 3-5 of the row-first flow in API-CONTRACT §3 for a branch that never finished
 // provisioning. The registry row is never deleted here — the branch already exists as far as the
 // app is concerned, and dropping it would lose the ID history and any folder already created.
@@ -33,7 +36,13 @@ export async function POST(request: NextRequest, context: Context) {
     const provisioned = await provisionBranchDrive(
       row.branch.branchId,
       row.branch.nama,
-      row.branch.folderId,
+      {
+        // Both IDs come from the row so a retry is idempotent: the folder (and the checklist photos
+        // inside it) is kept, and an existing copy that still matches the schema is reused instead
+        // of making a second one (PLAN/Db refactor-plan.md Step 3.2).
+        existingFolderId: row.branch.folderId,
+        existingSpreadsheetId: row.branch.spreadsheetId,
+      },
     );
 
     const saved = await replaceRowById(registryId, REGISTRY_SHEETS.branches, range, id, [

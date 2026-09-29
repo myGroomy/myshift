@@ -20,12 +20,30 @@
 > dapat kolom `Folder_Drive_ID` + `Provision_Status`, provisioning jadi row-first, ada
 > `POST /api/branches/:id/retry-provision`, dan ada endpoint unggah foto checklist (§8). Error code
 > baru: `PROVISION_FAILED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`.
+>
+> **Perubahan v1.3.0** (db refactor Step 2–3): header hasil `files.copy` **diverifikasi** terhadap
+> `SHEETS-SCHEMA.md` §2 sebelum `Provision_Status=ready` (bukan ditulis ulang) — lewat script yang
+> sama, `pnpm verify:template`; `Spreadsheet_ID` dicatat ke registry segera setelah copy supaya tidak
+> ada spreadsheet yatim; `retry-provision` idempoten (folder dan salinan yang masih sesuai dipakai
+> ulang, tidak pernah menyalin dua kali); semua endpoint per-cabang menolak cabang non-`ready`
+> dengan `SHEETS_SETUP_REQUIRED`; dashboard/laporan melewati cabang non-`ready` sambil mencatat ke
+> log server; `POST /api/branches/:id/retry-provision` sekarang tersedia di UI `/cabang`.
+>
+> **Perubahan v1.4.0** (Drive bridge): service account aplikasi terbukti punya `storageQuota.limit = 0`
+> (`Db refactor-plan.md` Step 0b), sehingga **semua pembuatan file Drive** — copy template, konversi
+> template, upload foto — dijalankan lewat Web App Apps Script `gas/Code.js` sebagai pemilik folder
+> (`lib/google/drive-bridge.ts`, env `GAS_DRIVE_BRIDGE_URL` + `GAS_BRIDGE_SECRET`). Baca/tulis *isi*
+> spreadsheet tetap Google Sheets API v4 dengan service account. Operational: bridge belum
+> terkonfigurasi → `503 SHEETS_SETUP_REQUIRED` (sebelum menyentuh Drive); bridge ditolak/timeout →
+> `502 PROVISION_FAILED`; cabang `pending`/`failed` tetap tidak bisa dipakai sampai `retry-provision`
+> sukses. Verifikasi end-to-end: `pnpm check:bridge`.
 
 ---
 
 ## 0. Aturan umum
 
 - **Branch scope.** Semua endpoint per-cabang menerima `?branchId=` (opsional). Untuk `karyawan`/`kepala_cabang`, `branchId` harus salah satu cabang di sesi mereka — kalau tidak → `403 FORBIDDEN`. Untuk `admin`, `branchId` boleh cabang mana pun; kalau tidak dikirim, dipakai `activeBranchId` dari sesi admin.
+- **Cabang harus siap pakai.** `getBranch()` (`lib/google/branch-data.ts`) adalah satu-satunya cara kode menemukan spreadsheet/folder cabang. Cabang nonaktif → `404 NOT_FOUND`; cabang dengan `Provision_Status` bukan `ready` → `503 SHEETS_SETUP_REQUIRED` (pesannya menyebut status dan `retry-provision`). Tidak ada ID cabang yang di-hardcode atau dibaca dari env per cabang.
 - **Revalidasi sesi.** Token HMAC berlaku 12 jam, tapi tiap request dicek ulang ke registry: karyawan nonaktif atau role yang berubah langsung kehilangan akses (401), tanpa menunggu expiry.
 - **Idempotensi (§12).** POST yang menulis baris baru menolak duplikat (`409 DUPLICATE_SUBMIT`), dan POST log checklist/handover bersifat upsert (bukan append kedua).
 
@@ -102,9 +120,14 @@ Drive yang lambat:
 
 1. Validasi `name`, turunkan `CBG###` berikutnya, susun nama folder.
 2. Tulis baris registry dengan `Provision_Status=pending` (`Spreadsheet_ID`/`Folder_Drive_ID` kosong).
-3. Buat folder cabang di `TEMPLATES.Parent_Folder_ID`.
-4. `drive.files.copy` template dari `TEMPLATES.Template_Spreadsheet_ID` ke folder itu, tulis header 9 sheet.
-5. Update baris → `Spreadsheet_ID`, `Folder_Drive_ID`, `Provision_Status=ready`.
+3. Buat folder cabang di `TEMPLATES.Parent_Folder_ID`; `Folder_Drive_ID` langsung ditulis ke baris.
+4. `files.copy` template dari `TEMPLATES.Template_Spreadsheet_ID` ke folder itu — dilakukan lewat
+   Drive bridge Apps Script sebagai pemilik folder (service account tidak punya kuota Drive);
+   `Spreadsheet_ID` ditulis ke baris **sebelum** verifikasi, supaya kegagalan berikutnya tidak
+   meninggalkan spreadsheet yatim yang tidak dirujuk siapa pun.
+5. Verifikasi header 9 sheet terhadap `SHEETS-SCHEMA.md` §2 (`lib/google/template-verify.ts`).
+   Menyimpang → `SHEETS_SETUP_REQUIRED`, `Provision_Status` tetap bukan `ready`.
+6. Update baris → `Spreadsheet_ID`, `Folder_Drive_ID`, `Provision_Status=ready`.
 
 Kalau langkah 3–4 gagal: baris ditandai `failed` lalu **dihapus**, dan error dilempar — jadi tidak
 ada cabang yatim di registry. Objek Drive yang terlanjur dibuat mungkin tertinggal; ID-nya
@@ -125,10 +148,13 @@ justru lebih berisiko daripada errornya.
 Response 502: `PROVISION_FAILED`.
 Response 503: `SHEETS_SETUP_REQUIRED`.
 
-Menjalankan ulang langkah 3–5 di atas untuk cabang yang gagal. Folder cabang yang sudah ada
-dipakai lagi (dari `Folder_Drive_ID`), jadi foto checklist lama tidak hilang. Baris registry
-cabang ini tidak pernah dihapus oleh endpoint ini — hanya cabang yang masih `pending`/`failed`
-yang diterima.
+Menjalankan ulang langkah 3–6 di atas untuk cabang yang gagal. Folder cabang yang sudah ada
+dipakai lagi (dari `Folder_Drive_ID`), jadi foto checklist lama tidak hilang; `Spreadsheet_ID` yang
+sudah terisi juga dipakai ulang kalau spreadsheet-nya masih ada **dan** header-nya masih sesuai
+skema — retry tidak pernah membuat salinan kedua hanya karena gagal di langkah verifikasi. Salinan
+yang sudah tidak sesuai (template berubah, penulisan terputus) diganti salinan baru, dan barisnya
+selalu menunjuk ke salinan yang lolos verifikasi. Baris registry cabang ini tidak pernah dihapus
+oleh endpoint ini — hanya cabang yang masih `pending`/`failed` yang diterima.
 
 ---
 
@@ -226,6 +252,12 @@ Response 403: `FORBIDDEN` (bukan pemilik jadwal).
 Response 404: `NOT_FOUND` (schedule atau item checklist tidak ada).
 Response 413: `FILE_TOO_LARGE`. Response 415: `UNSUPPORTED_FILE_TYPE`. Response 502: `PROVISION_FAILED`.
 
+> Penyimpanan file lewat Drive bridge Apps Script (pemilik folder), karena service account tidak punya
+> kuota Drive (`storageQuota.limit = 0`). Ukuran/MIME tetap divalidasi **di backend** sebelum bridge
+> dipanggil; file masuk ke `<branchFolder>/Checklist Foto/` dengan nama
+> `<Schedule_ID>_<Item_ID>_<timestamp>.<ext>` dan idempotent-by-name (retry tidak menggandakan foto).
+> Bridge belum terkonfigurasi → `503 SHEETS_SETUP_REQUIRED`.
+
 Shift yang sudah `completed` → 400 `VALIDATION_ERROR` via `assertShiftNotClosed`, sama seperti
 `POST /api/schedules/:scheduleId/checklist` (bukan 403: ini condition/state, bukan hak akses).
 
@@ -285,6 +317,7 @@ Response 200: `{ "data": DashboardBranch[] }` dengan
 - `checklistPercent` = item tercentang / (jumlah shift hari ini × item checklist aktif), bukan "shift yang punya ≥1 centang".
 - "Hari ini" memakai kalender WIB (Asia/Jakarta), bukan UTC.
 - Cabang yang spreadsheetnya bermasalah di-skip (dicatat di log server) supaya tidak mematikan seluruh dashboard.
+- Cabang yang belum `ready` (atau nonaktif) juga di-skip oleh `usableBranches()`, dengan alasan tertulis di log server.
 
 ### `GET /api/laporan?branchId=&startDate=&endDate=&format=json|csv` (Admin, Kepala Cabang)
 ### `POST /api/laporan?branchId=&startDate=&endDate=` — Body `{ "format": "json"|"csv" }`
@@ -308,7 +341,7 @@ Response 400 `error.code = "VALIDATION_ERROR"` untuk format lain (mis. `xlsx` be
 | `DUPLICATE_SUBMIT` | 409 | Pengajuan/jadwal identik sudah ada |
 | `CHECKLIST_INCOMPLETE` | 400 | Submit checklist ditolak, ada item belum selesai (+ `error.data.fields`) |
 | `REQUIRED_FIELD_MISSING` | 400 | Handover submit ditolak, field wajib kosong (+ `error.data.fields`) |
-| `SHEETS_SETUP_REQUIRED` | 503 | `TEMPLATES` di registry belum terisi `Template_Spreadsheet_ID` / `Parent_Folder_ID` |
+| `SHEETS_SETUP_REQUIRED` | 503 | `TEMPLATES` belum terisi, template bukan Google Sheet, header hasil copy menyimpang dari skema, atau cabang yang dipanggil belum `ready` |
 | `PROVISION_FAILED` | 502 | Gagal membuat folder/spreadsheet/foto cabang (+ `error.data.orphans` kalau ada objek Drive yang tertinggal) |
 | `FILE_TOO_LARGE` | 413 | Unggahan foto melebihi 5 MB |
 | `UNSUPPORTED_FILE_TYPE` | 415 | MIME file foto tidak dalam allowlist gambar |

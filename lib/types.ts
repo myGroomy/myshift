@@ -1,4 +1,15 @@
-export type Branch = { branchId: string; nama: string; aktif: boolean; spreadsheetId: string };
+export type Branch = {
+  branchId: string;
+  nama: string;
+  aktif: boolean;
+  spreadsheetId: string;
+  // GET /api/branches also reports provisioning state, derived from `Provision_Status`
+  // (API-CONTRACT §3). Optional so callers that only need the ID/name keep compiling.
+  spreadsheetConfigured?: boolean;
+  folderConfigured?: boolean;
+  provisionStatus?: "pending" | "ready" | "failed";
+};
+
 export type Employee = { employeeId: string; username: string; nama: string; role: string; cabangAktif: string; aktif: boolean };
 export type Shift = { shiftId: string; branchId: string; name: string; startTime: string; endTime: string };
 export type Schedule = { scheduleId: string; employeeId: string; shiftId: string; date: string; status: string; conflictWarning?: boolean; startedAt?: string };

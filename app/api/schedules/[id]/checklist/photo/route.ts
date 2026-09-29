@@ -9,6 +9,10 @@ import type { NextRequest } from "next/server";
 
 type Context = { params: Promise<{ id: string }> };
 
+// A photo goes over the Apps Script bridge as base64 (~1.34x the file size) and can include a
+// cold start, so this route gets more than the default function budget.
+export const maxDuration = 60;
+
 // A multipart file part. Duck-typed rather than `instanceof File` so it does not depend on which
 // File implementation the runtime exposes, and so a plain text field named `file` (a string) is
 // rejected here instead of blowing up on `.arrayBuffer()`.
@@ -51,9 +55,11 @@ export async function POST(request: NextRequest, context: Context) {
     const file = asUploadedFile((await request.formData()).get("file"));
     if (!file) return fail("VALIDATION_ERROR", "Field `file` wajib berupa file yang tidak kosong.");
 
-    const { branch } = await branchSpreadsheet(branchId);
+    // One lookup returns the spreadsheet ID *and* the branch's Drive folder, so the upload target
+    // is never guessed and one branch can never write into another branch's folder.
+    const { folderId } = await branchSpreadsheet(branchId);
     const uploaded = await uploadChecklistEvidence({
-      branchFolderId: branch.folderId,
+      branchFolderId: folderId,
       scheduleId,
       itemId,
       mimeType: file.type,

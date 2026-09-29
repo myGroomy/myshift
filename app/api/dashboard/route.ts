@@ -1,6 +1,6 @@
 import { handleRouteError, ok } from "@/lib/api-response";
 import { getBranches } from "@/lib/google/registry";
-import { branchSpreadsheetFrom } from "@/lib/google/branch-data";
+import { branchSpreadsheetFrom, usableBranches } from "@/lib/google/branch-data";
 import { readRows } from "@/lib/google/sheets-data";
 import { branchSheetRange } from "@/lib/google/sheet-schema";
 import { todayInWIB } from "@/lib/domain/date";
@@ -70,7 +70,9 @@ export async function GET(request: NextRequest) {
   const auth = await branchManagerSession(request);
   if (isResponse(auth)) return auth;
   try {
-    const branches = (await getBranches()).filter((branch) => branch.aktif);
+    // usableBranches() drops inactive *and* not-yet-provisioned branches, logging each one —
+    // reading a pending branch would throw and (with allSettled) quietly thin the numbers.
+    const branches = usableBranches(await getBranches());
     const targetBranches =
       auth.role === "admin"
         ? branches

@@ -8,6 +8,7 @@ import {
   driveViewerUrl,
   MAX_PHOTO_BYTES,
   photoExtensionFor,
+  uploadChecklistEvidence,
 } from "../lib/google/photo-upload";
 import { branchFolderName, DRIVE_NAME_MAX } from "../lib/google/provisioning";
 
@@ -101,3 +102,91 @@ test("branchFolderName keeps the branch ID suffix and the 60-char cap", () => {
   assert.equal(long.length, DRIVE_NAME_MAX);
   assert.ok(!/[/?*:<>|]/.test(branchFolderName("CBG001", "A/B:C*D?E<F>G|H")));
 });
+
+// The evidence flow is: validate (size/MIME) → find-or-create the photo folder (service account,
+// folders cost no quota) → upload the bytes through the Apps Script bridge (the service account
+// cannot create files — PLAN/Db refactor-plan.md Step 0b). Both collaborator calls are injected so
+// the ordering and the payload are pinned without touching Drive.
+test("uploadChecklistEvidence validates, resolves the photo folder, then uploads through the bridge", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const now = new Date("2026-09-29T01:02:03.000Z");
+
+  const result = await uploadChecklistEvidence(
+    {
+      branchFolderId: "folder-1",
+      scheduleId: "SCH-20260929-001",
+      itemId: "CHK-001",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("bytes"),
+      now,
+    },
+    {
+      photoFolder: async (folderId) => {
+        calls.push({ photoFolder: folderId });
+        return "photo-folder-1";
+      },
+      upload: async (input) => {
+        calls.push({ ...input, buffer: undefined });
+        return { fileId: "photo-1" };
+      },
+    },
+  );
+
+  assert.deepEqual(result, { fileId: "photo-1", photoUrl: "https://drive.google.com/uc?id=photo-1" });
+  assert.deepEqual(calls[0], { photoFolder: "folder-1" }, "folder lookup runs against the branch folder");
+  assert.equal(calls[1].folderId, "photo-folder-1");
+  assert.equal(calls[1].mimeType, "image/jpeg");
+  assert.equal(calls[1].name, "SCH-20260929-001_CHK-001_20260929T010203Z.jpg");
+});
+
+test("an oversized photo is rejected before any Drive call", async () => {
+  let touched = false;
+  await assert.rejects(
+    () =>
+      uploadChecklistEvidence(
+        {
+          branchFolderId: "folder-1",
+          scheduleId: "SCH-1",
+          itemId: "CHK-1",
+          mimeType: "image/jpeg",
+          buffer: Buffer.alloc(MAX_PHOTO_BYTES + 1),
+        },
+        {
+          photoFolder: async () => ((touched = true), "photo-folder-1"),
+          upload: async () => ((touched = true), { fileId: "photo-1" }),
+        },
+      ),
+    (error: unknown) => {
+      expectDomainError(() => {
+        throw error;
+      }, "FILE_TOO_LARGE", 413);
+      return true;
+    },
+  );
+  assert.equal(touched, false, "validation must happen before anything reaches Drive");
+});
+
+test("a branch without a Drive folder is rejected instead of falling back to a shared location", async () => {
+  let touched = false;
+  await assert.rejects(
+    () =>
+      uploadChecklistEvidence(
+        {
+          branchFolderId: "  ",
+          scheduleId: "SCH-1",
+          itemId: "CHK-1",
+          mimeType: "image/jpeg",
+          buffer: Buffer.from("x"),
+        },
+        { photoFolder: async () => ((touched = true), "photo-folder-1") },
+      ),
+    (error: unknown) => {
+      expectDomainError(() => {
+        throw error;
+      }, "PROVISION_FAILED", 502);
+      return true;
+    },
+  );
+  assert.equal(touched, false);
+});
+

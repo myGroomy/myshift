@@ -1,8 +1,8 @@
-import { Readable } from "node:stream";
 import { drive } from "@/lib/google/client";
 import { DomainError } from "@/lib/error-codes";
 import { nowIso } from "@/lib/domain/date";
 import { DRIVE_NAME_MAX, driveSafeName } from "@/lib/google/provisioning";
+import { bridgeUploadFile } from "@/lib/google/drive-bridge";
 
 // Checklist evidence photos (API-CONTRACT §8). Uploaded to the branch's own Drive folder, never to
 // an arbitrary path — the folder comes from `Daftar_Cabang.Folder_Drive_ID`, so one branch can
@@ -78,6 +78,9 @@ export function driveViewerUrl(fileId: string): string {
 
 // Finds the branch's photo folder, creating it on first use. Creating a folder per branch once is
 // cheaper than probing Drive on every checklist tap, and the name is fixed so the lookup is exact.
+// Folder creation stays on the service account: folders consume no Drive storage quota, so it works
+// even with `storageQuota.limit = 0` (verified by `pnpm spike:drive`). Only *file* bytes need the
+// Apps Script bridge — the service account cannot create files at all.
 export async function ensureChecklistPhotoFolder(folderId: string): Promise<string> {
   const listed = await drive.files.list({
     q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
@@ -103,36 +106,52 @@ export async function ensureChecklistPhotoFolder(folderId: string): Promise<stri
   return created.data.id;
 }
 
-export async function uploadChecklistPhoto(input: {
-  folderId: string;
-  name: string;
-  mimeType: string;
-  buffer: Buffer;
-}): Promise<{ fileId: string; photoUrl: string }> {
-  const created = await drive.files.create({
-    supportsAllDrives: true,
-    fields: "id",
-    requestBody: { name: input.name, parents: [input.folderId], mimeType: input.mimeType },
-    // gaxios builds the multipart body itself and calls .pipe() on it, so a raw Buffer throws
-    // "part.body.pipe is not a function". A stream over the buffer is what it expects.
-    media: { mimeType: input.mimeType, body: Readable.from(input.buffer) },
-  });
-  if (!created.data.id) {
-    throw new DomainError("PROVISION_FAILED", "Google tidak mengembalikan ID file foto.");
-  }
-  return { fileId: created.data.id, photoUrl: driveViewerUrl(created.data.id) };
+// Bytes go through the Apps Script bridge: the service account has zero Drive storage and cannot
+// create files (PLAN/Db refactor-plan.md Step 0b). The bridge runs as the folder owner and is
+// idempotent by name, so a retried upload with the same filename returns the same file instead of
+// storing the photo twice.
+export type PhotoUploadDeps = {
+  upload?: (input: {
+    folderId: string;
+    name: string;
+    mimeType: string;
+    buffer: Buffer;
+  }) => Promise<{ fileId: string }>;
+};
+
+export async function uploadChecklistPhoto(
+  input: {
+    folderId: string;
+    name: string;
+    mimeType: string;
+    buffer: Buffer;
+  },
+  deps: PhotoUploadDeps = {},
+): Promise<{ fileId: string; photoUrl: string }> {
+  const upload =
+    deps.upload ??
+    (async (payload) => ({ fileId: (await bridgeUploadFile(payload)).fileId }));
+
+  const { fileId } = await upload(input);
+  if (!fileId) throw new DomainError("PROVISION_FAILED", "Google tidak mengembalikan ID file foto.");
+  return { fileId, photoUrl: driveViewerUrl(fileId) };
 }
 
 // Convenience for the route: the branch folder must already exist. A branch that was never
 // provisioned has no folder, and photos must not fall back to a shared location.
-export async function uploadChecklistEvidence(input: {
-  branchFolderId: string;
-  scheduleId: string;
-  itemId: string;
-  mimeType: string;
-  buffer: Buffer;
-  now?: Date;
-}): Promise<{ fileId: string; photoUrl: string }> {
+// `deps` exists so the flow (validate → ensure folder → bridge upload) is unit-testable without
+// Drive; production uses the service account for the folder and the bridge for the bytes.
+export async function uploadChecklistEvidence(
+  input: {
+    branchFolderId: string;
+    scheduleId: string;
+    itemId: string;
+    mimeType: string;
+    buffer: Buffer;
+    now?: Date;
+  },
+  deps: PhotoUploadDeps & { photoFolder?: (folderId: string) => Promise<string> } = {},
+): Promise<{ fileId: string; photoUrl: string }> {
   if (!input.branchFolderId.trim()) {
     throw new DomainError(
       "PROVISION_FAILED",
@@ -140,11 +159,15 @@ export async function uploadChecklistEvidence(input: {
     );
   }
   const ext = assertUploadablePhoto({ type: input.mimeType, size: input.buffer.byteLength });
-  const photoFolderId = await ensureChecklistPhotoFolder(input.branchFolderId);
-  return uploadChecklistPhoto({
-    folderId: photoFolderId,
-    name: checklistPhotoFileName(input.scheduleId, input.itemId, ext, input.now),
-    mimeType: input.mimeType.split(";")[0].trim().toLowerCase(),
-    buffer: input.buffer,
-  });
+  const photoFolderId = await (deps.photoFolder ?? ensureChecklistPhotoFolder)(input.branchFolderId);
+  return uploadChecklistPhoto(
+    {
+      folderId: photoFolderId,
+      name: checklistPhotoFileName(input.scheduleId, input.itemId, ext, input.now),
+      mimeType: input.mimeType.split(";")[0].trim().toLowerCase(),
+      buffer: input.buffer,
+    },
+    deps,
+  );
 }
+

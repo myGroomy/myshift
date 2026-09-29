@@ -39,6 +39,66 @@ Catat pesan error persis kalau ada yang gagal. Kalau errornya `storageQuotaExcee
 
 Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bisa edit spreadsheet langsung). Pastikan folder induk sudah dibagikan ke akun admin sehingga hasil copy mewarisi akses, atau tambahkan pemberian akses eksplisit saat provisioning.
 
+> **Hasil Step 0b (spike dieksekusi 2026-09-29, `pnpm spike:drive`): GAGAL — berhenti dan
+> dilaporkan ke user, sesuai instruksi Step 0b.** Service account yang dipakai aplikasi punya
+> `storageQuota.limit = 0`, jadi Drive menolak semua pembuatan file:
+>
+> | Operasi | Hasil |
+> |---|---|
+> | buat sub-folder di folder induk | **OK** (`1M-QLrh_0YFVVDxVx8Zoljbw2ntVpLGXD` = folder `MYSHIFT`, bukan Shared Drive) |
+> | upload file kecil ke sub-folder | **403** `Service Accounts do not have storage quota. Leverage shared drives ... or use OAuth delegation` |
+> | `files.copy` dari `Template_Spreadsheet_ID` (saat ini masih `.xlsx`) | **403** pesan sama |
+> | buat Google Sheet native tanpa media | **403** `The user's Drive storage quota has been exceeded.` |
+>
+> Semua artefak percobaan sudah dihapus (cleanup OK). Folder induk dibagikan ke
+> `taufikalwan47@gmail.com` (owner) + 3 service account (writer), jadi hasil copy akan mewarisi akses
+> admin manusia begitu pembuatan file bisa jalan.
+>
+> Konsekuensi: jalur **copy template belum bisa diverifikasi runtime** — bukan karena kodenya, tapi
+> karena kuota Drive service account. Step 2, Step 3.1, Step 3.2 dan Step 3.3 sudah dikerjakan dan
+> diuji lewat `test/template-verify.test.ts`, `test/branch-lookup.test.ts`,
+> `test/provisioning.test.ts` (fake Drive); Step 3.4 (foto) tetap terhalang batasan yang sama — foto
+> adalah file biner, jadi wajib punya pemilik berkuota. Pilihan yang perlu keputusan user:
+> (a) taruh folder induk di **Shared Drive** (butuh akun Google Workspace), atau
+> (b) **delegasi OAuth** (impersonasi user berkuota) untuk Sheets+Drive, atau
+> (c) provisioning manual oleh admin (folder + copy lewat UI Drive) sementara aplikasi hanya
+> membaca/menulis isi spreadsheet, dan unggah foto dialihkan ke penyimpanan lain.
+>
+> Step 4 (acceptance end-to-end) belum dijalankan karena butuh Drive yang bisa menulis.
+
+> **Keputusan user (setelah opsi didiskusikan): pakai Drive bridge Apps Script.** Script
+> `gas/Code.js` (Script ID `1KbVNbwFKO9eMTLAnQBL_8Uu5dugF7bZYh-40ISWURx9QffS4S7saGhl8`) dijalankan
+> sebagai pemilik folder dan mengeksekusi 3 operasi yang butuh kuota: `importFile` (konversi
+> template), `copyFile` (provisioning), `uploadFile` (foto checklist). Alasan dipilih di atas OAuth:
+> tidak ada refresh token dengan scope `drive` yang disimpan di Vercel, blast radius dibatasi oleh
+> allowlist folder MYSHIFT + shared secret. Syarat yang dipenuhi: GAS tetap bodoh (tanpa pengetahuan
+> skema/bisnis, semua aturan tetap di aplikasi + test), idempotent-by-name, dan ada carve-out tertulis
+> di `AGENTS.md` §4 (larangan GAS tetap berlaku untuk database).
+>
+> Status implementasi: `lib/google/drive-bridge.ts` (client + retry + pemetaan error), provisioning
+> dan foto dialihkan ke bridge, tests `test/drive-bridge.test.ts` / `test/provisioning.test.ts` /
+> `test/photo-upload.test.ts`, plus skrip operasional `pnpm probe:bridge` (diagnosa endpoint),
+> `pnpm check:bridge` (copy + upload + idempotensi, self-cleaning), dan
+> `pnpm check:provisioning` (acceptance end-to-end, self-cleaning).
+>
+> **Selesai 2026-09-29.** Bridge hidup di project Apps Script baru
+> (`1hUkZgY1A9wnVdXZoWnBwkWqOHjrXm9TmV3N73RGSBsDuK_q9SFDKaM2O`; deployment `Execute as: Me`,
+> `Who has access: Anyone`). Insiden yang tercatat: project pertama (`1KbVNbw…`) sempat berhasil,
+> lalu **tidak bisa dipulihkan** setelah `oauthScopes` dideklarasikan eksplisit di manifest — semua
+> deployment membalas 401, dan re-auth maupun revert manifest tidak menolong. Pelajaran yang
+> tersimpan: jangan tulis `oauthScopes`; biarkan auto-detect dari kode. Catatan operasional lain:
+> service account **tidak bisa menghapus** file milik user, jadi artefak uji dibersihkan dengan
+> membuang folder induknya (isi ikut ke trash), bukan menghapus file satu per satu.
+>
+> **Step 4 (acceptance) — LOLOS** lewat `pnpm check:provisioning`: reserve baris `pending`;
+> provisioning lewat bridge (folder + copy template, ID ditulis sebelum verifikasi); header salinan
+> sesuai §2 (9 sheet, urutan kolom); `getBranch()` resolve spreadsheet + folder; salinan bisa dibuka
+> admin manusia (`taufikalwan47@gmail.com=owner` + 3 service account `writer`); retry saat `failed`
+> reuse folder & salinan tanpa baris/salinan kedua; foto checklist masuk `<folder>/Checklist Foto/`;
+> cabang `pending` → 503 `SHEETS_SETUP_REQUIRED`, nonaktif → 404 `NOT_FOUND`; cabang uji + folder-nya
+> dibersihkan. Sisa: `CBG001` masih `pending` (belum pernah punya spreadsheet) dan bisa
+> diprovisioning lewat `POST /api/branches/:id/retry-provision`.
+
 ---
 
 ## Step 1 — Migrasi Registry
@@ -78,6 +138,29 @@ Satu fungsi tunggal, misal `getBranch(cabangId)`, mengembalikan `{ spreadsheetId
 - Semua kode yang butuh spreadsheet cabang wajib lewat fungsi ini, tidak ada ID yang di-hardcode atau diambil dari env per cabang
 - **Caching:** jangan pakai variabel module-level. Lookup Registry di setiap request memakan kuota baca Sheets, jadi kalau perlu cache, gunakan cache bawaan Next.js (`unstable_cache` atau `use cache`, sesuai versi Next yang dipakai) dengan invalidasi saat Registry berubah. Sampaikan opsi yang dipilih ke user sebelum implementasi.
 
+> **Eksekusi.** Fungsi tunggalnya adalah `getBranch()` → `lib/google/branch-data.ts`
+> (`branchSpreadsheet()` / `branchSpreadsheetFrom()`), mengembalikan
+> `{ branch, spreadsheetId, folderId, status }`. Gerbang `branchUnavailable()` menolak cabang
+> nonaktif (`NOT_FOUND`) dan `Provision_Status` bukan `ready` (`SHEETS_SETUP_REQUIRED`); agregat
+> (dashboard/laporan) memakai `usableBranches()` supaya satu cabang setengah jadi tidak mengosongkan
+> seluruh laporan. Nama `getBranch` tidak dipakai supaya tidak ada dua nama untuk satu perilaku —
+> `branchSpreadsheet()` tetap nama aslinya di repo.
+>
+> **Caching — opsi yang dipilih: TIDAK pakai cache.** Alasannya:
+> 1. Nilainya kecil: satu lookup = satu `values.get`, sedangkan request yang sama biasanya membaca
+>    1–6 range di spreadsheet cabang; penghematannya di bawah 20% kuota baca.
+> 2. Risikonya nyata: PRD mengizinkan admin mengedit `Daftar_Cabang` langsung di spreadsheet, dan
+>    cache (bahkan TTL 30 detik) menyajikan `Spreadsheet_ID` lama tepat saat admin sedang
+>    memperbaiki cabang rusak.
+> 3. `unstable_cache` di Next 16 menuntut argumen profil pada `revalidateTag(tag, profile)` dan
+>    melempar `Invariant: incrementalCache missing` di luar konteks request (script/`node:test`),
+>    jadi butuh jalur fallback tambahan.
+>
+> Kalau nanti kuota baca jadi masalah, tambahkannya di satu tempat (`getBranchRows()` di
+> `lib/google/registry.ts`) dengan `tags: ["myshift:registry:branches"]`, `revalidate: 30`, dan
+> `revalidateTag(...)` di POST/PATCH/retry-provision. **Jangan** cache `Employees`: lockout login dan
+> penonaktifan karyawan wajib dicek ulang tiap request (API-CONTRACT §0).
+
 ### 3.2 Service provisioning
 
 `lib/google/provision.ts`, mengikuti alur di [`SHEETS-SCHEMA.md`](http://SHEETS-SCHEMA.md) ("Alur Provisioning Cabang Baru"):
@@ -95,6 +178,16 @@ Syarat:
 - **Idempotent:** retry pada cabang `failed` tidak membuat baris ganda, dan tidak membuat copy kedua kalau `Spreadsheet_ID` sudah terisi
 - Urutan penulisan aman: catat ID hasil copy ke Registry secepat mungkin setelah copy berhasil, supaya tidak ada spreadsheet yatim
 - Hapus semua pemanggilan `spreadsheets.create`
+
+> **Eksekusi.** `lib/google/provisioning.ts` — `provisionBranchDrive(branchId, nama, options, deps)`.
+> `spreadsheets.create` sudah tidak dipakai di jalur cabang (`scripts/setup-sheets.ts` masih
+> memakainya, tapi hanya untuk bootstrap Registry sekali, dan tidak pernah untuk cabang).
+> `onDriveObject` dipakai route untuk menulis `Spreadsheet_ID`/`Folder_Drive_ID` ke Registry tepat
+> setelah objek Drive jadi; verifikasi header (Step 2) jalan di dalam fungsi ini, jadi POST /api/branches
+> dan retry-provision sama-sama tidak bisa menandai `ready` sebelum lolos. Retry idempoten: folder
+> diambil dari baris, dan salinan lama dipakai ulang kalau masih ada **dan** lolos verifikasi.
+> Anomali ditemukan & diperbaiki saat menulis test: kegagalan `files.create` (folder) dulu lolos
+> sebagai error mentah (HTTP 500), sekarang `PROVISION_FAILED` (502) sesuai kontrak.
 
 ### 3.3 Endpoint
 

@@ -85,14 +85,27 @@ pnpm template:branch   # -> PLAN/templates/MYSHIFT-Template-Cabang.xlsx
 Alur pasang template (sekali, manual):
 
 1. `pnpm template:branch`
-2. `pnpm template:import` — meng-import `.xlsx` ke folder induk lewat Drive API
-   (`uploadType: "import"`, `importAs: "application/vnd.google-apps.spreadsheet"`) lalu menulis ulang
-   header 9 sheet. **Bukan** upload manual lalu "Save as Google Sheets" — upload `.xlsx` mentah
-   menghasilkan file `.xlsx`, dan `files.copy` memang tidak bisa dipakai untuk template `.xlsx`.
+2. `pnpm template:import` — meng-import `.xlsx` ke folder induk **lewat Drive bridge**
+   (`gas/Code.js`, `uploadType`-konversi setara) lalu menulis ulang header 9 sheet. **Bukan** upload
+   manual lalu "Save as Google Sheets" — upload `.xlsx` mentah menghasilkan file `.xlsx`, dan
+   `files.copy` memang tidak bisa dipakai untuk template `.xlsx`. (Konversi harus lewat bridge:
+   service account tidak punya kuota Drive untuk membuat file. Paksa jalur lama dengan
+   `--via=service-account` hanya kalau akunnya punya kuota sendiri.)
 3. Bagikan hasil import ke `GOOGLE_SERVICE_ACCOUNT_EMAIL` sebagai **Editor**
 4. Tulis ID hasil import ke `TEMPLATES.Template_Spreadsheet_ID` dan folder induk ke
    `TEMPLATES.Parent_Folder_ID` (lihat §1). Env var `TEMPLATE_SPREADSHEET_ID` / `MYSHIFT_FOLDER`
    sudah dihapus — sheet `TEMPLATES` yang jadi sumber config.
+5. Verifikasi: `pnpm verify:template` harus melaporkan header 9 sheet sesuai §2 sebelum cabang
+   pertama dibuat.
+
+> **Prasyarat Drive (keputusan user 2026-09-29): Drive bridge Apps Script.** Service account aplikasi
+> punya `storageQuota.limit = 0`, jadi **semua pembuatan file** olehnya ditolak Drive
+> (`Service Accounts do not have storage quota` / `The user's Drive storage quota has been exceeded`)
+> — termasuk `files.copy` dan pembuatan Google Sheet native, tidak hanya upload. Folders tetap bisa
+> dibuat (folder tidak makan kuota). Karena itu: konversi template, copy template ke folder cabang, dan
+> upload foto checklist dijalankan lewat `gas/Code.js` sebagai pemilik folder; baca/tulis isi
+> spreadsheet tetap lewat service account. Cek jalannya dengan `pnpm spike:drive` (jalur service
+> account) dan `pnpm check:bridge` (jalur bridge). Detail temuan ada di `Db refactor-plan.md` Step 0b.
 
 ### Struktur folder Drive
 
@@ -257,6 +270,14 @@ Semua hal di atas dipatok oleh satu modul kode (`lib/google/sheet-schema.ts`) da
 ## 6. Catatan Implementasi Kolom Otomatis
 
 - **`Failed_Login_Attempts` / `Locked_Until`** — ditulis aplikasi pada `POST /api/auth/login`: bertambah 1 tiap kegagalan, akun terkunci 15 menit setelah 5 kegagalan berturut-turut, direset saat login sukses / reset PIN / lock berakhir. Jangan diisi manual.
-- **`Spreadsheet_ID`** — diisi otomatis oleh provisioning saat `POST /api/branches`: spreadsheet cabang dibuat dari `TEMPLATE_SPREADSHEET_ID` (atau spreadsheet baru), header 9 sheet ditulis ulang dari modul skema, baru baris `Daftar_Cabang` dibuat.
+- **`Spreadsheet_ID`** — diisi otomatis oleh provisioning saat `POST /api/branches`: spreadsheet
+  cabang dibuat dengan `drive.files.copy` dari `TEMPLATES.Template_Spreadsheet_ID` (bukan
+  `spreadsheets.create`, yang kena kuota Drive), header 9 sheet **diverifikasi** terhadap
+  `lib/google/sheet-schema.ts` — bukan ditulis ulang — lalu baris `Daftar_Cabang` dibuat. Kalau
+  header hasil copy menyimpang, provisioning berhenti dengan `SHEETS_SETUP_REQUIRED` dan menyebut
+  sheet yang bermasalah; perbaikannya di template, bukan di salinan.
+- **Verifikasi header** — dipakai dua kali lewat `lib/google/template-verify.ts`: script
+  `pnpm verify:template` (manual, terhadap template) dan gate sebelum `Provision_Status=ready`
+  (otomatis, terhadap tiap salinan). Sheet tambahan yang tidak dikenal hanya diperingatkan.
 - **ID log** (`CLG-###`, `HLG-###`) dan **ID master** (`CHK-###`, `HOF-###`) memakai penomoran urut sesuai §3 — bukan UUID. Nomor berikutnya dihitung dari nilai maksimum yang ada di sheet.
 - **`Status` jadwal** hanya boleh berubah lewat aplikasi: `scheduled` → `started` (`start-shift`) → `completed` (`checklist/submit`, hanya jika checklist 100% dan semua field handover wajib terisi).
