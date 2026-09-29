@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"test/*.test.ts\"",
-    "setup:sheets": "tsx scripts/setup-sheets.ts"
+    "setup:sheets": "tsx scripts/setup-sheets.ts",
+    "template:branch": "tsx scripts/build-branch-template.ts",
+    "template:import": "tsx scripts/import-branch-template.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

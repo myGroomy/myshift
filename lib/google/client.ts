@@ -39,7 +39,7 @@ export const sheets = new Proxy({} as ReturnType<typeof google.sheets>, {
   },
 });
 
-// Drive is only used for branch provisioning (copy the template into MYSHIFT_FOLDER).
+// Drive is only used for branch provisioning (copy the template into the branch's own folder).
 export const drive = new Proxy({} as ReturnType<typeof google.drive>, {
   get(_target, prop) {
     if (!_drive) _drive = google.drive({ version: "v3", auth: getAuth() });

@@ -4,10 +4,9 @@ import { hashPin } from "../lib/domain/pin";
 // Column layout comes from the same module the app uses, so onboarding can no longer write
 // headers that disagree with PLAN/SHEETS-SCHEMA.md (audit H-4).
 import {
-  BRANCH_HEADERS,
-  BRANCH_SHEET_NAMES,
   REGISTRY_HEADERS,
   REGISTRY_SHEET_NAMES,
+  columnLetter,
   headerRange,
 } from "../lib/google/sheet-schema";
 
@@ -41,8 +40,9 @@ async function main() {
   if (registryId) {
     console.log("Using existing registry spreadsheet:", registryId);
     await ensureRegistrySheets(registryId);
-    await seedAdminIfRequested(registryId, process.env.TEMPLATE_SPREADSHEET_ID || "");
+    await seedAdminIfRequested(registryId);
     console.log(`REGISTRY_SPREADSHEET_ID=${registryId}`);
+    printTemplateSteps();
     return;
   }
 
@@ -60,45 +60,29 @@ async function main() {
   // 2. Registry headers
   await writeHeaders(registrySheetId, REGISTRY_HEADERS);
 
-  // 3. Template spreadsheet for new branches
-  const template = await sheets.spreadsheets.create({
-    requestBody: {
-      properties: { title: "MYSHIFT Template Cabang" },
-      sheets: BRANCH_SHEET_NAMES.map((title) => ({ properties: { title } })),
-    },
-  });
-  const templateSheetId = template.data.spreadsheetId;
-  if (!templateSheetId) throw new Error("Google did not return a template spreadsheet ID");
-  console.log("Template spreadsheet created:", templateSheetId);
-  await writeHeaders(templateSheetId, BRANCH_HEADERS);
-
-  // 4. Optional seed admin if MYSHIFT_INIT_PIN is set
-  const initPin = process.env.MYSHIFT_INIT_PIN;
-  const initName = process.env.MYSHIFT_INIT_NAME || "Admin Pusat";
-  const initBranch = process.env.MYSHIFT_INIT_BRANCH || "CBG001";
-
-  if (initPin) {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: registrySheetId,
-      range: `Employees!A:J`,
-      valueInputOption: "RAW",
-      requestBody: { values: [["EMP-001", "admin", hashPin(initPin), initName, "admin", initBranch, initBranch, "TRUE", "0", ""]] },
-    });
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: registrySheetId,
-      range: "Daftar_Cabang!A:D",
-      valueInputOption: "RAW",
-      requestBody: { values: [[initBranch, initName, templateSheetId, "TRUE"]] },
-    });
-    console.log("Seeded admin account: admin");
-  }
+  // 3. Optional seed admin if MYSHIFT_INIT_PIN is set
+  await seedAdminIfRequested(registrySheetId);
 
   console.log("\n=== Setup Complete ===");
   console.log("Registry Spreadsheet ID:", registrySheetId);
-  console.log("Template Spreadsheet ID:", templateSheetId);
-  console.log("\nAdd these to myshift/.env.local:");
+  console.log("\nAdd this to myshift/.env.local:");
   console.log(`REGISTRY_SPREADSHEET_ID=${registrySheetId}`);
-  console.log(`TEMPLATE_SPREADSHEET_ID=${templateSheetId}`);
+  printTemplateSteps();
+}
+
+// The branch template is no longer created here. A template that lives outside the Drive folder
+// tree cannot be copied per branch, and its ID has to be editable by an admin without a
+// redeploy, so the sheet TEMPLATES in the registry is the single source of truth
+// (SHEETS-SCHEMA.md §1-§2, API-CONTRACT.md §3).
+function printTemplateSteps() {
+  console.log("\n=== Branch template (required before creating branches) ===");
+  console.log("1. pnpm template:branch                     -> PLAN/templates/MYSHIFT-Template-Cabang.xlsx");
+  console.log("2. Upload the .xlsx to your MYSHIFT folder in Drive");
+  console.log("3. pnpm template:import -- --source=<fileId> -> converts it to a Google Sheet");
+  console.log("4. Fill sheet TEMPLATES in the registry:");
+  console.log("     A2 = Template_Spreadsheet_ID (the imported Sheet)");
+  console.log("     B2 = Parent_Folder_ID (the MYSHIFT folder)");
+  console.log("   Share both with GOOGLE_SERVICE_ACCOUNT_EMAIL as Editor");
 }
 
 async function ensureRegistrySheets(spreadsheetId: string) {
@@ -126,7 +110,7 @@ async function ensureRegistrySheets(spreadsheetId: string) {
   await writeHeaders(spreadsheetId, REGISTRY_HEADERS);
 }
 
-async function seedAdminIfRequested(registrySheetId: string, templateSheetId: string) {
+async function seedAdminIfRequested(registrySheetId: string) {
   const initPin = process.env.MYSHIFT_INIT_PIN;
   if (!initPin) return;
   const initName = process.env.MYSHIFT_INIT_NAME || "Admin Pusat";
@@ -137,11 +121,14 @@ async function seedAdminIfRequested(registrySheetId: string, templateSheetId: st
     valueInputOption: "RAW",
     requestBody: { values: [["EMP-001", "admin", hashPin(initPin), initName, "admin", initBranch, initBranch, "TRUE", "0", ""]] },
   });
+  // 6 columns per SHEETS-SCHEMA §1. A branch starts `pending` with no spreadsheet: POST
+  // /api/branches provisions Drive and flips it to `ready`, and this row is created here
+  // before any template exists, so claiming `ready` here would be a lie.
   await sheets.spreadsheets.values.append({
     spreadsheetId: registrySheetId,
-    range: "Daftar_Cabang!A:D",
+    range: `Daftar_Cabang!A:${columnLetter(REGISTRY_HEADERS.Daftar_Cabang.length)}`,
     valueInputOption: "RAW",
-    requestBody: { values: [[initBranch, initName, templateSheetId, "TRUE"]] },
+    requestBody: { values: [[initBranch, initName, "", "", "pending", "TRUE"]] },
   });
   console.log("Seeded admin account: admin");
 }

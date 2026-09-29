@@ -1,20 +1,17 @@
 import { config } from "dotenv";
-import { google } from "googleapis";
 import { isValidPin } from "../lib/domain/pin";
 import { hashPin } from "../lib/domain/pin";
-// Headers come from the shared schema module so seeded branches match SHEETS-SCHEMA.md.
-import { BRANCH_HEADERS, headerRange } from "../lib/google/sheet-schema";
+// The app's own lazy client and provisioning path, so seeded branches get the same
+// folder + template copy as a branch created through POST /api/branches. Building a spreadsheet
+// from scratch here would diverge from the template (SHEETS-SCHEMA §2) and from the sheet names
+// in BRANCH_HEADERS.
+import { sheets } from "../lib/google/client";
+import { provisionBranchDrive } from "../lib/google/provisioning";
+import { branchRowValues } from "../lib/google/registry";
 
 config({ path: ".env.local" });
 
-const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!;
-const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY!.replace(/\\n/g, "\n");
-
-const auth = new google.auth.JWT({ email, key: privateKey, scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"] });
-const sheets = google.sheets({ version: "v4", auth });
-
 const registryId = process.env.REGISTRY_SPREADSHEET_ID!;
-const folderId = process.env.MYSHIFT_FOLDER;
 
 async function getExistingRows(sheetName: string): Promise<string[][]> {
   try {
@@ -58,34 +55,10 @@ async function main() {
   const newBranches = branches.filter((b) => !existingBranchIds.has(b.id));
   if (newBranches.length > 0) {
     for (const branch of newBranches) {
-      const branchSs = await sheets.spreadsheets.create({
-        requestBody: {
-          properties: { title: `MYSHIFT ${branch.name}` },
-          sheets: [
-            { properties: { title: "Schedules" } },
-            { properties: { title: "Shifts" } },
-            { properties: { title: "Kategori_Izin" } },
-            { properties: { title: "Izin" } },
-            { properties: { title: "Checklist" } },
-            { properties: { title: "Checklist_Templates" } },
-            { properties: { title: "Handover" } },
-            { properties: { title: "Handover_Templates" } },
-            { properties: { title: "Absen" } },
-          ],
-        },
-        fields: "spreadsheetId",
-      });
-      const branchSsId = branchSs.data.spreadsheetId;
-      if (!branchSsId) throw new Error(`Failed to create spreadsheet for ${branch.id}`);
-
-      for (const [sheetName, headers] of Object.entries(BRANCH_HEADERS)) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: branchSsId,
-          range: headerRange(sheetName, headers.length),
-          valueInputOption: "RAW",
-          requestBody: { values: [[...headers]] },
-        });
-      }
+      // Same two steps as POST /api/branches: folder in the TEMPLATES parent folder, then a copy
+      // of the template spreadsheet. writeBranchHeaders runs inside provisionBranchDrive, so the
+      // sheets and their headers come from BRANCH_HEADERS rather than a hand-written list here.
+      const { spreadsheetId: branchSsId, folderId } = await provisionBranchDrive(branch.id, branch.name);
 
       const shiftRows = [
         ["SFT-001", "Opening", "07:00", "15:00"],
@@ -142,7 +115,18 @@ async function main() {
         requestBody: { values: handoverRows },
       });
 
-      await appendRows("Daftar_Cabang", [[branch.id, branch.name, branchSsId, "TRUE"]]);
+      // 6 columns per SHEETS-SCHEMA §1 — a 4-wide row would leave the row unreadable to
+      // getBranchRows(), so the widths come from branchRowValues, not a literal here.
+      await appendRows("Daftar_Cabang", [
+        branchRowValues({
+          branchId: branch.id,
+          nama: branch.name,
+          spreadsheetId: branchSsId,
+          folderId,
+          provisionStatus: "ready",
+          aktif: true,
+        }),
+      ]);
       console.log(`  Created ${branch.id} (${branch.name}) with spreadsheet ${branchSsId}`);
     }
   } else {

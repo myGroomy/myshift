@@ -101,6 +101,20 @@ export function branchRowValues(branch: Branch): string[] {
   ];
 }
 
+// The only editable branch fields are Nama_Cabang and Aktif (API-CONTRACT §3). Kept here, next to
+// branchRowValues, so the "carry the provisioning columns over verbatim" rule lives with the row
+// writer instead of in the handler — and is covered by test/branch-edit.test.ts.
+export function applyBranchEdits(
+  branch: Branch,
+  edits: { nama?: string; aktif?: boolean }
+): Branch {
+  return {
+    ...branch,
+    nama: edits.nama ?? branch.nama,
+    aktif: edits.aktif ?? branch.aktif,
+  };
+}
+
 function registryId() {
   return process.env.REGISTRY_SPREADSHEET_ID!;
 }
@@ -128,4 +142,21 @@ export async function getBranchRows(): Promise<Array<SheetRow & { branch: Branch
 
 export async function getBranches(): Promise<Branch[]> {
   return (await getBranchRows()).map((row) => row.branch);
+}
+
+export interface TemplateConfig {
+  templateSpreadsheetId: string;
+  parentFolderId: string;
+}
+
+// Branch provisioning config, read from the Registry rather than env vars so it can be
+// changed in the sheet without a redeploy (SHEETS-SCHEMA.md §1). Both fields are required:
+// a half-filled TEMPLATES sheet must fail loudly at provision time, not silently skip.
+export async function getTemplateConfig(): Promise<TemplateConfig> {
+  const rows = await readRows(registryId(), registrySheetRange(REGISTRY_SHEETS.templates));
+  const first = rows[0]?.values ?? [];
+  return {
+    templateSpreadsheetId: (first[0] ?? "").trim(),
+    parentFolderId: (first[1] ?? "").trim(),
+  };
 }

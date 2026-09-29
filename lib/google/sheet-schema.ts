@@ -118,7 +118,8 @@ export const EMPLOYEE_ROW_WIDTH = REGISTRY_HEADERS.Employees.length;
 export const BRANCH_ROW_WIDTH = REGISTRY_HEADERS.Daftar_Cabang.length;
 
 // Spreadsheet IDs are internal Google identifiers and are not needed by the UI: the branch
-// sheet is reachable by name inside MYSHIFT_FOLDER. Keep enough to debug, not enough to use.
+// sheet is reachable by name inside the branch's own Drive folder. Keep enough to debug,
+// not enough to use.
 export function maskSpreadsheetId(spreadsheetId: string): string {
   if (!spreadsheetId) return "";
   if (spreadsheetId.length <= 10) return "••••";
