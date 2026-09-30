@@ -37,11 +37,15 @@ test("navigasi Admin memakai empat tab kerja yang sama dan mengelompokkan fitur 
     "/dashboard",
     "/approval",
     "/laporan",
+    "/jadwal",
+    "/handover",
+    "/shift-template",
     "/cabang",
     "/karyawan",
-    "/shift-template",
     "/kategori-izin",
+    "/incident",
     "/kategori-incident",
+    "/checklist",
     "/checklist-template",
     "/handover-template",
   ]);
@@ -103,9 +107,13 @@ test("groupsWithoutTabs membuang tab dock dari 'Lainnya' supaya tidak tampil dua
     assert.equal(hrefs.includes(tab.href), false, `${tab.href} masih muncul di Lainnya`);
   }
   // Sisa yang harusnya masih terjangkau lewat sheet.
-  for (const href of ["/cabang", "/karyawan", "/shift-template", "/kategori-izin", "/checklist-template", "/handover-template"]) {
+  for (const href of ["/cabang", "/karyawan", "/shift-template", "/kategori-izin", "/kategori-incident", "/checklist-template", "/handover-template"]) {
     assert.equal(hrefs.includes(href), true, `${href} hilang dari Lainnya jadi tidak terjangkau`);
   }
+  assert.deepEqual(
+    groupsWithoutTabs(ADMIN_NAV_GROUPS, ADMIN_DOCK_TABS).map((group) => group.label),
+    ["Monitoring & Laporan", "KELOLA SHIFT", "KELOLA PETUGAS", "KELOLA INCIDENT", "KELOLA CHECKLIST"],
+  );
 });
 
 test("grup yang seluruh isinya jadi tab dock tidak muncul sebagai grup kosong", () => {
@@ -132,10 +140,10 @@ test("tidak ada href yang muncul dua kali di dock admin (tabs + Lainnya + extras
   assert.ok(seen.size > 4, "dock harus punya lebih dari 4 tujuan");
 });
 
-test("Petugas: profil & pilih cabang tetap terjangkau, logout ditangani pemanggil", () => {
+test("Petugas: profil terjangkau tanpa menu pemilihan cabang, logout ditangani pemanggil", () => {
   const hrefs = PETUGAS_DOCK_EXTRAS.map((item) => item.href);
   assert.ok(hrefs.includes("/profil"));
-  assert.ok(hrefs.includes("/pilih-cabang"));
+  assert.equal(hrefs.includes("/pilih-cabang"), false);
   // Nav desktop Petugas memuat Profil juga; dock + nav tidak boleh dobel di layar yang sama
   // (dock lg:hidden), jadi Profil sengaja ada di nav desktop DAN di Lainnya mobile.
   assert.ok(PETUGAS_NAV_ITEMS.some((item) => item.href === "/profil"));

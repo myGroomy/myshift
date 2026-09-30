@@ -12,10 +12,16 @@ export async function GET(request: NextRequest) {
   const auth = await staffSession(request);
   if (isResponse(auth)) return auth;
   try {
-    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
+    const requestedBranchId = request.nextUrl.searchParams.get("branchId");
+    const branchIds = auth.role === "petugas" && !requestedBranchId
+      ? auth.branches.map((branch) => branch.branchId)
+      : [resolveBranchId(auth, requestedBranchId)];
     const status = request.nextUrl.searchParams.get("status");
-    const { records } = await loadIzin(branchId);
-    let result = records.map(({ rowNumber: _row, ...izin }) => izin);
+    const rowsByBranch = await Promise.all(branchIds.map(async (branchId) => {
+      const { records } = await loadIzin(branchId);
+      return records.map(({ rowNumber: _row, ...izin }) => ({ ...izin, branchId }));
+    }));
+    let result = rowsByBranch.flat();
     if (status) result = result.filter((izin) => izin.status === status);
     if (auth.role === "petugas") {
       result = result.filter((izin) => izin.employeeId === auth.employeeId);

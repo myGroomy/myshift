@@ -24,6 +24,8 @@ const pointBase = {
   shiftIds: [],
   order: 1,
   active: true,
+  createdAt: "",
+  updatedAt: "",
 };
 
 function testPoint(

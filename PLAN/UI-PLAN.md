@@ -18,7 +18,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 | # | Halaman | Path | Role | Prioritas |
 |---|---|---|---|---|
 | 1 | Login | `/login` | Semua | MVP |
-| 2 | Pilih Cabang | `/pilih-cabang` | Semua (auto-skip jika cabang aktif = 1) | MVP |
+| 2 | Pilih Cabang Pengelolaan | `/pilih-cabang` | Admin | Pengaturan cabang kerja Admin |
 | 3 | Profil Saya | `/profil` | Semua | Fase 2 |
 | 4 | Jadwal Saya | `/jadwal-saya` | Petugas | MVP (Unified 4-Tab Hub: Jadwal, Swap, Izin, Riwayat) |
 | 5 | Layar Shift Terpadu | `/shift/[id]` | Petugas | Fase 2/3 (Hub 3-Tab: Info, Checklist, Handover) |
@@ -59,13 +59,13 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 ### 2.2 Pilih Cabang (`/pilih-cabang`)
 
-**Layout:** List/grid card cabang aktif milik user.
+**Layout:** Admin memilih cabang pengelolaan dari list/grid.
 
 **Elemen:**
-- Card per cabang: nama cabang, indikator "cabang saat ini" kalau ada
-- Tap untuk pilih → set konteks cabang aktif di sesi
+- Card per cabang: nama cabang, indikator "cabang pengelolaan saat ini" kalau ada
+- Tap untuk pilih → set konteks cabang Admin untuk halaman pengelolaan
 
-**Fungsi:** Muncul hanya kalau user (petugas pindah-pindah, atau admin) punya >1 cabang terafiliasi. Kalau cuma 1 cabang, skip halaman ini otomatis.
+**Fungsi:** Khusus Admin untuk menentukan cabang yang dikelola. Petugas tidak memilih cabang aktif; cabang operasional mengikuti `branchId` pada jadwal. Akses Petugas ke route ini diarahkan kembali ke Jadwal Saya.
 
 ---
 
@@ -79,7 +79,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 - Shortcut: tombol "Ajukan swap" dan "Ajukan izin"
 - Empty state: kalau tidak ada shift di tanggal terpilih ("Tidak ada shift hari ini")
 
-**Fungsi:** Fetch jadwal minggu berjalan untuk petugas + cabang aktifnya. Tap tanggal lain di strip → ganti card shift yang ditampilkan.
+**Fungsi:** Fetch jadwal minggu berjalan milik Petugas di semua cabang terafiliasi; setiap card menampilkan cabang jadwal. Tap tanggal lain di strip → ganti card shift yang ditampilkan.
 
 ---
 
@@ -101,7 +101,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 ### Checklist & Riwayat Checklist (`/checklist`, `/checklist/history`)
 
 - Petugas membuka checklist otomatis untuk jadwal hari ini: prioritaskan shift yang sedang berjalan, lalu jadwal terdekat yang belum dimulai. Jika tidak ada jadwal hari ini, tampilkan jadwal lain yang tersedia dan pintasan ke riwayat.
-- Jika ada beberapa shift hari ini, pilihan jadwal tetap tersedia. Admin tetap menggunakan pemilih shift untuk pemeriksaan/koreksi di cabang aktif.
+- Jika ada beberapa shift hari ini, pilihan jadwal tetap tersedia; cabang pada tiap shift menjadi konteks otomatis untuk checklist, handover, dan laporan shift. Admin tetap menggunakan pemilih shift untuk pemeriksaan/koreksi di cabang aktif.
 - Halaman input menampilkan nama petugas, cabang, tanggal/jam, status shift, progres checklist, dan tautan laporan shift.
 - Riwayat memuat shift yang sudah lewat dan status laporan; tautan "Lihat Laporan" hanya tampil jika `reportGeneratedAt` tersedia.
 
@@ -202,7 +202,6 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 - Tab/selector shift; point lintas shift tampil pada setiap shift yang berlaku
 - CRUD kategori SOP dan Checklist Point (deskripsi, tipe, satuan/batas angka, opsi, cakupan shift, urutan, aktif)
 - Point yang telah memiliki log hanya dapat dinonaktifkan; perubahan tipe menampilkan peringatan bahwa log lama tetap utuh
-- Untuk Karyawan: laporan otomatis dibatasi ke cabang aktif, tanpa selector cabang
 
 ---
 
@@ -235,7 +234,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 **Layout:** Filter di atas (periode, cabang) + tabel hasil + tombol export.
 
 **Elemen:**
-- Filter: rentang tanggal; cabang untuk Admin, cabang aktif tetap untuk Karyawan
+- Filter: rentang tanggal; cabang untuk Admin, data Petugas mengikuti cakupan cabang sesi tanpa selector cabang
 - Tab jenis laporan: Semua, Jadwal, Checklist, Handover, Swap & Izin, Incident
 - Tab Checklist merangkum progres per shift dan SOP, termasuk daftar point yang belum selesai
 - Tombol export CSV mengikuti jenis laporan dan filter yang sedang dipilih
@@ -261,7 +260,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 - **Filter pada mobile** dibungkus panel surface dengan grid satu kolom pada layar sempit, label tetap terlihat, dan kontrol/aksi memakai lebar penuh bila dibutuhkan. Filter majemuk membentuk grid dua kolom hanya saat ruang cukup; segmented control boleh digeser horizontal tanpa membuat halaman ikut overflow.
 - **Box dan form** memakai padding mobile yang lebih rapat (`16px`) lalu kembali ke kepadatan desktop pada breakpoint `sm`; field grid wajib memakai `min-width: 0` agar input, label panjang, dan tombol tidak mendorong viewport melebar.
 - **Tabel data di mobile** tetap dapat digeser horizontal, memiliki lebar kolom minimum agar isi tidak terjepit, dan menampilkan petunjuk geser sebelum breakpoint desktop.
-- **Auto-Skip Pilih Cabang:** Jika user hanya terafiliasi dengan 1 cabang aktif, bypass halaman `/pilih-cabang` langsung ke `/jadwal-saya` atau `/dashboard`.
+- **Cabang berbasis jadwal:** Petugas tidak memilih cabang aktif; jadwal menetapkan cabang untuk checklist, handover, dan laporan shift. Admin tetap memilih cabang saat mengelola data.
 - **Thumb-Zone Optimization (Mobile):** Tombol aksi utama (Mulai Shift, Submit Checklist, Send Handover) ditempatkan di area jangkauan jempol (sticky bottom bar).
 - **Kompresi Client-side:** Foto bukti checklist dikompres otomatis (<500KB WebP) di frontend sebelum diunggah ke Google Drive via GAS bridge.
 - **Status pakai badge warna semantik** (pending=warning amber `#D97706`, approved=success green `#059669`, rejected/bentrok=danger red `#DC2626`, shift aktif=accent navy `#1c2b42`) ambil warna dari role tokens di `atlassian-DESIGN.md`.
@@ -295,12 +294,14 @@ Satu model navigasi untuk semua role, dengan dua bentuk tergantung ukuran layar:
 
 | Role | 4 tab dock | Masuk sheet "Lainnya" |
 |---|---|---|
-| Admin | Jadwal, Checklist, Handover, Incident | Dashboard, Approval, Laporan, Checklist Template, Handover Template, Cabang, Karyawan, Shift Template, Kategori Izin, Kategori Incident, Pilih Cabang |
-| Petugas | Jadwal, Checklist, Handover, Incident | Swap, Izin, Riwayat, Laporan, Profil, Pilih Cabang, Keluar dari Akun |
+| Admin | Jadwal, Checklist, Handover, Incident | Dashboard, Approval, Laporan, Kelola Shift, Kelola Petugas, Kelola Incident, Kelola Checklist, Pilih Cabang |
+| Petugas | Jadwal, Checklist, Handover, Incident | Swap, Izin, Riwayat, Laporan, Profil, Keluar dari Akun |
 
 Untuk Admin, tab Jadwal membuka kalender kelola jadwal; tab Checklist dan Handover membuka pemilih shift
-operasional yang sama dan dapat digunakan untuk memeriksa atau mengoreksi catatan. Semua akses Admin
-tambahan dikelompokkan di menu **Pengelolaan** pada desktop dan **Lainnya** di mobile.
+operasional yang sama dan dapat digunakan untuk memeriksa atau mengoreksi catatan. Menu tambahan
+dikelompokkan konsisten di desktop dan mobile: **KELOLA SHIFT**, **KELOLA PETUGAS**,
+**KELOLA INCIDENT**, dan **KELOLA CHECKLIST**. Dashboard, Approval, dan Laporan berada di
+**Monitoring & Laporan**.
 
 Karyawan juga dapat membuka **Laporan** melalui menu "Lainnya" di mobile atau nav horizontal di
 desktop. Isinya ringkasan jadwal, swap, izin, checklist, handover, dan incident cabang aktif.

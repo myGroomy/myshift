@@ -50,6 +50,7 @@ export async function GET(request: NextRequest, context: Context) {
     }
 
     const employee = (await getEmployees()).find((entry) => entry.employeeId === employeeId);
+    const branch = (await getBranches()).find((entry) => entry.branchId === match.branchId);
     const shift = match.shiftRows.find((entry) => entry.values[0] === values[2]);
 
     return ok({
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest, context: Context) {
       status: values[4] ?? "scheduled",
       startedAt: values[5] ?? "",
       branchId: match.branchId,
+      branchName: branch?.nama ?? match.branchId,
       reportGeneratedAt: values[7] ?? "",
       startTime: shift?.values[2] ?? "",
       endTime: shift?.values[3] ?? "",

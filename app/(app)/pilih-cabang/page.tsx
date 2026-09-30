@@ -32,9 +32,11 @@ export default function PilihCabangPage() {
     request<Session>("/api/auth/session")
       .then((s) => {
         setSession(s);
-        // If user only has 1 branch, auto forward
-        if (s.branches.length <= 1) {
-          router.replace(s.role === "admin" ? "/dashboard" : "/jadwal-saya");
+        // Petugas get branch context from each assigned schedule, not a manually selected branch.
+        if (s.role === "petugas") {
+          router.replace("/jadwal-saya");
+        } else if (s.branches.length <= 1) {
+          router.replace("/dashboard");
         }
       })
       .catch((e: unknown) => {
@@ -64,6 +66,10 @@ export default function PilihCabangPage() {
   }
 
   const Shell = session?.role === "petugas" ? PetugasShell : AdminShell;
+
+  if (loading) {
+    return <div className="mx-auto max-w-[1200px] px-4 py-8 text-sm text-muted-foreground">Memuat cabang pengelolaan...</div>;
+  }
 
   return (
     <Shell

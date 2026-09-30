@@ -55,6 +55,8 @@ async function summarize(branch: Branch, today: string): Promise<DashboardData> 
     shiftIds: (values[9] ?? "").split(",").map((entry) => entry.trim()).filter(Boolean),
     order: Number(values[10] ?? "0") || 0,
     active: (values[11] ?? "TRUE").toUpperCase() === "TRUE",
+    createdAt: values[12] ?? "",
+    updatedAt: values[13] ?? "",
   }));
   const latestLog = new Map(
     checklistLogRows.map((row) => [

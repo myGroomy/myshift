@@ -10,15 +10,22 @@ import { useToast } from "@/components/ui/toast";
 import { ShiftReportView, type ShiftReport } from "@/components/shift-report-view";
 import { request } from "@/lib/api";
 
-function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> }) {
+function ShiftReportPageContent({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ branchId?: string }>;
+}) {
   const { id } = use(params);
+  const { branchId = "" } = use(searchParams);
   const { toast } = useToast();
   const [report, setReport] = useState<ShiftReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
   async function loadReport() {
-    const result = await request<ShiftReport>(`/api/schedules/${id}/report`);
+    const result = await request<ShiftReport>(`/api/schedules/${id}/report?branchId=${encodeURIComponent(branchId)}`);
     setReport(result);
   }
 
@@ -26,12 +33,12 @@ function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> })
     loadReport()
       .catch((error: unknown) => toast(error instanceof Error ? error.message : "Gagal memuat laporan shift", "error"))
       .finally(() => setLoading(false));
-  }, [id, toast]);
+  }, [branchId, id, toast]);
 
   async function generate() {
     setGenerating(true);
     try {
-      const result = await request<ShiftReport>(`/api/schedules/${id}/report`, { method: "POST" });
+      const result = await request<ShiftReport>(`/api/schedules/${id}/report?branchId=${encodeURIComponent(branchId)}`, { method: "POST" });
       setReport(result);
       toast("Laporan shift berhasil digenerate", "success");
     } catch (error) {
@@ -75,7 +82,7 @@ function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> })
     <PetugasShell title="Laporan Shift" lead={`${report.shiftName} · ${report.date}`}>
       <div className="max-w-3xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Button asChild variant="ghost" size="sm"><Link href={`/shift/${id}`}><ArrowLeft size={16} />Kembali ke shift</Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link href={`/shift/${id}?branchId=${encodeURIComponent(branchId)}`}><ArrowLeft size={16} />Kembali ke shift</Link></Button>
           <div className="flex gap-2">
             {!report.reportGeneratedAt && <Button onClick={generate} disabled={!canGenerate || generating}>{generating ? "Membuat laporan..." : "Generate Laporan"}</Button>}
             {report.reportGeneratedAt && <Button onClick={shareWhatsApp}><Share2 size={16} />Share ke WhatsApp</Button>}
@@ -97,6 +104,12 @@ function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> })
   );
 }
 
-export default function ShiftReportPage({ params }: { params: Promise<{ id: string }> }) {
-  return <ShiftReportPageContent params={params} />;
+export default function ShiftReportPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ branchId?: string }>;
+}) {
+  return <ShiftReportPageContent params={params} searchParams={searchParams} />;
 }

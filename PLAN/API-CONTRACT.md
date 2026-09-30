@@ -12,8 +12,9 @@
 > { "success": false, "error": { "code": "STRING_CODE", "message": "Pesan untuk user", "data": { ... } } }
 > ```
 > Semua endpoint (kecuali `/api/auth/login`) memerlukan session cookie valid. Data per-cabang untuk
-> Admin dapat di-scope ke cabang mana pun; Karyawan hanya dapat mengakses cabang yang terafiliasi
-> dengannya. Laporan Karyawan khusus cabang aktif.
+> Admin dapat di-scope ke cabang mana pun; Petugas hanya dapat mengakses cabang yang terafiliasi
+> dengannya. Operasi jadwal menerima `branchId` dari jadwal yang dipilih; Petugas tidak memilih
+> cabang aktif manual.
 >
 > **Perubahan v1.1.0** (audit backend): error code disamakan dengan §11 (`VALIDATION_ERROR`, bukan `INVALID_REQUEST`), detail per-field dipindah ke `error.data`, lockout login diimplementasikan, `/api/laporan` menggantikan `/api/reports`, dashboard mengembalikan array (bentuk aktual), dan `GET /api/schedules/:id` ditambahkan.
 >
@@ -195,10 +196,10 @@ oleh endpoint ini hanya cabang yang masih `pending`/`failed` yang diterima.
 ## 5. Schedules
 
 ### `GET /api/schedules?branchId=&startDate=&endDate=`
-Response 200: `{ "data": ScheduleEntry[] }`; `petugas` difilter ke `employeeId` sendiri. Setiap `ScheduleEntry` diperkaya dengan `{ scheduleId, employeeId, shiftId, shiftName, startTime, endTime, date, status, startedAt, reportGeneratedAt, conflictWarning }`. `reportGeneratedAt` kosong jika laporan shift belum dibuat.
+Response 200: `{ "data": ScheduleEntry[] }`; `petugas` difilter ke `employeeId` sendiri. Jika `branchId` tidak dikirim oleh Petugas, hasil mencakup seluruh cabang terafiliasi dan setiap entri membawa `branchId` serta `branchName` sumbernya. Setiap `ScheduleEntry` diperkaya dengan `{ scheduleId, employeeId, shiftId, shiftName, startTime, endTime, date, status, branchId, branchName, startedAt, reportGeneratedAt, conflictWarning }`. `reportGeneratedAt` kosong jika laporan shift belum dibuat. Untuk semua operasi/detail jadwal tertentu, client mengirim `branchId` jadwal agar ID lintas spreadsheet tidak tertukar.
 
 ### `GET /api/schedules/:id?branchId=`
-Response 200: `{ "data": { scheduleId, employeeId, employeeName, shiftId, shiftName, startTime, endTime, date, status, startedAt, reportGeneratedAt, branchId } }`
+Response 200: `{ "data": { scheduleId, employeeId, employeeName, shiftId, shiftName, startTime, endTime, date, status, startedAt, reportGeneratedAt, branchId, branchName } }`
 Response 403 untuk `petugas` yang bukan pemilik jadwal. Tanpa `branchId`, admin dicari lintas cabang aktif.
 
 ### `POST /api/schedules` (Admin)
@@ -221,9 +222,11 @@ Hanya dari status `scheduled` kalau sudah `started`/`completed` → 400 `VALIDAT
 ## 6. Shift Swap
 
 ### `GET /api/swaps?status=&branchId=`
+Untuk Petugas, tanpa `branchId` mengembalikan riwayat di seluruh cabang terafiliasi; tiap record
+membawa `branchId`. Admin menggunakan cabang aktif/default atau `branchId` yang diminta.
 ### `GET /api/swaps/eligible-partners?scheduleId=&branchId=`
 Response 200: daftar karyawan yang jadwalnya cocok untuk ditukar (filter di backend).
-### `POST /api/swaps` (Petugas) Body `{ "scheduleId", "requestedWithEmployeeId", "reason" }` → 201, status `pending`
+### `POST /api/swaps` (Petugas) Body `{ "scheduleId", "branchId", "requestedWithEmployeeId", "reason" }` → 201, status `pending`
 Response 409 `DUPLICATE_SUBMIT` kalau sudah ada pengajuan pending untuk jadwal itu.
 ### `POST /api/swaps/:id/approve` (Admin) menukar `Employee_ID` dua jadwal; kalau tulisan kedua gagal, yang pertama di-rollback.
 ### `POST /api/swaps/:id/reject` (Admin) Body `{ "reason"? }`
@@ -233,7 +236,9 @@ Response 409 `DUPLICATE_SUBMIT` kalau sudah ada pengajuan pending untuk jadwal i
 ## 7. Izin
 
 ### `GET /api/izin?status=&branchId=`
-### `POST /api/izin` (Petugas) Body `{ "scheduleId", "categoryId", "note" }` → 201
+Untuk Petugas, tanpa `branchId` mengembalikan riwayat di seluruh cabang terafiliasi; tiap record
+membawa `branchId`. Admin menggunakan cabang aktif/default atau `branchId` yang diminta.
+### `POST /api/izin` (Petugas) Body `{ "scheduleId", "branchId", "categoryId", "note" }` → 201
 Validasi: pemilik jadwal, status jadwal masih `scheduled`, kategori ada & aktif, tidak ada pengajuan pending ganda.
 ### `POST /api/izin/:id/approve` (Admin)
 ### `POST /api/izin/:id/reject` (Admin) Body `{ "reason"? }`

@@ -16,6 +16,9 @@ const ready: Branch = {
   folderId: "1FolderIdForTheBranch",
   provisionStatus: "ready",
   aktif: true,
+  timezone: "Asia/Jakarta",
+  createdAt: "2026-09-30T00:00:00Z",
+  updatedAt: "2026-09-30T00:00:00Z",
 };
 
 // Regression guard for the 6-column migration of Daftar_Cabang (SHEETS-SCHEMA §1). Before the
@@ -24,11 +27,11 @@ const ready: Branch = {
 // as an inactive branch with no Drive folder silent, and it only shows up on the next
 // provisioning attempt. The assertions below pin both the width and the carry-over rule.
 
-test("branchRowValues always writes 6 columns", () => {
+test("branchRowValues always writes 9 columns", () => {
   const row = branchRowValues(ready);
   assert.equal(row.length, BRANCH_ROW_WIDTH);
   assert.equal(row.length, REGISTRY_HEADERS.Daftar_Cabang.length);
-  assert.equal(row.length, 6);
+  assert.equal(row.length, 9);
 });
 
 test("branchRowValues maps each column to its header, not to the old 4-wide order", () => {
@@ -39,6 +42,9 @@ test("branchRowValues maps each column to its header, not to the old 4-wide orde
   assert.equal(row[REGISTRY_HEADERS.Daftar_Cabang.indexOf("Folder_Drive_ID")], "1FolderIdForTheBranch");
   assert.equal(row[REGISTRY_HEADERS.Daftar_Cabang.indexOf("Provision_Status")], "ready");
   assert.equal(row[REGISTRY_HEADERS.Daftar_Cabang.indexOf("Aktif")], "TRUE");
+  assert.equal(row[REGISTRY_HEADERS.Daftar_Cabang.indexOf("Timezone")], "Asia/Jakarta");
+  assert.equal(row[REGISTRY_HEADERS.Daftar_Cabang.indexOf("Created_At")], "2026-09-30T00:00:00Z");
+  assert.equal(row[REGISTRY_HEADERS.Daftar_Cabang.indexOf("Updated_At")], "2026-09-30T00:00:00Z");
 });
 
 test("a 4-wide write would misread as an inactive branch with no Drive folder", () => {
@@ -63,6 +69,9 @@ test("renaming a branch preserves the provisioning columns verbatim", () => {
   assert.equal(row[3], ready.folderId);
   assert.equal(row[4], "ready");
   assert.equal(row[5], "TRUE");
+  assert.equal(row[6], ready.timezone);
+  assert.equal(row[7], ready.createdAt);
+  assert.equal(row[8], ready.updatedAt);
 });
 
 test("deactivating a branch keeps the spreadsheet and folder wired up", () => {
@@ -93,15 +102,18 @@ test("a pending branch round-trips through edits without inventing Drive IDs", (
     folderId: "",
     provisionStatus: "pending",
     aktif: true,
+    timezone: "Asia/Jakarta",
+    createdAt: "",
+    updatedAt: "",
   };
   const row = branchRowValues(applyBranchEdits(pending, { nama: "Mochikin Selatan" }));
 
   assert.equal(row.length, BRANCH_ROW_WIDTH);
-  assert.deepEqual(row, ["CBG002", "Mochikin Selatan", "", "", "pending", "TRUE"]);
+  assert.deepEqual(row, ["CBG002", "Mochikin Selatan", "", "", "pending", "TRUE", "Asia/Jakarta", "", ""]);
 });
 
-test("branch rows are written across all 6 columns, not a shorter A:D range", () => {
+test("branch rows are written across all 9 columns, not a shorter A:D range", () => {
   const range = `Daftar_Cabang!A:${columnLetter(BRANCH_ROW_WIDTH)}`;
-  assert.equal(range, "Daftar_Cabang!A:F");
+  assert.equal(range, "Daftar_Cabang!A:I");
   assert.notEqual(range, "Daftar_Cabang!A:D");
 });

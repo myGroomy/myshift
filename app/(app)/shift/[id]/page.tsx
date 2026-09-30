@@ -79,6 +79,10 @@ type PreviousHandover = {
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
+function scheduleUrl(path: string, branchId: string) {
+  return `${path}?${new URLSearchParams({ branchId }).toString()}`;
+}
+
 async function compressPhoto(file: File): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
   return new Promise((resolve) => {
@@ -127,6 +131,8 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const branchId = searchParams.get("branchId") ?? "";
+  const branchSuffix = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
   const { toast } = useToast();
 
   const initialTab = (searchParams.get("tab") as "info" | "checklist" | "handover") || "info";
@@ -167,10 +173,10 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
     setLoadError(null);
 
     Promise.all([
-      request<ShiftDetail>(`/api/schedules/${id}`),
-      request<ChecklistResponse>(`/api/schedules/${id}/checklist`).catch(() => ({ items: [], completed: 0, total: 0 })),
-      request<HandoverResponse>(`/api/schedules/${id}/handover`).catch(() => ({ fields: [], filledCount: 0, total: 0, completed: false })),
-      request<PreviousHandover>(`/api/schedules/${id}/handover/previous`).catch(() => null),
+      request<ShiftDetail>(scheduleUrl(`/api/schedules/${id}`, branchId)),
+      request<ChecklistResponse>(scheduleUrl(`/api/schedules/${id}/checklist`, branchId)).catch(() => ({ items: [], completed: 0, total: 0 })),
+      request<HandoverResponse>(scheduleUrl(`/api/schedules/${id}/handover`, branchId)).catch(() => ({ fields: [], filledCount: 0, total: 0, completed: false })),
+      request<PreviousHandover>(scheduleUrl(`/api/schedules/${id}/handover/previous`, branchId)).catch(() => null),
     ])
       .then(([det, chk, hnd, prevHnd]) => {
         setDetail(det);
@@ -188,18 +194,18 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
 
   useEffect(() => {
     loadAllData();
-  }, [id]);
+  }, [id, branchId]);
 
   useEffect(() => {
-    if (activeTab === "checklist") router.replace(`/shift/${id}/checklist`);
-  }, [activeTab, id, router]);
+    if (activeTab === "checklist") router.replace(`/shift/${id}/checklist${branchSuffix}`);
+  }, [activeTab, branchSuffix, id, router]);
 
   async function startShift() {
     if (!detail) return;
     setStarting(true);
     try {
       const res = await request<{ scheduleId: string; startedAt: string }>(
-        `/api/schedules/${id}/start-shift`,
+        scheduleUrl(`/api/schedules/${id}/start-shift`, branchId),
         { method: "POST" }
       );
       setDetail((d) => (d ? { ...d, status: "started", startedAt: res.startedAt } : null));
@@ -214,13 +220,13 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
   async function handleCheck(itemId: string, photoUrl?: string) {
     setCheckingId(itemId);
     try {
-      await request(`/api/schedules/${id}/checklist`, {
+      await request(scheduleUrl(`/api/schedules/${id}/checklist`, branchId), {
         method: "POST",
         body: JSON.stringify({ itemId, photoUrl: photoUrl || undefined }),
       });
       toast("Item checklist dicentang", "success");
       resetPhotoModal();
-      const updatedChk = await request<ChecklistResponse>(`/api/schedules/${id}/checklist`);
+      const updatedChk = await request<ChecklistResponse>(scheduleUrl(`/api/schedules/${id}/checklist`, branchId));
       setChecklist(updatedChk);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menyimpan centang", "error");
@@ -261,7 +267,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
       const form = new FormData();
       form.append("file", compressed);
       const data = await request<{ photoUrl: string; fileId: string }>(
-        `/api/schedules/${id}/checklist/photo?itemId=${encodeURIComponent(photoModalItem.itemId)}`,
+        `/api/schedules/${id}/checklist/photo?${new URLSearchParams({ itemId: photoModalItem.itemId, branchId }).toString()}`,
         { method: "POST", body: form }
       );
       setUploadedUrl(data.photoUrl);
@@ -278,7 +284,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
     setSubmittingChecklist(true);
     try {
       await request<{ submitted: boolean; status?: string }>(
-        `/api/schedules/${id}/checklist/submit`,
+        scheduleUrl(`/api/schedules/${id}/checklist/submit`, branchId),
         { method: "POST" }
       );
       toast("Checklist disubmit! Shift berhasil diselesaikan.", "success");
@@ -304,12 +310,12 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
     if (!handover) return;
     setSubmittingHandover(true);
     try {
-      await request(`/api/schedules/${id}/handover`, {
+      await request(scheduleUrl(`/api/schedules/${id}/handover`, branchId), {
         method: "POST",
         body: JSON.stringify({ fields: handover.fields }),
       });
       toast("Catatan Handover berhasil disimpan!", "success");
-      const updatedHnd = await request<HandoverResponse>(`/api/schedules/${id}/handover`);
+      const updatedHnd = await request<HandoverResponse>(scheduleUrl(`/api/schedules/${id}/handover`, branchId));
       setHandover(updatedHnd);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menyimpan handover", "error");
@@ -368,7 +374,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
             </button>
 
             <button
-              onClick={() => router.push(`/shift/${id}/checklist`)}
+              onClick={() => router.push(`/shift/${id}/checklist${branchSuffix}`)}
               className={cn(
                 "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-all",
                 activeTab === "checklist"
@@ -479,7 +485,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => router.push(`/shift/${id}/checklist`)}
+                  onClick={() => router.push(`/shift/${id}/checklist${branchSuffix}`)}
                   className="h-11 flex-1"
                 >
                   <ListChecks size={18} />
@@ -496,7 +502,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                   Isi Handover
                 </Button>
                 <Button asChild variant="outline" size="lg" className="h-11 flex-1">
-                  <Link href={`/shift/${id}/laporan`}>Laporan Shift</Link>
+                  <Link href={`/shift/${id}/laporan${branchSuffix}`}>Laporan Shift</Link>
                 </Button>
               </div>
 

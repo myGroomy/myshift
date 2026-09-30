@@ -77,8 +77,8 @@ test("columnLetter handles large numbers", () => {
 // headerRange
 // ---------------------------------------------------------------------------
 test("headerRange produces correct A1 notation", () => {
-  assert.equal(headerRange("Employees", 10), "Employees!A1:J1");
-  assert.equal(headerRange("Daftar_Cabang", 6), "Daftar_Cabang!A1:F1");
+  assert.equal(headerRange("Employees", 14), "Employees!A1:N1");
+  assert.equal(headerRange("Daftar_Cabang", 9), "Daftar_Cabang!A1:I1");
 });
 
 // ---------------------------------------------------------------------------
@@ -89,6 +89,7 @@ test("headerValues returns registry headers", () => {
   assert.deepEqual(headers, [
     "Employee_ID",
     "Username",
+    "Normalized_Username",
     "PIN_Hash",
     "Nama",
     "Role",
@@ -97,6 +98,9 @@ test("headerValues returns registry headers", () => {
     "Aktif",
     "Failed_Login_Attempts",
     "Locked_Until",
+    "Created_At",
+    "Updated_At",
+    "Deactivated_At",
   ]);
 });
 
@@ -105,12 +109,19 @@ test("headerValues returns branch headers", () => {
   assert.deepEqual(headers, [
     "Schedule_ID",
     "Employee_ID",
+    "Employee_Name_Snapshot",
     "Shift_ID",
+    "Shift_Name_Snapshot",
+    "Shift_Start_Snapshot",
+    "Shift_End_Snapshot",
     "Tanggal",
     "Status",
     "Started_At",
     "Updated_Via",
     "Report_Generated_At",
     "Report_Token",
+    "Created_By",
+    "Created_At",
+    "Updated_At",
   ]);
 });

@@ -1,5 +1,6 @@
 export type ChecklistScheduleCandidate = {
   scheduleId: string;
+  branchId?: string;
   date: string;
   status: string;
   startTime?: string;

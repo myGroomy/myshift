@@ -8,25 +8,36 @@ export type ScheduleRecord = {
   rowNumber: number;
   scheduleId: string;
   employeeId: string;
+  employeeNameSnapshot: string;
   shiftId: string;
+  shiftNameSnapshot: string;
+  shiftStartSnapshot: string;
+  shiftEndSnapshot: string;
   date: string;
   status: string;
   startedAt: string;
   updatedVia: string;
   reportGeneratedAt: string;
   reportToken: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type SwapRecord = {
   rowNumber: number;
   swapId: string;
   scheduleId: string;
+  targetScheduleId: string;
   requestedBy: string;
   requestedWith: string;
   reason: string;
   status: string;
   approvedBy: string;
+  decidedAt: string;
   rejectReason: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type IzinRecord = {
@@ -38,7 +49,10 @@ export type IzinRecord = {
   note: string;
   status: string;
   approvedBy: string;
+  decidedAt: string;
   rejectReason: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type CategoryRecord = {
@@ -46,6 +60,8 @@ export type CategoryRecord = {
   id: string;
   label: string;
   aktif: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type SopCategoryRecord = {
@@ -54,6 +70,8 @@ export type SopCategoryRecord = {
   name: string;
   order: number;
   active: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ChecklistPointRecord = {
@@ -70,6 +88,8 @@ export type ChecklistPointRecord = {
   shiftIds: string[];
   order: number;
   active: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ChecklistLogRecord = {
@@ -77,6 +97,15 @@ export type ChecklistLogRecord = {
   logId: string;
   scheduleId: string;
   pointId: string;
+  pointPublicIdSnapshot: string;
+  categoryNameSnapshot: string;
+  descriptionSnapshot: string;
+  completionTypeSnapshot: string;
+  unitSnapshot: string;
+  minSnapshot: string;
+  maxSnapshot: string;
+  optionsSnapshot: string;
+  isRequiredSnapshot: boolean;
   value: string;
   photoUrl: string;
   checkedBy: string;
@@ -93,6 +122,7 @@ export type ShiftReportAuditRecord = {
   oldValue: string;
   newValue: string;
   actorId: string;
+  actorNameSnapshot: string;
   changedAt: string;
 };
 
@@ -102,6 +132,9 @@ export type HandoverTemplateRecord = {
   label: string;
   isRequired: boolean;
   order: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type HandoverLogRecord = {
@@ -109,9 +142,13 @@ export type HandoverLogRecord = {
   logId: string;
   scheduleId: string;
   fieldId: string;
+  fieldPublicIdSnapshot: string;
+  labelSnapshot: string;
+  isRequiredSnapshot: boolean;
   isi: string;
   createdBy: string;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type IncidentCategoryRecord = {
@@ -119,12 +156,15 @@ export type IncidentCategoryRecord = {
   id: string;
   label: string;
   aktif: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type IncidentRecord = {
   rowNumber: number;
   incidentId: string;
   categoryId: string;
+  scheduleId: string;
   deskripsi: string;
   severity: string;
   fotoUrl: string;
@@ -133,6 +173,55 @@ export type IncidentRecord = {
   resolvedAt: string;
   createdBy: string;
   createdAt: string;
+  updatedAt: string;
+};
+
+export type ShiftReportRecord = {
+  rowNumber: number;
+  reportId: string;
+  scheduleId: string;
+  generatedBy: string;
+  generatedAt: string;
+  publicTokenHash: string;
+  publicAccessRevokedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ShiftReportSnapshotRecord = {
+  rowNumber: number;
+  snapshotId: string;
+  reportId: string;
+  revision: number;
+  snapshotData: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type FileAssetRecord = {
+  rowNumber: number;
+  assetId: string;
+  provider: string;
+  providerFileId: string;
+  storagePath: string;
+  mimeType: string;
+  sizeBytes: number;
+  checksum: string;
+  uploadedBy: string;
+  createdAt: string;
+};
+
+export type IncidentAttachmentRecord = {
+  rowNumber: number;
+  incidentId: string;
+  assetId: string;
+};
+
+export type SchemaMigrationRecord = {
+  rowNumber: number;
+  version: string;
+  appliedAt: string;
+  checksum: string;
 };
 
 function toBool(value: string | undefined, fallback: boolean) {
@@ -150,13 +239,20 @@ export async function loadSchedules(branchId: string) {
       rowNumber,
       scheduleId: values[0] ?? "",
       employeeId: values[1] ?? "",
-      shiftId: values[2] ?? "",
-      date: values[3] ?? "",
-      status: values[4] ?? "scheduled",
-      startedAt: values[5] ?? "",
-      updatedVia: values[6] ?? "",
-      reportGeneratedAt: values[7] ?? "",
-      reportToken: values[8] ?? "",
+      employeeNameSnapshot: values[2] ?? "",
+      shiftId: values[3] ?? "",
+      shiftNameSnapshot: values[4] ?? "",
+      shiftStartSnapshot: values[5] ?? "",
+      shiftEndSnapshot: values[6] ?? "",
+      date: values[7] ?? "",
+      status: values[8] ?? "scheduled",
+      startedAt: values[9] ?? "",
+      updatedVia: values[10] ?? "",
+      reportGeneratedAt: values[11] ?? "",
+      reportToken: values[12] ?? "",
+      createdBy: values[13] ?? "",
+      createdAt: values[14] ?? "",
+      updatedAt: values[15] ?? "",
     })),
   };
 }
@@ -170,12 +266,16 @@ export async function loadSwaps(branchId: string) {
       rowNumber,
       swapId: values[0] ?? "",
       scheduleId: values[1] ?? "",
-      requestedBy: values[2] ?? "",
-      requestedWith: values[3] ?? "",
-      reason: values[4] ?? "",
-      status: values[5] ?? "pending",
-      approvedBy: values[6] ?? "",
-      rejectReason: values[7] ?? "",
+      targetScheduleId: values[2] ?? "",
+      requestedBy: values[3] ?? "",
+      requestedWith: values[4] ?? "",
+      reason: values[5] ?? "",
+      status: values[6] ?? "pending",
+      approvedBy: values[7] ?? "",
+      decidedAt: values[8] ?? "",
+      rejectReason: values[9] ?? "",
+      createdAt: values[10] ?? "",
+      updatedAt: values[11] ?? "",
     })),
   };
 }
@@ -194,7 +294,10 @@ export async function loadIzin(branchId: string) {
       note: values[4] ?? "",
       status: values[5] ?? "pending",
       approvedBy: values[6] ?? "",
-      rejectReason: values[7] ?? "",
+      decidedAt: values[7] ?? "",
+      rejectReason: values[8] ?? "",
+      createdAt: values[9] ?? "",
+      updatedAt: values[10] ?? "",
     })),
   };
 }
@@ -209,6 +312,8 @@ export async function loadCategories(branchId: string) {
       id: values[0] ?? "",
       label: values[1] ?? "",
       aktif: toBool(values[2], true),
+      createdAt: values[3] ?? "",
+      updatedAt: values[4] ?? "",
     })),
   };
 }
@@ -222,6 +327,8 @@ export async function loadSopCategories(branchId: string) {
     name: values[1] ?? "",
     order: Number(values[2] ?? "0") || 0,
     active: toBool(values[3], true),
+    createdAt: values[4] ?? "",
+    updatedAt: values[5] ?? "",
   }));
   return { spreadsheetId, records };
 }
@@ -243,6 +350,8 @@ export async function loadChecklistPoints(branchId: string) {
     shiftIds: (values[9] ?? "").split(",").map((value) => value.trim()).filter(Boolean),
     order: Number(values[10] ?? "0") || 0,
     active: toBool(values[11], true),
+    createdAt: values[12] ?? "",
+    updatedAt: values[13] ?? "",
   }));
   return { spreadsheetId, records };
 }
@@ -255,10 +364,19 @@ export async function loadChecklistLogs(branchId: string, scheduleId: string) {
     logId: values[0] ?? "",
     scheduleId: values[1] ?? "",
     pointId: values[2] ?? "",
-    value: values[3] ?? "",
-    photoUrl: values[4] ?? "",
-    checkedBy: values[5] ?? "",
-    checkedAt: values[6] ?? "",
+    pointPublicIdSnapshot: values[3] ?? "",
+    categoryNameSnapshot: values[4] ?? "",
+    descriptionSnapshot: values[5] ?? "",
+    completionTypeSnapshot: values[6] ?? "",
+    unitSnapshot: values[7] ?? "",
+    minSnapshot: values[8] ?? "",
+    maxSnapshot: values[9] ?? "",
+    optionsSnapshot: values[10] ?? "",
+    isRequiredSnapshot: toBool(values[11], false),
+    value: values[12] ?? "",
+    photoUrl: values[13] ?? "",
+    checkedBy: values[14] ?? "",
+    checkedAt: values[15] ?? "",
   }));
   const latestByPoint = new Map<string, ChecklistLogRecord>();
   for (const record of records.filter((entry) => entry.scheduleId === scheduleId)) {
@@ -280,7 +398,8 @@ export async function loadShiftReportAudits(branchId: string, scheduleId: string
     oldValue: values[5] ?? "",
     newValue: values[6] ?? "",
     actorId: values[7] ?? "",
-    changedAt: values[8] ?? "",
+    actorNameSnapshot: values[8] ?? "",
+    changedAt: values[9] ?? "",
   }));
   return { spreadsheetId, records: records.filter((record) => record.scheduleId === scheduleId) };
 }
@@ -294,6 +413,9 @@ export async function loadHandoverTemplates(branchId: string) {
     label: values[1] ?? "",
     isRequired: toBool(values[2], false),
     order: Number(values[3] ?? "0") || 0,
+    active: toBool(values[4], true),
+    createdAt: values[5] ?? "",
+    updatedAt: values[6] ?? "",
   }));
   return { spreadsheetId, records };
 }
@@ -306,9 +428,13 @@ export async function loadHandoverLogs(branchId: string, scheduleId: string) {
     logId: values[0] ?? "",
     scheduleId: values[1] ?? "",
     fieldId: values[2] ?? "",
-    isi: values[3] ?? "",
-    createdBy: values[4] ?? "",
-    createdAt: values[5] ?? "",
+    fieldPublicIdSnapshot: values[3] ?? "",
+    labelSnapshot: values[4] ?? "",
+    isRequiredSnapshot: toBool(values[5], false),
+    isi: values[6] ?? "",
+    createdBy: values[7] ?? "",
+    createdAt: values[8] ?? "",
+    updatedAt: values[9] ?? "",
   }));
   return { spreadsheetId, records: records.filter((record) => record.scheduleId === scheduleId) };
 }
@@ -323,6 +449,8 @@ export async function loadIncidentCategories(branchId: string) {
       id: values[0] ?? "",
       label: values[1] ?? "",
       aktif: toBool(values[2], true),
+      createdAt: values[3] ?? "",
+      updatedAt: values[4] ?? "",
     })),
   };
 }
@@ -336,14 +464,95 @@ export async function loadIncidents(branchId: string) {
       rowNumber,
       incidentId: values[0] ?? "",
       categoryId: values[1] ?? "",
-      deskripsi: values[2] ?? "",
-      severity: values[3] ?? "low",
-      fotoUrl: values[4] ?? "",
-      status: values[5] ?? "open",
-      resolvedBy: values[6] ?? "",
-      resolvedAt: values[7] ?? "",
-      createdBy: values[8] ?? "",
-      createdAt: values[9] ?? "",
+      scheduleId: values[2] ?? "",
+      deskripsi: values[3] ?? "",
+      severity: values[4] ?? "low",
+      fotoUrl: values[5] ?? "",
+      status: values[6] ?? "open",
+      resolvedBy: values[7] ?? "",
+      resolvedAt: values[8] ?? "",
+      createdBy: values[9] ?? "",
+      createdAt: values[10] ?? "",
+      updatedAt: values[11] ?? "",
+    })),
+  };
+}
+
+export async function loadShiftReports(branchId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Shift_Reports"));
+  return {
+    spreadsheetId,
+    records: rows.map(({ rowNumber, values }): ShiftReportRecord => ({
+      rowNumber,
+      reportId: values[0] ?? "",
+      scheduleId: values[1] ?? "",
+      generatedBy: values[2] ?? "",
+      generatedAt: values[3] ?? "",
+      publicTokenHash: values[4] ?? "",
+      publicAccessRevokedAt: values[5] ?? "",
+      createdAt: values[6] ?? "",
+      updatedAt: values[7] ?? "",
+    })),
+  };
+}
+
+export async function loadShiftReportSnapshots(branchId: string, reportId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Shift_Report_Snapshots"));
+  const records: ShiftReportSnapshotRecord[] = rows.map(({ rowNumber, values }): ShiftReportSnapshotRecord => ({
+    rowNumber,
+    snapshotId: values[0] ?? "",
+    reportId: values[1] ?? "",
+    revision: Number(values[2] ?? "0") || 0,
+    snapshotData: values[3] ?? "",
+    createdBy: values[4] ?? "",
+    createdAt: values[5] ?? "",
+  }));
+  return { spreadsheetId, records: records.filter((record) => record.reportId === reportId) };
+}
+
+export async function loadFileAssets(branchId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("File_Assets"));
+  return {
+    spreadsheetId,
+    records: rows.map(({ rowNumber, values }): FileAssetRecord => ({
+      rowNumber,
+      assetId: values[0] ?? "",
+      provider: values[1] ?? "",
+      providerFileId: values[2] ?? "",
+      storagePath: values[3] ?? "",
+      mimeType: values[4] ?? "",
+      sizeBytes: Number(values[5] ?? "0") || 0,
+      checksum: values[6] ?? "",
+      uploadedBy: values[7] ?? "",
+      createdAt: values[8] ?? "",
+    })),
+  };
+}
+
+export async function loadIncidentAttachments(branchId: string, incidentId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Incident_Attachments"));
+  const records: IncidentAttachmentRecord[] = rows.map(({ rowNumber, values }): IncidentAttachmentRecord => ({
+    rowNumber,
+    incidentId: values[0] ?? "",
+    assetId: values[1] ?? "",
+  }));
+  return { spreadsheetId, records: records.filter((record) => record.incidentId === incidentId) };
+}
+
+export async function loadSchemaMigrations(branchId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Schema_Migrations"));
+  return {
+    spreadsheetId,
+    records: rows.map(({ rowNumber, values }): SchemaMigrationRecord => ({
+      rowNumber,
+      version: values[0] ?? "",
+      appliedAt: values[1] ?? "",
+      checksum: values[2] ?? "",
     })),
   };
 }
@@ -351,6 +560,15 @@ export async function saveChecklistLog(input: {
   spreadsheetId: string;
   scheduleId: string;
   pointId: string;
+  pointPublicIdSnapshot: string;
+  categoryNameSnapshot: string;
+  descriptionSnapshot: string;
+  completionTypeSnapshot: string;
+  unitSnapshot: string;
+  minSnapshot: string;
+  maxSnapshot: string;
+  optionsSnapshot: string;
+  isRequiredSnapshot: boolean;
   value: string;
   checkedBy: string;
   checkedAt: string;
@@ -366,6 +584,15 @@ export async function saveChecklistLog(input: {
       existing.values[0] ?? "",
       input.scheduleId,
       input.pointId,
+      input.pointPublicIdSnapshot,
+      input.categoryNameSnapshot,
+      input.descriptionSnapshot,
+      input.completionTypeSnapshot,
+      input.unitSnapshot,
+      input.minSnapshot,
+      input.maxSnapshot,
+      input.optionsSnapshot,
+      input.isRequiredSnapshot ? "TRUE" : "FALSE",
       input.value,
       input.photoUrl,
       input.checkedBy,
@@ -379,6 +606,15 @@ export async function saveChecklistLog(input: {
     logId,
     input.scheduleId,
     input.pointId,
+    input.pointPublicIdSnapshot,
+    input.categoryNameSnapshot,
+    input.descriptionSnapshot,
+    input.completionTypeSnapshot,
+    input.unitSnapshot,
+    input.minSnapshot,
+    input.maxSnapshot,
+    input.optionsSnapshot,
+    input.isRequiredSnapshot ? "TRUE" : "FALSE",
     input.value,
     input.photoUrl,
     input.checkedBy,
@@ -400,6 +636,7 @@ export async function appendShiftReportAudit(input: Omit<ShiftReportAuditRecord,
     input.oldValue,
     input.newValue,
     input.actorId,
+    input.actorNameSnapshot,
     input.changedAt,
   ]);
 }
@@ -410,6 +647,9 @@ export async function saveHandoverLogs(input: {
   spreadsheetId: string;
   scheduleId: string;
   entries: { fieldId: string; value: string }[];
+  fieldPublicIdSnapshot: string;
+  labelSnapshot: string;
+  isRequiredSnapshot: boolean;
   createdBy: string;
   createdAt: string;
   auditAfterReport?: boolean;
@@ -423,13 +663,17 @@ export async function saveHandoverLogs(input: {
   for (const entry of input.entries) {
     const existing = existingByField.get(entry.fieldId);
     if (existing) {
-      const previous = existing.values[3] ?? "";
+      const previous = existing.values[6] ?? "";
       await replaceRow(input.spreadsheetId, "Handover_Log", existing.rowNumber, [
         existing.values[0] ?? "",
         input.scheduleId,
         entry.fieldId,
+        input.fieldPublicIdSnapshot,
+        input.labelSnapshot,
+        input.isRequiredSnapshot ? "TRUE" : "FALSE",
         entry.value,
         input.createdBy,
+        input.createdAt,
         input.createdAt,
       ]);
       if (input.auditAfterReport && previous !== entry.value) {
@@ -442,6 +686,7 @@ export async function saveHandoverLogs(input: {
           oldValue: previous,
           newValue: entry.value,
           actorId: input.createdBy,
+          actorNameSnapshot: input.createdBy,
           changedAt: input.createdAt,
         });
       }
@@ -454,8 +699,12 @@ export async function saveHandoverLogs(input: {
       logId,
       input.scheduleId,
       entry.fieldId,
+      input.fieldPublicIdSnapshot,
+      input.labelSnapshot,
+      input.isRequiredSnapshot ? "TRUE" : "FALSE",
       entry.value,
       input.createdBy,
+      input.createdAt,
       input.createdAt,
     ]);
     if (input.auditAfterReport && entry.value) {
@@ -468,6 +717,7 @@ export async function saveHandoverLogs(input: {
         oldValue: "",
         newValue: entry.value,
         actorId: input.createdBy,
+        actorNameSnapshot: input.createdBy,
         changedAt: input.createdAt,
       });
     }
@@ -478,22 +728,54 @@ export function scheduleValues(record: ScheduleRecord) {
   return [
     record.scheduleId,
     record.employeeId,
+    record.employeeNameSnapshot,
     record.shiftId,
+    record.shiftNameSnapshot,
+    record.shiftStartSnapshot,
+    record.shiftEndSnapshot,
     record.date,
     record.status,
     record.startedAt,
     record.updatedVia || "myshift",
     record.reportGeneratedAt,
     record.reportToken,
+    record.createdBy,
+    record.createdAt,
+    record.updatedAt,
   ];
 }
 
 export function swapValues(record: SwapRecord) {
-  return [record.swapId, record.scheduleId, record.requestedBy, record.requestedWith, record.reason, record.status, record.approvedBy, record.rejectReason];
+  return [
+    record.swapId,
+    record.scheduleId,
+    record.targetScheduleId,
+    record.requestedBy,
+    record.requestedWith,
+    record.reason,
+    record.status,
+    record.approvedBy,
+    record.decidedAt,
+    record.rejectReason,
+    record.createdAt,
+    record.updatedAt,
+  ];
 }
 
 export function izinValues(record: IzinRecord) {
-  return [record.izinId, record.employeeId, record.scheduleId, record.categoryId, record.note, record.status, record.approvedBy, record.rejectReason];
+  return [
+    record.izinId,
+    record.employeeId,
+    record.scheduleId,
+    record.categoryId,
+    record.note,
+    record.status,
+    record.approvedBy,
+    record.decidedAt,
+    record.rejectReason,
+    record.createdAt,
+    record.updatedAt,
+  ];
 }
 
 function assertSaved(saved: boolean, message: string) {
@@ -527,6 +809,7 @@ export function incidentValues(record: IncidentRecord) {
   return [
     record.incidentId,
     record.categoryId,
+    record.scheduleId,
     record.deskripsi,
     record.severity,
     record.fotoUrl,
@@ -535,6 +818,7 @@ export function incidentValues(record: IncidentRecord) {
     record.resolvedAt,
     record.createdBy,
     record.createdAt,
+    record.updatedAt,
   ];
 }
 

@@ -42,6 +42,7 @@ export async function provisionExistingBranch(branch: Branch): Promise<Provision
     existingSpreadsheetId: branch.spreadsheetId,
   });
 
+  const now = new Date().toISOString();
   const saved = await replaceRowById(
     process.env.REGISTRY_SPREADSHEET_ID!,
     REGISTRY_SHEETS.branches,
@@ -54,6 +55,9 @@ export async function provisionExistingBranch(branch: Branch): Promise<Provision
       provisioned.folderId,
       "ready",
       branch.aktif ? "TRUE" : "FALSE",
+      branch.timezone || "Asia/Jakarta",
+      branch.createdAt || now,
+      now,
     ],
   );
   if (!saved) {

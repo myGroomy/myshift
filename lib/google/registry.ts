@@ -6,16 +6,20 @@ import { EMPLOYEE_ROLE_VALUES, normalizeEmployeeRole, type EmployeeRole } from "
 export interface Employee {
   employeeId: string;
   username: string;
+  normalizedUsername: string;
   pinHash: string;
   nama: string;
   role: EmployeeRole;
   cabangAktif: string;
   cabangTerafiliasi: string[];
   aktif: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deactivatedAt: string;
 }
 
 // Client-facing projection. `pinHash` must never cross the API boundary (AGENTS.md §5).
-export type PublicEmployee = Omit<Employee, "pinHash">;
+export type PublicEmployee = Omit<Employee, "pinHash" | "normalizedUsername" | "deactivatedAt">;
 
 export interface Branch {
   branchId: string;
@@ -24,6 +28,9 @@ export interface Branch {
   folderId: string;
   provisionStatus: ProvisionStatus;
   aktif: boolean;
+  timezone: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const PROVISION_STATUS_VALUES = ["pending", "ready", "failed"] as const;
@@ -58,6 +65,8 @@ export function toPublicEmployee(employee: Employee): PublicEmployee {
     cabangAktif: employee.cabangAktif,
     cabangTerafiliasi: employee.cabangTerafiliasi,
     aktif: employee.aktif,
+    createdAt: employee.createdAt,
+    updatedAt: employee.updatedAt,
   };
 }
 
@@ -65,15 +74,19 @@ function toEmployee(values: string[]): Employee {
   return {
     employeeId: (values[0] ?? "").trim(),
     username: (values[1] ?? "").trim().toLowerCase(),
-    pinHash: (values[2] ?? "").trim(),
-    nama: (values[3] ?? "").trim(),
-    role: parseRole(values[4] ?? ""),
-    cabangAktif: (values[5] ?? "").trim(),
-    cabangTerafiliasi: (values[6] ?? "")
+    normalizedUsername: (values[2] ?? "").trim().toLowerCase(),
+    pinHash: (values[3] ?? "").trim(),
+    nama: (values[4] ?? "").trim(),
+    role: parseRole(values[5] ?? ""),
+    cabangAktif: (values[6] ?? "").trim(),
+    cabangTerafiliasi: (values[7] ?? "")
       .split(",")
       .map((entry) => entry.trim())
       .filter(Boolean),
-    aktif: parseAktif(values[7] ?? ""),
+    aktif: parseAktif(values[8] ?? ""),
+    createdAt: (values[11] ?? "").trim(),
+    updatedAt: (values[12] ?? "").trim(),
+    deactivatedAt: (values[13] ?? "").trim(),
   };
 }
 
@@ -85,10 +98,13 @@ function toBranch(values: string[]): Branch {
     folderId: (values[3] ?? "").trim(),
     provisionStatus: parseProvisionStatus(values[4]),
     aktif: parseAktif(values[5] ?? ""),
+    timezone: (values[6] ?? "").trim() || "Asia/Jakarta",
+    createdAt: (values[7] ?? "").trim(),
+    updatedAt: (values[8] ?? "").trim(),
   };
 }
 
-// Row values as a 6-wide tuple, so callers writing a branch row back cannot accidentally drop
+// Row values as a 9-wide tuple, so callers writing a branch row back cannot accidentally drop
 // or reorder the auto columns (PATCH /api/branches/:id).
 export function branchRowValues(branch: Branch): string[] {
   return [
@@ -98,6 +114,9 @@ export function branchRowValues(branch: Branch): string[] {
     branch.folderId,
     branch.provisionStatus,
     branch.aktif ? "TRUE" : "FALSE",
+    branch.timezone,
+    branch.createdAt,
+    branch.updatedAt,
   ];
 }
 
@@ -126,8 +145,8 @@ export async function getEmployeeRows(): Promise<EmployeeRow[]> {
   return rows.map((row) => ({
     ...row,
     employee: toEmployee(row.values),
-    attempts: parseAttempts(row.values[8]),
-    lockedUntil: (row.values[9] ?? "").trim(),
+    attempts: parseAttempts(row.values[9]),
+    lockedUntil: (row.values[10] ?? "").trim(),
   }));
 }
 

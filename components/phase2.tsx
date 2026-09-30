@@ -59,35 +59,47 @@ export function SwapAjukanContent() {
   }, [toast]);
 
   useEffect(() => {
-    if (!session?.activeBranchId) return;
-    request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`)
+    if (!session) return;
+    request<Schedule[]>("/api/schedules")
       .then(setSchedules)
       .catch((e: unknown) => toast(msg(e), "error"));
-  }, [session?.activeBranchId, toast]);
+  }, [session, toast]);
 
   useEffect(() => {
-    if (!scheduleId || !session?.activeBranchId) {
+    const schedule = schedules.find((entry) => `${entry.branchId}:${entry.scheduleId}` === scheduleId);
+    if (!schedule?.branchId) {
       setPartners([]);
       return;
     }
-    const params = new URLSearchParams({ scheduleId, branchId: session.activeBranchId });
+    setPartners([]);
+    let current = true;
+    const params = new URLSearchParams({ scheduleId: schedule.scheduleId, branchId: schedule.branchId });
     request<SwapPartner[]>(`/api/swaps/eligible-partners?${params}`)
-      .then(setPartners)
+      .then((result) => {
+        if (current) setPartners(result);
+      })
       .catch((e: unknown) => {
-        toast(msg(e), "error");
-        setPartners([]);
+        if (current) {
+          toast(msg(e), "error");
+          setPartners([]);
+        }
       });
-  }, [scheduleId, session?.activeBranchId, toast]);
+    return () => {
+      current = false;
+    };
+  }, [scheduleId, schedules, toast]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!scheduleId || !partnerId || !reason.trim()) return;
+    const schedule = schedules.find((entry) => `${entry.branchId}:${entry.scheduleId}` === scheduleId);
+    if (!schedule?.branchId || !partnerId || !reason.trim()) return;
     setLoading(true);
     try {
       await request("/api/swaps", {
         method: "POST",
         body: JSON.stringify({
-          scheduleId,
+          scheduleId: schedule.scheduleId,
+          branchId: schedule.branchId,
           requestedWithEmployeeId: partnerId,
           reason: reason.trim(),
         }),
@@ -104,7 +116,6 @@ export function SwapAjukanContent() {
   const mySchedules = schedules.filter(
     (s) => s.employeeId === session?.employeeId && s.status === "scheduled"
   );
-
   return (
     <>
       <form onSubmit={submit} className="mb-6 grid max-w-2xl gap-4 sm:grid-cols-2">
@@ -113,14 +124,17 @@ export function SwapAjukanContent() {
           <Select
             id="jadwal-swap"
             value={scheduleId}
-            onChange={(e) => setScheduleId(e.target.value)}
+            onChange={(e) => {
+              setScheduleId(e.target.value);
+              setPartnerId("");
+            }}
             className={controlClass}
             required
           >
             <option value="">Pilih jadwal</option>
             {mySchedules.map((s) => (
-              <option key={s.scheduleId} value={s.scheduleId}>
-                {s.date} · {s.shiftId} ({s.scheduleId})
+              <option key={`${s.branchId}:${s.scheduleId}`} value={`${s.branchId}:${s.scheduleId}`}>
+                {s.date} · {s.shiftName || s.shiftId} {s.startTime ? `(${s.startTime}–${s.endTime})` : ""} · {s.branchName || s.branchId}
               </option>
             ))}
           </Select>
@@ -272,7 +286,7 @@ export function RiwayatContent() {
               </td>
               <td className={tdClass}>
                 <Link
-                  href={`/shift/${item.scheduleId}`}
+                  href={`/shift/${item.scheduleId}${item.branchId ? `?branchId=${encodeURIComponent(item.branchId)}` : ""}`}
                   className="font-mono text-xs text-primary underline-offset-4 hover:underline"
                 >
                   {item.scheduleId}
@@ -304,7 +318,7 @@ export function RiwayatContent() {
               </td>
               <td className={tdClass}>
                 <Link
-                  href={`/shift/${item.scheduleId}`}
+                  href={`/shift/${item.scheduleId}${item.branchId ? `?branchId=${encodeURIComponent(item.branchId)}` : ""}`}
                   className="font-mono text-xs text-primary underline-offset-4 hover:underline"
                 >
                   {item.scheduleId}
@@ -539,24 +553,47 @@ export function IzinAjukanContent() {
   }, [toast]);
 
   useEffect(() => {
-    if (!session?.activeBranchId) return;
-    request<Schedule[]>(`/api/schedules?branchId=${session.activeBranchId}`)
+    if (!session) return;
+    request<Schedule[]>("/api/schedules")
       .then(setSchedules)
       .catch((e: unknown) => toast(msg(e), "error"));
+  }, [session, toast]);
 
-    request<Category[]>(`/api/izin-categories?branchId=${session.activeBranchId}`)
-      .then(setCategories)
-      .catch((e: unknown) => toast(msg(e), "error"));
-  }, [session?.activeBranchId, toast]);
+  const mySchedules = schedules.filter(
+    (schedule) => schedule.employeeId === session?.employeeId && schedule.status === "scheduled",
+  );
+  const selectedSchedule = mySchedules.find((schedule) => `${schedule.branchId}:${schedule.scheduleId}` === scheduleId);
+
+  useEffect(() => {
+    setCategoryId("");
+    setCategories([]);
+    if (!selectedSchedule?.branchId) return;
+    let current = true;
+    request<Category[]>(`/api/izin-categories?branchId=${encodeURIComponent(selectedSchedule.branchId)}`)
+      .then((result) => {
+        if (current) setCategories(result);
+      })
+      .catch((e: unknown) => {
+        if (current) toast(msg(e), "error");
+      });
+    return () => {
+      current = false;
+    };
+  }, [selectedSchedule?.branchId, toast]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!scheduleId || !categoryId || !note.trim()) return;
+    if (!selectedSchedule?.branchId || !categoryId || !note.trim()) return;
     setLoading(true);
     try {
       await request("/api/izin", {
         method: "POST",
-        body: JSON.stringify({ scheduleId, categoryId, note: note.trim() }),
+        body: JSON.stringify({
+          scheduleId: selectedSchedule.scheduleId,
+          branchId: selectedSchedule.branchId,
+          categoryId,
+          note: note.trim(),
+        }),
       });
       toast("Pengajuan izin terkirim", "success");
       router.push("/jadwal-saya?tab=riwayat");
@@ -567,9 +604,6 @@ export function IzinAjukanContent() {
     }
   }
 
-  const mySchedules = schedules.filter(
-    (s) => s.employeeId === session?.employeeId && s.status === "scheduled"
-  );
   const activeCategories = categories.filter((c) => c.aktif);
 
   return (
@@ -590,8 +624,8 @@ export function IzinAjukanContent() {
           >
             <option value="">Pilih jadwal</option>
             {mySchedules.map((s) => (
-              <option key={s.scheduleId} value={s.scheduleId}>
-                {s.date} · {s.shiftId} ({s.scheduleId})
+              <option key={`${s.branchId}:${s.scheduleId}`} value={`${s.branchId}:${s.scheduleId}`}>
+                {s.date} · {s.shiftName || s.shiftId} {s.startTime ? `(${s.startTime}–${s.endTime})` : ""} · {s.branchName || s.branchId}
               </option>
             ))}
           </Select>
@@ -631,7 +665,7 @@ export function IzinAjukanContent() {
           <Button
             type="submit"
             size="lg"
-            disabled={loading || !scheduleId || !categoryId || !note.trim()}
+            disabled={loading || !selectedSchedule || !categoryId || !note.trim()}
             className="h-11 w-full sm:w-auto"
           >
             {loading ? "Mengajukan..." : "Kirim Permohonan Izin"}

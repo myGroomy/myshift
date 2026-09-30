@@ -7,13 +7,9 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dock } from "@/components/dock";
 import { useLogout } from "@/components/use-logout";
-import { LogOut, Store } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Nav } from "@/components/nav";
-import {
-  PETUGAS_DOCK_EXTRAS,
-  PETUGAS_DOCK_TABS,
-  PETUGAS_NAV_ITEMS,
-} from "@/components/nav-config";
+import { PETUGAS_DOCK_EXTRAS, PETUGAS_DOCK_TABS, PETUGAS_NAV_ITEMS } from "@/components/nav-config";
 import { cn } from "@/lib/utils";
 import { request } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
@@ -59,6 +55,14 @@ export function PetugasShell({
               MYSHIFT
             </Link>
 
+            {role === null && (
+              <nav aria-hidden="true" className="hidden min-w-0 flex-1 items-center gap-2 lg:flex">
+                {Array.from({ length: 5 }, (_, index) => (
+                  <div key={index} className="h-7 w-16 animate-pulse rounded-md bg-muted" />
+                ))}
+              </nav>
+            )}
+
             {role === "petugas" && (
               <nav aria-label="Navigasi petugas" className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto lg:flex">
                 {PETUGAS_NAV_ITEMS.map((item) => (
@@ -81,11 +85,6 @@ export function PetugasShell({
 
             {role === "petugas" && (
               <div className="ml-auto flex items-center gap-1.5">
-                <Button asChild variant="ghost" size="icon" className="size-8" title="Pilih cabang">
-                  <Link href="/pilih-cabang" aria-label="Pilih cabang">
-                    <Store size={18} />
-                  </Link>
-                </Button>
                 <ThemeToggle />
                 <Button
                   variant="ghost"
@@ -99,6 +98,7 @@ export function PetugasShell({
                 </Button>
               </div>
             )}
+            {role === null && <div aria-hidden="true" className="ml-auto h-8 w-24 animate-pulse rounded-md bg-muted" />}
           </div>
         </header>
       )}
@@ -122,6 +122,11 @@ export function PetugasShell({
           onLogout={logout}
           ariaLabel="Navigasi petugas (mobile)"
         />
+      )}
+      {role === null && (
+        <div aria-hidden="true" className="fixed inset-x-0 bottom-4 z-50 mx-auto grid h-16 max-w-md grid-cols-5 gap-1 px-4 lg:hidden">
+          {Array.from({ length: 5 }, (_, index) => <div key={index} className="animate-pulse rounded-lg bg-muted" />)}
+        </div>
       )}
     </div>
   );

@@ -5,12 +5,16 @@ import { parseAktif, parseRole, toPublicEmployee, type Employee } from "@/lib/go
 const employee: Employee = {
   employeeId: "EMP-001",
   username: "admin",
+  normalizedUsername: "admin",
   pinHash: "deadbeef$c0ffee",
   nama: "Admin Pusat",
   role: "admin",
   cabangAktif: "CBG001",
   cabangTerafiliasi: ["CBG002"],
   aktif: true,
+  createdAt: "2026-09-30T00:00:00Z",
+  updatedAt: "2026-09-30T00:00:00Z",
+  deactivatedAt: "",
 };
 
 test("toPublicEmployee drops pinHash from the API projection", () => {
@@ -21,9 +25,11 @@ test("toPublicEmployee drops pinHash from the API projection", () => {
     "aktif",
     "cabangAktif",
     "cabangTerafiliasi",
+    "createdAt",
     "employeeId",
     "nama",
     "role",
+    "updatedAt",
     "username",
   ]);
   assert.ok(!JSON.stringify(projection).includes("c0ffee"));

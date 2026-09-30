@@ -16,11 +16,11 @@ type Schedule = {
   startTime: string;
   endTime: string;
   date: string;
+  branchId: string;
+  branchName: string;
   status: string;
   reportGeneratedAt: string;
 };
-
-type Session = { activeBranchId?: string };
 
 function formatDate(date: string) {
   const parsed = new Date(`${date}T00:00:00+07:00`);
@@ -40,9 +40,7 @@ export function ChecklistHistoryPage() {
   useEffect(() => {
     async function load() {
       try {
-        const session = await request<Session>("/api/auth/session");
-        const query = session.activeBranchId ? `?branchId=${encodeURIComponent(session.activeBranchId)}` : "";
-        const result = await request<Schedule[]>(`/api/schedules${query}`);
+        const result = await request<Schedule[]>("/api/schedules");
         const today = todayInWIB();
         setSchedules(
           result
@@ -73,18 +71,19 @@ export function ChecklistHistoryPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {schedules.map((schedule) => (
-            <article key={schedule.scheduleId} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+            <article key={`${schedule.branchId}:${schedule.scheduleId}`} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="font-semibold text-foreground">{schedule.shiftName || "Shift"}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">{formatDate(schedule.date)}</p>
                   <p className="text-xs text-muted-foreground">{schedule.startTime || "--:--"}–{schedule.endTime || "--:--"} · {schedule.scheduleId}</p>
+                  <p className="text-xs text-muted-foreground">Cabang: {schedule.branchName || schedule.branchId}</p>
                 </div>
                 <StatusBadge status={schedule.status} />
               </div>
               {schedule.reportGeneratedAt ? (
                 <Button asChild variant="outline" size="sm" className="w-full">
-                  <Link href={`/shift/${schedule.scheduleId}/laporan`}><FileText size={15} /> Lihat Laporan</Link>
+                  <Link href={`/shift/${schedule.scheduleId}/laporan?branchId=${encodeURIComponent(schedule.branchId)}`}><FileText size={15} /> Lihat Laporan</Link>
                 </Button>
               ) : (
                 <p className="rounded-md bg-muted px-3 py-2 text-center text-xs text-muted-foreground">Laporan belum dibuat</p>

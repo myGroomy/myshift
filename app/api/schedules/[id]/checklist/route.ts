@@ -90,12 +90,22 @@ export async function POST(request: NextRequest, context: Context) {
     }
     const normalized = validateChecklistValue(point, value, photoUrl);
     const { records: logs } = await loadChecklistLogs(branchId, scheduleId);
+    const { records: categories } = await loadSopCategories(branchId);
     const previous = logs.find((log) => log.pointId === pointId);
     const changedAt = nowIso();
     await saveChecklistLog({
       spreadsheetId,
       scheduleId,
       pointId,
+      pointPublicIdSnapshot: point.pointId,
+      categoryNameSnapshot: categories.find((c) => c.categoryId === point.categoryId)?.name ?? "",
+      descriptionSnapshot: point.description,
+      completionTypeSnapshot: point.completionType,
+      unitSnapshot: point.unit,
+      minSnapshot: point.min,
+      maxSnapshot: point.max,
+      optionsSnapshot: point.options.join(","),
+      isRequiredSnapshot: true,
       value: normalized.value,
       photoUrl: normalized.photoUrl,
       checkedBy: auth.employeeId,
@@ -111,6 +121,7 @@ export async function POST(request: NextRequest, context: Context) {
         oldValue: previous?.value ?? "",
         newValue: normalized.value,
         actorId: auth.employeeId,
+        actorNameSnapshot: auth.nama,
         changedAt,
       });
     }
@@ -124,6 +135,7 @@ export async function POST(request: NextRequest, context: Context) {
         oldValue: previous?.photoUrl ?? "",
         newValue: normalized.photoUrl,
         actorId: auth.employeeId,
+        actorNameSnapshot: auth.nama,
         changedAt,
       });
     }

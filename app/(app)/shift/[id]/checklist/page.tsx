@@ -18,6 +18,7 @@ type Schedule = {
   shiftId: string;
   date: string;
   branchId: string;
+  branchName: string;
   employeeName: string;
   startTime: string;
   endTime: string;
@@ -45,6 +46,10 @@ type PageData = { schedule: Schedule; checklist: Checklist };
 type SaveStatus = "saving" | "saved" | "needs-photo" | "error";
 
 type SaveJob = { point: Point; value: string; file?: File };
+
+function scheduleUrl(path: string, branchId: string) {
+  return `${path}?${new URLSearchParams({ branchId }).toString()}`;
+}
 
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -88,15 +93,17 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
   const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [branchId, setBranchId] = useState<string | null>(null);
   const pointsRef = useRef(new Map<string, Point>());
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const savingRef = useRef(new Set<string>());
   const queuedRef = useRef(new Map<string, SaveJob>());
 
   async function reload() {
+    if (branchId === null) return;
     const [schedule, checklist] = await Promise.all([
-      request<Schedule>(`/api/schedules/${id}`),
-      request<Checklist>(`/api/schedules/${id}/checklist`),
+      request<Schedule>(scheduleUrl(`/api/schedules/${id}`, branchId)),
+      request<Checklist>(scheduleUrl(`/api/schedules/${id}/checklist`, branchId)),
     ]);
     setData({ schedule, checklist });
     setDrafts(Object.fromEntries(checklist.items.map((item) => [item.pointId, item.value])));
@@ -104,10 +111,15 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
   }
 
   useEffect(() => {
+    setBranchId(new URLSearchParams(window.location.search).get("branchId") ?? "");
+  }, []);
+
+  useEffect(() => {
+    if (branchId === null) return;
     reload()
       .catch((error: unknown) => toast(error instanceof Error ? error.message : "Gagal memuat checklist shift", "error"))
       .finally(() => setLoading(false));
-  }, [id, toast]);
+  }, [id, branchId, toast]);
 
   async function persistPoint(pointId: string) {
     if (savingRef.current.has(pointId)) return;
@@ -128,14 +140,14 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
           const form = new FormData();
           form.append("file", file);
           const uploaded = await request<{ photoUrl: string }>(
-            `/api/schedules/${id}/checklist/photo?itemId=${encodeURIComponent(pointId)}`,
+            `/api/schedules/${id}/checklist/photo?${new URLSearchParams({ itemId: pointId, branchId: branchId ?? "" }).toString()}`,
             { method: "POST", body: form }
           );
           photoUrl = uploaded.photoUrl;
         }
 
         const result = await request<{ value: string; photoUrl: string; checked: boolean }>(
-          `/api/schedules/${id}/checklist`,
+          scheduleUrl(`/api/schedules/${id}/checklist`, branchId ?? ""),
           {
             method: "POST",
             body: JSON.stringify({ pointId, value: job.value, photoUrl }),
@@ -211,7 +223,7 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
   async function submitChecklist() {
     setSubmitting(true);
     try {
-      await request(`/api/schedules/${id}/checklist/submit`, { method: "POST" });
+      await request(scheduleUrl(`/api/schedules/${id}/checklist/submit`, branchId ?? ""), { method: "POST" });
       toast("Shift berhasil diselesaikan", "success");
       await reload();
     } catch (error) {
@@ -298,11 +310,11 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
     || saveStatus[point.pointId] === "needs-photo"
   );
   return (
-    <PetugasShell title={`Checklist – ${schedule.shiftName}`} lead={`${schedule.date} · ${schedule.branchId}`}>
+    <PetugasShell title={`Checklist – ${schedule.shiftName}`} lead={`${schedule.date} · ${schedule.branchName || schedule.branchId}`}>
       <div className="max-w-3xl space-y-5">
         <div className="flex items-center justify-between">
-          <Button asChild variant="ghost" size="sm"><Link href={`/shift/${id}`}><ArrowLeft size={16} /> Kembali ke shift</Link></Button>
-          <Button asChild variant="outline" size="sm"><Link href={`/shift/${id}/laporan`}>Laporan Shift</Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link href={`/shift/${id}${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`}><ArrowLeft size={16} /> Kembali ke shift</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link href={`/shift/${id}/laporan${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`}>Laporan Shift</Link></Button>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="ghost" size="sm"><Link href="/checklist?choose=1">Ganti Jadwal</Link></Button>
@@ -312,7 +324,7 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
         <div className="grid gap-3 rounded-lg border border-border bg-card p-4 text-sm sm:grid-cols-2">
           <div><span className="text-xs text-muted-foreground">Petugas</span><p className="font-medium">{schedule.employeeName || "—"}</p></div>
           <div><span className="text-xs text-muted-foreground">Jadwal</span><p className="font-medium">{schedule.date} · {schedule.startTime || "--:--"}–{schedule.endTime || "--:--"}</p></div>
-          <div><span className="text-xs text-muted-foreground">Cabang</span><p className="font-medium">{schedule.branchId}</p></div>
+          <div><span className="text-xs text-muted-foreground">Cabang</span><p className="font-medium">{schedule.branchName || schedule.branchId}</p></div>
           <div><span className="text-xs text-muted-foreground">Status shift</span><p className="font-medium capitalize">{schedule.status === "started" ? "Sedang berjalan" : schedule.status === "completed" ? "Selesai" : "Belum dimulai"}</p></div>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">

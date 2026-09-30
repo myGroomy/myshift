@@ -27,7 +27,7 @@ MYSHIFT menjawab: **"Siapa yang bekerja, kapan, di mana, dan apa yang harus dila
 
 Tujuan utama:
 1. Memudahkan admin pusat membuat & mengelola jadwal kerja mingguan lintas cabang
-2. Memberi karyawan visibilitas jadwal sendiri dan ringkasan operasional cabang aktif
+2. Memberi Petugas visibilitas jadwal sendiri dan konteks operasional cabang per jadwal
 3. Memfasilitasi pertukaran shift & pengajuan izin dengan alur approval yang jelas
 4. Memastikan checklist operasional (opening/closing) benar-benar dikerjakan sebelum shift ditutup
 5. Menjaga kontinuitas informasi antar shift lewat handover terstruktur
@@ -42,8 +42,9 @@ Tujuan utama:
 | **Petugas** | 1 cabang (bisa berpindah) | Lihat jadwal sendiri, ajukan swap/izin, isi checklist opening/closing, isi handover, tandai mulai shift |
 
 Role yang digunakan hanya `admin` dan `petugas`. Role lama `karyawan` dan `kepala_cabang`
-dinormalisasi menjadi `petugas`; pengelolaan data dan template hanya tersedia bagi Admin. Petugas
-bisa ditugaskan ke beberapa cabang dan memilih cabang aktif.
+dinormalisasi menjadi `petugas`; pengelolaan data dan template hanya tersedia bagi Admin. Petugas bisa ditugaskan ke beberapa cabang. Setiap jadwal menetapkan cabang tempat shift
+berlangsung; konteks operasional Petugas mengikuti jadwal yang dibuka, tanpa memilih cabang aktif
+secara manual. Admin tetap dapat memilih cabang untuk pengelolaan data.
 
 ---
 
@@ -114,7 +115,8 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 - Admin membuat jadwal **mingguan**, customizable per cabang
 - Assign: karyawan → shift → tanggal
 - Konflik jadwal (karyawan dobel di jam bentrok) → **warning**, tidak hard-block (admin tetap bisa lanjut kalau memang disengaja)
-- Karyawan hanya bisa melihat jadwal cabangnya sendiri (bukan lintas cabang)
+- Petugas hanya melihat jadwal miliknya di seluruh cabang yang menjadi afiliasinya; cabang spesifik
+  ditentukan oleh jadwal, bukan pilihan cabang aktif di sisi Petugas
 - Tampilan: kalender mingguan per cabang (admin), "jadwal saya" (karyawan)
 
 ### 6.4 Shift Swap
@@ -148,7 +150,7 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 ### 6.9 Dashboard & Laporan
 - Dashboard admin: jadwal hari ini per cabang, status checklist, status handover
 - Laporan Admin: rekap jadwal, swap, izin, checklist, handover, dan incident lintas cabang
-- Laporan Karyawan: ringkasan operasional yang sama, dibatasi ke cabang aktif
+- Laporan Petugas: ringkasan operasional dibatasi ke cabang aktif pada sesi
 - Export CSV/XLSX
 
 ### 6.10 Incident / Catatan Operasional

@@ -28,3 +28,12 @@ test("does not select a schedule from another day", () => {
 
   assert.equal(selected, null);
 });
+
+test("keeps the selected shift's assigned branch when schedule IDs collide", () => {
+  const selected = selectDefaultChecklistSchedule([
+    { scheduleId: "SCH-20260930-001", branchId: "CBG01", date: "2026-09-30", status: "started", startTime: "07:00" },
+    { scheduleId: "SCH-20260930-001", branchId: "CBG02", date: "2026-09-30", status: "started", startTime: "07:00" },
+  ], "2026-09-30", "12:00");
+
+  assert.equal(selected?.branchId, "CBG01");
+});

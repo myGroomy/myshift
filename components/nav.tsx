@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { request } from "@/lib/api";
 import { Dock } from "@/components/dock";
 import { useLogout } from "@/components/use-logout";
 import { ChevronDown, CircleUserRound, LogOut, Settings2, Store } from "lucide-react";
@@ -20,17 +19,6 @@ import {
   itemsForRole,
 } from "@/components/nav-config";
 import { cn } from "@/lib/utils";
-import type { EmployeeRole } from "@/lib/domain/employee-role";
-
-type NavRole = EmployeeRole;
-
-type SessionInfo = {
-  employeeId: string;
-  nama: string;
-  role: NavRole;
-  activeBranchId: string;
-  branches: { branchId: string; nama: string }[];
-};
 
 /**
  * Header navigasi Admin.
@@ -41,30 +29,21 @@ type SessionInfo = {
  */
 export function Nav() {
   const pathname = usePathname();
-  const [session, setSession] = useState<SessionInfo | null>(null);
   const logout = useLogout();
   const settingsMenuRef = useRef<HTMLDetailsElement>(null);
-
-  useEffect(() => {
-    request<SessionInfo>("/api/auth/session")
-      .then(setSession)
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     settingsMenuRef.current?.removeAttribute("open");
   }, [pathname]);
 
-  const isAdmin = session?.role === "admin";
-
   // Satu sumber data untuk header dan dock: item yang jadi tab dock tidak boleh muncul dua kali.
-  const desktopItems = itemsForRole(ADMIN_DESKTOP_PRIMARY, isAdmin);
-  const settingsGroups = isAdmin ? ADMIN_SETTINGS_GROUPS : [];
+  const desktopItems = itemsForRole(ADMIN_DESKTOP_PRIMARY, true);
+  const settingsGroups = ADMIN_SETTINGS_GROUPS;
   const isSettingsCurrent = settingsGroups.some((group) =>
     group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)),
   );
-  const dockTabs = itemsForRole(ADMIN_DOCK_TABS, isAdmin);
-  const dockGroups = groupsWithoutTabs(groupsForRole(ADMIN_NAV_GROUPS, isAdmin), dockTabs);
+  const dockTabs = itemsForRole(ADMIN_DOCK_TABS, true);
+  const dockGroups = groupsWithoutTabs(groupsForRole(ADMIN_NAV_GROUPS, true), dockTabs);
 
   function isCurrent(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -152,14 +131,9 @@ export function Nav() {
           </nav>
 
           <div className="ml-auto flex items-center gap-1.5">
-            {session?.branches && session.branches.length > 1 && (
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-xs">
-                <Link href="/pilih-cabang" title="Pindah cabang">
-                  <Store size={14} />
-                  <span className="hidden md:inline">{session.activeBranchId}</span>
-                </Link>
-              </Button>
-            )}
+            <Button asChild variant="ghost" size="icon" className="size-8" title="Pilih cabang pengelolaan">
+              <Link href="/pilih-cabang" aria-label="Pilih cabang pengelolaan"><Store size={16} /></Link>
+            </Button>
 
             <ThemeToggle />
 

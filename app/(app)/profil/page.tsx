@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
@@ -12,7 +11,7 @@ import { AdminShell } from "@/components/shell";
 import { PetugasShell } from "@/components/petugas-shell";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shell";
-import { LogOut, User, Store } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 
 type Session = {
   employeeId: string;
@@ -85,13 +84,17 @@ export default function ProfilPage() {
 
             <div className="mt-6 divide-y divide-border border-t border-border pt-4 text-sm">
               <div className="flex items-center justify-between py-3">
-                <span className="text-muted-foreground">Cabang Aktif</span>
+                <span className="text-muted-foreground">{session?.role === "petugas" ? "Konteks Cabang" : "Cabang Pengelolaan"}</span>
                 <span className="font-medium text-foreground">
-                  {activeBranch ? `${activeBranch.nama} (${activeBranch.branchId})` : "-"}
+                  {session?.role === "petugas"
+                    ? "Mengikuti cabang pada jadwal shift"
+                    : activeBranch
+                      ? `${activeBranch.nama} (${activeBranch.branchId})`
+                      : "-"}
                 </span>
               </div>
               <div className="flex items-start justify-between py-3">
-                <span className="text-muted-foreground">Cabang Terafiliasi</span>
+                <span className="text-muted-foreground">Cabang Penugasan</span>
                 <div className="text-right">
                   {session?.branches && session.branches.length > 0 ? (
                     session.branches.map((b) => (
@@ -106,16 +109,6 @@ export default function ProfilPage() {
               </div>
             </div>
 
-            {session?.branches && session.branches.length > 1 && (
-              <div className="mt-4 pt-2">
-                <Button asChild variant="outline" className="w-full sm:w-auto">
-                  <Link href="/pilih-cabang">
-                    <Store size={14} />
-                    Ganti Cabang Kerja
-                  </Link>
-                </Button>
-              </div>
-            )}
           </div>
 
           {/* Session Card */}

@@ -21,6 +21,9 @@ const ready: Branch = {
   folderId: "1FolderIdForTheBranch",
   provisionStatus: "ready",
   aktif: true,
+  timezone: "Asia/Jakarta",
+  createdAt: "2026-09-30T00:00:00Z",
+  updatedAt: "2026-09-30T00:00:00Z",
 };
 
 const withStatus = (provisionStatus: Branch["provisionStatus"], overrides: Partial<Branch> = {}): Branch => ({

@@ -25,6 +25,8 @@ type Schedule = {
   status: string;
   startedAt?: string;
   reportGeneratedAt?: string;
+  branchId?: string;
+  branchName?: string;
   shiftName?: string;
   startTime?: string;
   endTime?: string;
@@ -34,6 +36,7 @@ type Session = {
   employeeId: string;
   role: EmployeeRole;
   activeBranchId?: string;
+  branches: { branchId: string; nama: string }[];
 };
 
 export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
@@ -51,8 +54,12 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
         setRole(session.role);
         const isChoosing = new URLSearchParams(window.location.search).get("choose") === "1";
         setChooseSchedule(isChoosing);
-        const branchId = session.activeBranchId;
-        const res = await request<Schedule[]>(`/api/schedules${branchId ? `?branchId=${branchId}` : ""}`);
+        const branchId = session.role === "admin" ? session.activeBranchId : undefined;
+        const res = await request<Schedule[]>(`/api/schedules${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`);
+        if (session.role === "petugas") {
+          const branchNames = new Map(session.branches.map((branch) => [branch.branchId, branch.nama]));
+          for (const schedule of res) schedule.branchName = branchNames.get(schedule.branchId ?? "");
+        }
         setSchedules(res);
         if (mode === "checklist" && session.role === "petugas" && !isChoosing) {
           const currentTime = new Intl.DateTimeFormat("en-GB", {
@@ -63,7 +70,8 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
           }).format(new Date());
           const schedule = selectDefaultChecklistSchedule(res, todayInWIB(), currentTime);
           if (schedule) {
-            router.replace(`/shift/${schedule.scheduleId}/checklist`);
+            const query = schedule.branchId ? `?branchId=${encodeURIComponent(schedule.branchId)}` : "";
+            router.replace(`/shift/${schedule.scheduleId}/checklist${query}`);
           }
         }
       } catch (err) {
@@ -109,9 +117,18 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
 
             return (
               <button
-                key={item.scheduleId}
+                key={`${item.branchId ?? ""}:${item.scheduleId}`}
                 type="button"
-                onClick={() => router.push(isChecklist ? `/shift/${item.scheduleId}/checklist` : `/shift/${item.scheduleId}?tab=handover`)}
+                onClick={() => {
+                  const query = new URLSearchParams();
+                  if (isChecklist) {
+                    if (item.branchId) query.set("branchId", item.branchId);
+                  } else {
+                    query.set("tab", "handover");
+                    if (item.branchId) query.set("branchId", item.branchId);
+                  }
+                  router.push(`/shift/${item.scheduleId}${isChecklist ? "/checklist" : ""}?${query.toString()}`);
+                }}
                 className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:p-4"
               >
                 <div className="min-w-0 flex-1 space-y-1">
@@ -125,6 +142,7 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
                       {item.date}
                     </span>
                     <span>ID: {item.scheduleId}</span>
+                    {item.branchName && <span>Cabang: {item.branchName}</span>}
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />

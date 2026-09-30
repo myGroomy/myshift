@@ -919,12 +919,12 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
   const [duplicating, setDuplicating] = useState(false);
 
   const load = (id: string) => {
-    if (!id) {
+    if (!mine && !id) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    request<Schedule[]>(`/api/schedules?branchId=${id}`)
+    request<Schedule[]>(mine ? "/api/schedules" : `/api/schedules?branchId=${encodeURIComponent(id)}`)
       .then(setItems)
       .catch((e: unknown) => {
         toast(msg(e), "error");
@@ -991,7 +991,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
         .then((s) => {
           setSession(s);
           setBranchId(s.activeBranchId);
-          load(s.activeBranchId);
+          load("");
         })
         .catch((e: unknown) => {
           toast(msg(e), "error");
@@ -1032,15 +1032,16 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
     }
   }
 
-  async function startShift(scheduleId: string) {
-    setStartingId(scheduleId);
+  async function startShift(scheduleId: string, scheduleBranchId: string) {
+    const scheduleKey = `${scheduleBranchId}:${scheduleId}`;
+    setStartingId(scheduleKey);
     try {
-      await request(`/api/schedules/${scheduleId}/start-shift?branchId=${branchId}`, {
+      await request(`/api/schedules/${scheduleId}/start-shift?branchId=${encodeURIComponent(scheduleBranchId)}`, {
         method: "POST",
       });
       setItems((prev) =>
         prev.map((item) =>
-          item.scheduleId === scheduleId
+          item.scheduleId === scheduleId && item.branchId === scheduleBranchId
             ? { ...item, status: "started", startedAt: new Date().toISOString() }
             : item
         )
@@ -1179,10 +1180,11 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
             const isToday = item.date === today;
             const isOwner = item.employeeId === session?.employeeId;
             const canStart = mine && isOwner && item.status === "scheduled" && isToday;
+            const scheduleKey = `${item.branchId ?? branchId}:${item.scheduleId}`;
 
             return (
               <motion.article
-                key={item.scheduleId}
+                key={scheduleKey}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
@@ -1203,6 +1205,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
                     <StatusBadge status={item.status} />
                   </div>
 
+                  {mine && item.branchId && <p className="mt-1 text-xs text-muted-foreground">Cabang: {item.branchName || item.branchId}</p>}
                   <p className="mt-2 text-sm text-foreground">
                     Petugas:{" "}
                     <strong>{empMap.get(item.employeeId) || item.employeeId}</strong>
@@ -1217,16 +1220,16 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
 
                 <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
                   <Button asChild variant="outline" size="sm" className="flex-1">
-                    <Link href={`/shift/${item.scheduleId}`}>Detail Shift →</Link>
+                    <Link href={`/shift/${item.scheduleId}${item.branchId ? `?branchId=${encodeURIComponent(item.branchId)}` : ""}`}>Detail Shift →</Link>
                   </Button>
 
                   {canStart && (
                     <Button
                       size="sm"
-                      disabled={startingId === item.scheduleId}
-                      onClick={() => startShift(item.scheduleId)}
+                      disabled={startingId === scheduleKey}
+                      onClick={() => startShift(item.scheduleId, item.branchId ?? branchId)}
                     >
-                      {startingId === item.scheduleId ? "Memulai..." : "Mulai Shift"}
+                      {startingId === scheduleKey ? "Memulai..." : "Mulai Shift"}
                     </Button>
                   )}
                 </div>

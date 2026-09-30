@@ -42,15 +42,23 @@ export async function GET(request: NextRequest) {
   const auth = await staffSession(request);
   if (isResponse(auth)) return auth;
   try {
-    const branchId = resolveBranchId(auth, request.nextUrl.searchParams.get("branchId"));
-    const { spreadsheetId } = await branchSpreadsheet(branchId);
-
+    const requestedBranchId = request.nextUrl.searchParams.get("branchId");
+    const branchIds = auth.role === "petugas" && !requestedBranchId
+      ? auth.branches.map((branch) => branch.branchId)
+      : [resolveBranchId(auth, requestedBranchId)];
     const startDate = request.nextUrl.searchParams.get("startDate");
     const endDate = request.nextUrl.searchParams.get("endDate");
-    let result = await entries(spreadsheetId);
+    const branchEntries = await Promise.all(branchIds.map(async (branchId) => {
+      const { spreadsheetId } = await branchSpreadsheet(branchId);
+      const records = await entries(spreadsheetId);
+      const branchName = auth.branches.find((branch) => branch.branchId === branchId)?.nama ?? branchId;
+      return records.map((entry) => ({ ...entry, branchId, branchName }));
+    }));
+    let result = branchEntries.flat();
     if (startDate) result = result.filter((entry) => entry.date >= startDate);
     if (endDate) result = result.filter((entry) => entry.date <= endDate);
     if (auth.role === "petugas") result = result.filter((entry) => entry.employeeId === auth.employeeId);
+    result.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
     return ok(result);
   } catch (error) {
     return handleRouteError(error, "Gagal memuat jadwal");

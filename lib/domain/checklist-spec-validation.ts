@@ -8,7 +8,7 @@ export { checklistNumericWarning } from "@/lib/domain/checklist-values";
 export const CHECKLIST_COMPLETION_TYPES = ["centang", "centang_foto", "angka", "teks", "pilihan"] as const;
 export type ChecklistCompletionType = (typeof CHECKLIST_COMPLETION_TYPES)[number];
 
-export type ChecklistPointInput = Omit<ChecklistPointRecord, "rowNumber" | "pointId" | "active">;
+export type ChecklistPointInput = Omit<ChecklistPointRecord, "rowNumber" | "pointId" | "active" | "createdAt" | "updatedAt">;
 export type SopCategoryInput = { name: string; order: number; active: boolean };
 
 function fieldError(message: string, fields: string[]): never {
@@ -113,6 +113,8 @@ export function serializeChecklistPoint(point: ChecklistPointInput, pointId: str
     point.shiftIds.join(","),
     String(point.order),
     active ? "TRUE" : "FALSE",
+    "",
+    "",
   ];
 }
 

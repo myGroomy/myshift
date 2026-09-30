@@ -115,7 +115,7 @@ function LoginForm() {
         return;
       }
 
-      if (res?.branches && res.branches.length > 1) {
+      if (res?.role === "admin" && res.branches && res.branches.length > 1) {
         router.push("/pilih-cabang");
         return;
       }

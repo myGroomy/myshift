@@ -62,10 +62,20 @@ export async function POST(request: NextRequest, context: Context) {
       submitted: body.fields,
     });
 
+    // Derive snapshot fields from the template at write time, so later template edits
+    // cannot retroactively change what a historical handover was supposed to contain.
+    const templateByField = new Map(templates.map((template) => [template.fieldId, template]));
+    const fieldPublicIdSnapshot = entries.map((entry) => templateByField.get(entry.fieldId)?.fieldId ?? entry.fieldId).join(",");
+    const labelSnapshot = entries.map((entry) => templateByField.get(entry.fieldId)?.label ?? "").join(",");
+    const isRequiredSnapshot = entries.every((entry) => templateByField.get(entry.fieldId)?.isRequired ?? false);
+
     await saveHandoverLogs({
       spreadsheetId,
       scheduleId,
       entries,
+      fieldPublicIdSnapshot,
+      labelSnapshot,
+      isRequiredSnapshot,
       createdBy: auth.employeeId,
       createdAt: nowIso(),
       auditAfterReport: Boolean(schedule.reportGeneratedAt),

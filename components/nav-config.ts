@@ -21,11 +21,11 @@ const OPERASIONAL: NavItem[] = [
 ];
 
 const MASTER_DATA: NavItem[] = [
-  { href: "/cabang", label: "Cabang", icon: "storefront" },
-  { href: "/karyawan", label: "Karyawan", icon: "group" },
-  { href: "/shift-template", label: "Shift Template", icon: "schedule" },
-  { href: "/kategori-izin", label: "Kategori Izin", icon: "label" },
-  { href: "/kategori-incident", label: "Kategori Incident", icon: "label" },
+  { href: "/cabang", label: "Cabang", icon: "storefront", adminOnly: true },
+  { href: "/karyawan", label: "Petugas", icon: "group", adminOnly: true },
+  { href: "/shift-template", label: "Shift Template", icon: "schedule", adminOnly: true },
+  { href: "/kategori-izin", label: "Kategori Izin", icon: "label", adminOnly: true },
+  { href: "/kategori-incident", label: "Kategori Incident", icon: "label", adminOnly: true },
 ];
 
 const TEMPLATE: NavItem[] = [
@@ -40,10 +40,10 @@ export const ADMIN_NAV_GROUPS: NavGroup[] = [
     label: "Monitoring & Laporan",
     items: [OPERASIONAL[0], OPERASIONAL[5], APPROVAL[0]],
   },
-  { label: "Operasional", items: [OPERASIONAL[1], OPERASIONAL[2], OPERASIONAL[3], OPERASIONAL[4]] },
-  // Master data hanya dikelola oleh Admin.
-  { label: "Master Data", adminOnly: true, items: MASTER_DATA },
-  { label: "Template", items: TEMPLATE },
+  { label: "KELOLA SHIFT", items: [OPERASIONAL[1], OPERASIONAL[3], MASTER_DATA[2]] },
+  { label: "KELOLA PETUGAS", adminOnly: true, items: [MASTER_DATA[0], MASTER_DATA[1], MASTER_DATA[3]] },
+  { label: "KELOLA INCIDENT", items: [OPERASIONAL[4], MASTER_DATA[4]] },
+  { label: "KELOLA CHECKLIST", items: [OPERASIONAL[2], TEMPLATE[0], TEMPLATE[1]] },
 ];
 
 /** Dashboard, approval, laporan, dan pengaturan khusus Admin dikelompokkan di luar tab kerja. */
@@ -51,8 +51,10 @@ export const ADMIN_DESKTOP_PRIMARY: NavItem[] = [OPERASIONAL[1], OPERASIONAL[2],
 
 export const ADMIN_SETTINGS_GROUPS: NavGroup[] = [
   { label: "Monitoring & Laporan", items: [OPERASIONAL[0], APPROVAL[0], OPERASIONAL[5]] },
-  { label: "Data Utama", items: MASTER_DATA },
-  { label: "Template Operasional", items: TEMPLATE },
+  { label: "KELOLA SHIFT", items: [OPERASIONAL[1], OPERASIONAL[3], MASTER_DATA[2]] },
+  { label: "KELOLA PETUGAS", items: [MASTER_DATA[0], MASTER_DATA[1], MASTER_DATA[3]] },
+  { label: "KELOLA INCIDENT", items: [OPERASIONAL[4], MASTER_DATA[4]] },
+  { label: "KELOLA CHECKLIST", items: [OPERASIONAL[2], TEMPLATE[0], TEMPLATE[1]] },
 ];
 
 /**
@@ -98,7 +100,6 @@ export const PETUGAS_DOCK_TABS: NavItem[] = PETUGAS_ITEMS;
 export const PETUGAS_DOCK_EXTRAS: NavItem[] = [
   { href: "/laporan", label: "Laporan", icon: "bar_chart" },
   { href: "/profil", label: "Profil", icon: "person" },
-  { href: "/pilih-cabang", label: "Pilih Cabang", icon: "storefront" },
 ];
 
 /** Buang grup/item bertanda `adminOnly` saat pengguna bukan admin. */

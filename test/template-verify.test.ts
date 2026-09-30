@@ -68,16 +68,16 @@ test("a reordered or renamed column is reported with both header rows", () => {
   assert.equal(diffs.length, 1);
   assert.equal(diffs[0].kind, "header-mismatch");
   assert.deepEqual(diffs[0].expected, [...BRANCH_HEADERS.Schedules]);
-  assert.equal(diffs[0].actual[0], "Report_Token");
-  assert.match(describeDiff(diffs[0]), /Report_Token/);
+  assert.equal(diffs[0].actual[0], "Updated_At");
+  assert.match(describeDiff(diffs[0]), /Updated_At/);
 });
 
 test("header comparison tolerates stray whitespace from Sheets but not a real rename", () => {
   const input = wellFormed();
-  input.headers.Shifts = [" Shift_ID ", "Nama", "Jam_Mulai", "Jam_Selesai"];
+  input.headers.Shifts = [" Shift_ID ", "Nama", "Jam_Mulai", "Jam_Selesai", "Aktif", "Created_At", "Updated_At"];
   assert.deepEqual(diffBranchSheetHeaders(input), []);
 
-  input.headers.Shifts = ["Shift_ID", "Nama", "Jam_Mulai", "Jam_Selesai "];
+  input.headers.Shifts = ["Shift_ID", "Nama", "Jam_Mulai", "Jam_Selesai ", "Aktif", "Created_At", "Updated_At"];
   assert.deepEqual(diffBranchSheetHeaders(input), []);
 });
 
