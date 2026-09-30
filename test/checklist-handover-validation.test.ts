@@ -25,7 +25,7 @@ test("required flags come from the template, not the request body", () => {
   const result = codeOf(() =>
     normalizeHandoverSubmission({
       templates,
-      // The client claims the required field is optional — the server must ignore that.
+      // The client claims the required field is optional the server must ignore that.
       submitted: [{ fieldId: "HOF-001", value: "   ", isRequired: false }],
     })
   );

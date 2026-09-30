@@ -500,7 +500,7 @@ function assertSaved(saved: boolean, message: string) {
   if (!saved) throw new DomainError("NOT_FOUND", message);
 }
 
-// Writes resolve the target row by ID at write time — a row number read earlier can be
+// Writes resolve the target row by ID at write time a row number read earlier can be
 // stale after a concurrent insert/delete and would overwrite the wrong row (audit M-9).
 export async function saveSchedule(spreadsheetId: string, record: ScheduleRecord) {
   assertSaved(

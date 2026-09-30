@@ -1,5 +1,5 @@
 /**
- * MYSHIFT Drive Bridge — Apps Script Web App.
+ * MYSHIFT Drive Bridge Apps Script Web App.
  *
  * WHY THIS EXISTS
  * The service account the Next.js app uses has Drive `storageQuota.limit = 0`, so Drive refuses to
@@ -8,14 +8,14 @@
  * Sheets work with the service account. Only three file-creating operations need a quota-bearing
  * identity, and this script is that identity: it runs as the deploying user (`Execute as: Me`).
  *
- *   1. importFile  — convert the generated `.xlsx` into a Google-native Sheet (template setup)
- *   2. copyFile    — copy the template into a branch folder (branch provisioning)
- *   3. uploadFile  — store a checklist evidence photo in the branch folder
+ *   1. importFile  convert the generated `.xlsx` into a Google-native Sheet (template setup)
+ *   2. copyFile    copy the template into a branch folder (branch provisioning)
+ *   3. uploadFile  store a checklist evidence photo in the branch folder
  *
  * DESIGN RULES
  * - This script is a *dumb executor*. Naming, validation, header verification, idempotency in the
  *   Registry and all business rules stay in the app, where they are covered by `pnpm test`. Do not
- *   move schema knowledge here — two sources of truth is how headers drift.
+ *   move schema knowledge here two sources of truth is how headers drift.
  * - Idempotent by name: if the target folder already contains a file with the requested name, that
  *   file is returned instead of creating a second one. This is what makes a retry after a timeout
  *   safe (see `PLAN/Db refactor-plan.md` Step 3.2).
@@ -79,7 +79,7 @@ function doGet() {
 
 /**
  * Consent helper. Run this once from the Apps Script editor (Run ▸ authCheck) whenever `oauthScopes`
- * changes — Apps Script invalidates the project's authorization on a scope change, and the web app
+ * changes Apps Script invalidates the project's authorization on a scope change, and the web app
  * then answers HTTP 401 until the owner approves the new scopes in that consent screen. Keeping a
  * no-op function around means that recovery is a two-click operation instead of guesswork.
  *
@@ -108,7 +108,7 @@ function importFile(body) {
   var existing = findByName(parent, name);
   if (existing) return { ok: true, fileId: existing, reused: true };
 
-  // The source file must live inside the MYSHIFT folder too — same allowlist as every other write.
+  // The source file must live inside the MYSHIFT folder too same allowlist as every other write.
   var sourceId = requireInsideParent(body.sourceFileId, "sourceFileId");
   var response = UrlFetchApp.fetch(
     "https://www.googleapis.com/drive/v3/files/" + sourceId + "/copy",

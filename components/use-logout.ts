@@ -6,7 +6,7 @@ import { request } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 
 /**
- * Logout dipakai bersama oleh header admin, dock karyawan, dan (dulu) sheet menu — tiga tempat
+ * Logout dipakai bersama oleh header admin, dock karyawan, dan (dulu) sheet menu tiga tempat
  * yang harus berperilaku sama: POST dulu, tetap pindah ke /login walau request-nya gagal, dan
  * memberi umpan balik lewat toast.
  */

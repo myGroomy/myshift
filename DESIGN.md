@@ -8,7 +8,7 @@ color, type size, spacing value, radius, and component pattern.
 (surface containers, outline, secondary, error) that the plan file's 7 colors omit. This
 file is the MYSHIFT realization: which tokens we adopt, how they compose, and which
 patterns are reusable. The prototype HTML under `PLAN/kerangka-ui/extracted/` is
-**not** a styling source — per `AGENTS.md` its inline palettes (`#0075de`, shadcn/zinc)
+**not** a styling source per `AGENTS.md` its inline palettes (`#0075de`, shadcn/zinc)
 are not adopted here.
 
 When code needs a token not listed here, add it here first.
@@ -29,10 +29,10 @@ accent-colored borders used to mark state, no motion that does not report a chan
 
 ## 2. Color
 
-Light mode is primary. Dark mode exists but is secondary — field staff use phones in
+Light mode is primary. Dark mode exists but is secondary field staff use phones in
 daylight. Both are defined; neither inverts sections.
 
-### Palette — light
+### Palette light
 
 | Role | Token | Value | Usage |
 |------|-------|-------|-------|
@@ -57,7 +57,7 @@ daylight. Both are defined; neither inverts sections.
 | Inverse surface | `--inverse-surface` | `#2f3034` | Landing hero, dark CTA band |
 | Inverse on-surface | `--inverse-foreground` | `#f1f0f5` | Text on inverse surface |
 
-### Palette — dark
+### Palette dark
 
 | Role | Token | Value |
 |------|-------|-------|
@@ -73,7 +73,7 @@ daylight. Both are defined; neither inverts sections.
 
 ### Status colors (component-level addition)
 
-The upstream token file ships no green or amber — its rationale states status colors are
+The upstream token file ships no green or amber its rationale states status colors are
 "added at component level". These three are therefore MYSHIFT additions, defined here so
 they are not invented in components:
 
@@ -102,7 +102,7 @@ they are not invented in components:
 ### Scale
 
 The upstream file ships two scales: a 40/32/20px Charlie stack for marketing, and a full
-product ramp. MYSHIFT uses the **product ramp** — it is sized for an app console.
+product ramp. MYSHIFT uses the **product ramp** it is sized for an app console.
 
 | Level | Tailwind | Size | Weight | Line height | Tracking | Usage |
 |-------|----------|------|--------|-------------|----------|-------|
@@ -142,7 +142,7 @@ Base unit 4px, per the upstream `spacing.base`.
 | 2 | 8px | Inline cluster, list gap |
 | 3 | 12px | Form field gap, card inner |
 | 4 | 16px | Card padding, gutter |
-| 5 | 20px | Control height — the 44px touch floor |
+| 5 | 20px | Control height the 44px touch floor |
 | 6 | 24px | Section inner padding |
 | 8 | 32px | Between card groups |
 | 10 | 40px | Page section rhythm |
@@ -156,14 +156,14 @@ Base unit 4px, per the upstream `spacing.base`.
 
 ### Layout primitives
 
-- **scroll-body-shell** — fixed header, scrolling body, `max-block-size: 100dvb`, and
+- **scroll-body-shell** fixed header, scrolling body, `max-block-size: 100dvb`, and
   `min-block-size: 0` on the scroll child so the body actually scrolls. Never `100vh`.
-- **stack** — vertical rhythm between siblings, `gap` only, no margin soup.
-- **cluster** — wrapping row of controls, `flex-wrap: wrap` + `gap`.
-- **switcher** — N equal regions, row when roomy, stack when tight, no breakpoint.
-- **sidebar** — admin console rail at `lg`+, collapsing to a sheet below.
-- **content-limiter** — form measure capped at 640px.
-- **intrinsic grid** — `repeat(auto-fit, minmax(min(16rem, 100%), 1fr))`. The inner
+- **stack** vertical rhythm between siblings, `gap` only, no margin soup.
+- **cluster** wrapping row of controls, `flex-wrap: wrap` + `gap`.
+- **switcher** N equal regions, row when roomy, stack when tight, no breakpoint.
+- **sidebar** admin console rail at `lg`+, collapsing to a sheet below.
+- **content-limiter** form measure capped at 640px.
+- **intrinsic grid** `repeat(auto-fit, minmax(min(16rem, 100%), 1fr))`. The inner
   `min()` is load-bearing: it stops horizontal overflow when the container is narrower
   than the track floor.
 
@@ -211,7 +211,7 @@ Primitives used two or more times. Class maps live in `lib/ui.ts`; components in
 - **Variants**: success (approved/active), warning (pending), danger (rejected), neutral
 - **Spacing**: `px-2 py-0.5`, `text-xs`
 - **States**: rest, no hover
-- **Accessibility**: color is never the sole signal — the status word is always rendered
+- **Accessibility**: color is never the sole signal the status word is always rendered
 - **Motion**: none
 - **Layout**: inline
 
@@ -244,7 +244,7 @@ Primitives used two or more times. Class maps live in `lib/ui.ts`; components in
 - **Motion**: opacity/translate entrance only, 400ms
 
 ### `AppShell` (admin) and `KaryawanShell` (employee)
-- **Structure**: scroll-body-shell — header, main, and either a console rail or a bottom
+- **Structure**: scroll-body-shell header, main, and either a console rail or a bottom
   nav
 - **Variants**: admin, employee
 - **Spacing**: page padding 20px, content max 1200px
@@ -257,7 +257,7 @@ Primitives used two or more times. Class maps live in `lib/ui.ts`; components in
 
 The upstream frontmatter gives 250/500/750ms `ease-in-out`; its rationale text gives the
 measured 75/400/500ms with a `cubic-bezier(0.4, 0, 0, 1)` ease-out. This contract takes
-the rationale values — they are the measured ones and fit an app console.
+the rationale values they are the measured ones and fit an app console.
 
 | Type | Duration | Easing | Usage |
 |------|----------|--------|-------|
@@ -315,7 +315,7 @@ layers.
 - WCAG 2.2 AA. Contrast floor 4.5:1 body, 3:1 large text. Verified ratios are in
   Section 2.
 - A visible `focus-visible` ring on every interactive element. This is the only permitted
-  colored edge — no accent-colored borders marking selected or focused state.
+  colored edge no accent-colored borders marking selected or focused state.
 - Full keyboard reachability. Every `<label>` bound to its control, or an equivalent
   `aria-label` present.
 - Icon-only buttons carry `aria-label`. Text is never placed in an icon-sized hit area.

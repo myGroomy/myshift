@@ -93,7 +93,7 @@ test("every registry sheet has a pinned header row", () => {
     assert.ok(REGISTRY_HEADERS[name]?.length, `REGISTRY_HEADERS is missing ${name}`);
     assert.ok(
       REGISTRY_SCHEMA.some(([sheet]) => sheet === name),
-      `test fixture is missing ${name} — add it so the schema stays pinned`
+      `test fixture is missing ${name} add it so the schema stays pinned`
     );
   }
 });

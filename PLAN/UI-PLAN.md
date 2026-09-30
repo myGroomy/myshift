@@ -1,9 +1,9 @@
-# MYSHIFT — UI Plan
+# MYSHIFT UI Plan
 
 > **Versi:** 1.4.0 (Checklist SOP per shift dan laporan shift publik)
 > **Tanggal:** 2026-09-29
 > **Turunan dari:** `FULL-PRD.md`, `MVP-plan.md`, `UI_UX_AUDIT_MYSHIFT.md`
-> **Styling & Design Tokens:** lihat `atlassian-DESIGN.md` (di direktori yang sama: `PLANS/atlassian-DESIGN.md`) — **adaptasi desain di file ini** untuk semua warna, tipografi, spacing, dan komponen. UI-PLAN.md ini **tidak** mendefinisikan styling; fokusnya adalah struktur halaman, konten, dan fungsi tiap layar.
+> **Styling & Design Tokens:** lihat `atlassian-DESIGN.md` (di direktori yang sama: `PLANS/atlassian-DESIGN.md`) **adaptasi desain di file ini** untuk semua warna, tipografi, spacing, dan komponen. UI-PLAN.md ini **tidak** mendefinisikan styling; fokusnya adalah struktur halaman, konten, dan fungsi tiap layar.
 
 ---
 
@@ -44,7 +44,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 ### 2.1 Login (`/login`)
 
-**Layout:** Form terpusat, single column, max-width kecil (mobile-first — kemungkinan besar dipakai dari HP karyawan di lapangan).
+**Layout:** Form terpusat, single column, max-width kecil (mobile-first kemungkinan besar dipakai dari HP karyawan di lapangan).
 
 **Elemen:**
 - Logo/nama app
@@ -69,7 +69,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 ---
 
-### 2.3 Jadwal Saya (`/jadwal-saya`) — home karyawan
+### 2.3 Jadwal Saya (`/jadwal-saya`) home karyawan
 
 **Layout:** Header + strip tanggal horizontal (7 hari) + card shift hari terpilih.
 
@@ -92,11 +92,11 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
    - Info shift: cabang, jam, tanggal, status (belum mulai / berjalan / selesai)
    - Tombol utama "Mulai Shift" (timestamp) & indikator durasi berjalan
    - Link/preview Handover shift sebelumnya (read-only) untuk konteks operasional
-2. **Checklist Shift** — dibuka pada `/shift/[id]/checklist` tanpa tab shift tambahan. Point discope otomatis menurut shift dan dikelompokkan per kategori SOP. Kontrol mengikuti tipe (centang, foto, angka, teks, pilihan); progress menghitung semua point applicable.
+2. **Checklist Shift** dibuka pada `/shift/[id]/checklist` tanpa tab shift tambahan. Point discope otomatis menurut shift dan dikelompokkan per kategori SOP. Kontrol mengikuti tipe (centang, foto, angka, teks, pilihan); progress menghitung semua point applicable.
 3. **Tab Handover Shift**
    - Read-only section: isi handover dari shift sebelumnya
    - Form terstruktur (sesuai `Handover_Template`) dengan penanda visual field wajib
-   - Tombol Submit Handover — validasi field wajib sebelum submit
+   - Tombol Submit Handover validasi field wajib sebelum submit
 
 ---
 
@@ -130,7 +130,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 **Elemen:**
 - Filter tab: Swap / Izin / Semua
-- Card per pengajuan: tanggal, ringkasan, status badge (pending/approved/rejected — warna dari role token: warning/success/danger)
+- Card per pengajuan: tanggal, ringkasan, status badge (pending/approved/rejected warna dari role token: warning/success/danger)
 - Tap untuk lihat detail (termasuk alasan reject kalau ada)
 
 ---
@@ -173,7 +173,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 ### 2.11 Kelola Cabang (`/cabang`)
 
-**Layout:** Sama pola dengan Kelola Karyawan — tabel + CRUD.
+**Layout:** Sama pola dengan Kelola Karyawan tabel + CRUD.
 
 **Elemen:** Nama cabang, status aktif, tombol tambah/edit.
 
@@ -229,8 +229,9 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 **Elemen:**
 - Filter: rentang tanggal; cabang untuk Admin, cabang aktif tetap untuk Karyawan
-- Tabel rekap: jadwal, swap, izin, progres checklist, handover, dan incident per periode
-- Tombol export CSV/XLSX
+- Tab jenis laporan: Semua, Jadwal, Checklist, Handover, Swap & Izin, Incident
+- Tab Checklist merangkum progres per shift dan SOP, termasuk daftar point yang belum selesai
+- Tombol export CSV mengikuti jenis laporan dan filter yang sedang dipilih
 
 ### 2.18 Laporan Shift (`/shift/[id]/laporan`)
 
@@ -248,17 +249,17 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 ## 3. Prinsip UI Lintas Halaman
 
-- **Mobile-first untuk sisi Karyawan** — diakses dari HP di lapangan (Jadwal Saya, Layar Shift Terpadu, Ajukan Swap/Izin).
-- **Desktop-first untuk sisi Admin** — halaman kelola & laporan (tabel, kalender grid mingguan).
+- **Mobile-first untuk sisi Karyawan** diakses dari HP di lapangan (Jadwal Saya, Layar Shift Terpadu, Ajukan Swap/Izin).
+- **Desktop-first untuk sisi Admin** halaman kelola & laporan (tabel, kalender grid mingguan).
 - **Filter pada mobile** dibungkus panel surface dengan grid satu kolom pada layar sempit, label tetap terlihat, dan kontrol/aksi memakai lebar penuh bila dibutuhkan. Filter majemuk membentuk grid dua kolom hanya saat ruang cukup; segmented control boleh digeser horizontal tanpa membuat halaman ikut overflow.
 - **Box dan form** memakai padding mobile yang lebih rapat (`16px`) lalu kembali ke kepadatan desktop pada breakpoint `sm`; field grid wajib memakai `min-width: 0` agar input, label panjang, dan tombol tidak mendorong viewport melebar.
 - **Tabel data di mobile** tetap dapat digeser horizontal, memiliki lebar kolom minimum agar isi tidak terjepit, dan menampilkan petunjuk geser sebelum breakpoint desktop.
 - **Auto-Skip Pilih Cabang:** Jika user hanya terafiliasi dengan 1 cabang aktif, bypass halaman `/pilih-cabang` langsung ke `/jadwal-saya` atau `/dashboard`.
 - **Thumb-Zone Optimization (Mobile):** Tombol aksi utama (Mulai Shift, Submit Checklist, Send Handover) ditempatkan di area jangkauan jempol (sticky bottom bar).
 - **Kompresi Client-side:** Foto bukti checklist dikompres otomatis (<500KB WebP) di frontend sebelum diunggah ke Google Drive via GAS bridge.
-- **Status pakai badge warna semantik** (pending=warning amber `#D97706`, approved=success green `#059669`, rejected/bentrok=danger red `#DC2626`, shift aktif=accent navy `#1c2b42`) — ambil warna dari role tokens di `atlassian-DESIGN.md`.
+- **Status pakai badge warna semantik** (pending=warning amber `#D97706`, approved=success green `#059669`, rejected/bentrok=danger red `#DC2626`, shift aktif=accent navy `#1c2b42`) ambil warna dari role tokens di `atlassian-DESIGN.md`.
 - **Aksi destruktif** (hapus karyawan, reject pengajuan) selalu ada konfirmasi ringan sebelum eksekusi.
-- **Empty state** di semua list/tabel (belum ada jadwal, belum ada pengajuan, dst) — dilengkapi ilustrasi/teks jelas & tombol aksi.
+- **Empty state** di semua list/tabel (belum ada jadwal, belum ada pengajuan, dst) dilengkapi ilustrasi/teks jelas & tombol aksi.
 - **Validasi submit** (checklist harus 100%, handover field wajib) divalidasi di frontend untuk UX (dengan feedback/popover jelas), dan **wajib** divalidasi di backend.
 
 ---
@@ -270,25 +271,29 @@ Satu model navigasi untuk semua role, dengan dua bentuk tergantung ukuran layar:
 | Layar | Admin | Karyawan |
 |---|---|---|
 | `< lg` (mobile) | **Dock 4 tab** + tombol **"Lainnya"** | **Dock 4 tab** + tombol **"Lainnya"** |
-| `lg+` (desktop) | Nav horizontal di header | Nav horizontal di header |
+| `lg+` (desktop) | Jadwal, Checklist, Handover, Incident + dropdown **Pengelolaan** | Nav horizontal di header |
 
 ### 4.1 Dock (mobile)
 
 - Bentuk: bar mengambang `fixed bottom-4`, `max-w-md`, `rounded-xl` (token 24px), `border-border`,
-  `bg-card`, tanpa shadow berat (desain datar — pemisahan lewat warna/spasi, bukan kedalaman).
+  `bg-card`, tanpa shadow berat (desain datar pemisahan lewat warna/spasi, bukan kedalaman).
 - Isi: **4 tab esensial** (ikon Material Symbols + label, target sentuh `min-h-14` ≥44px) +
   1 tombol **"Lainnya"** → `Sheet` bawah berisi sisanya, dikelompokkan, dengan state aktif pada item
   yang sedang dibuka. Tombol "Lainnya" ikut aktif kalau halaman yang sedang dibuka ada di dalamnya.
 - Padding bawah konten `pb-28` di mobile (`lg:pb-0`) supaya dock tidak menutupi konten.
 - `env(safe-area-inset-bottom)` dipakai untuk perangkat ber-notch.
-- **Tidak ada hamburger** — dock menggantikan menu hamburger untuk Admin.
+- **Tidak ada hamburger** dock menggantikan menu hamburger untuk Admin.
 
-**4 tab per role:**
+**Empat tab kerja yang sama pada kedua role:**
 
 | Role | 4 tab dock | Masuk sheet "Lainnya" |
 |---|---|---|
-| Admin | Dashboard, Jadwal, Approval, Incident | Laporan, Checklist Template, Handover Template, Cabang, Karyawan, Shift Template, Kategori Izin, Kategori Incident, Pilih Cabang |
+| Admin | Jadwal, Checklist, Handover, Incident | Dashboard, Approval, Laporan, Checklist Template, Handover Template, Cabang, Karyawan, Shift Template, Kategori Izin, Kategori Incident, Pilih Cabang |
 | Karyawan | Jadwal, Checklist, Handover, Incident | Swap, Izin, Riwayat, Laporan, Profil, Pilih Cabang, Keluar dari Akun |
+
+Untuk Admin, tab Jadwal membuka kalender kelola jadwal; tab Checklist dan Handover membuka pemilih shift
+operasional yang sama dan dapat digunakan untuk memeriksa atau mengoreksi catatan. Semua akses Admin
+tambahan dikelompokkan di menu **Pengelolaan** pada desktop dan **Lainnya** di mobile.
 
 Karyawan juga dapat membuka **Laporan** melalui menu "Lainnya" di mobile atau nav horizontal di
 desktop. Isinya ringkasan jadwal, swap, izin, checklist, handover, dan incident cabang aktif.
@@ -300,9 +305,11 @@ karena dock-nya tidak muncul di layar lebar.
 ### 4.2 Sumber data menu
 
 Semua item navigasi (label, `href`, ikon, tanda admin-only) berasal dari
-`components/nav-config.ts`. Nav horizontal dan dock membaca file yang sama, dan
-`groupsWithoutTabs()` otomatis membuang item yang sudah jadi tab dock dari sheet "Lainnya" supaya
-tidak pernah tampil dua kali. Menukar prioritas 4 tab cukup mengubah `ADMIN_DOCK_TABS`.
+`components/nav-config.ts`. Admin menggunakan empat tab kerja yang sama dengan Karyawan; Dashboard,
+Approval, Laporan, master data, dan template dikelompokkan di menu **Pengelolaan**. Dock tetap memakai
+4 tab utama dan sheet **Lainnya** untuk halaman sisanya.
+`groupsWithoutTabs()` otomatis membuang item yang sudah jadi tab dock dari sheet supaya tidak
+pernah tampil dua kali. Menukar prioritas 4 tab cukup mengubah `ADMIN_DOCK_TABS`.
 
 ### 4.3 Keluar dari akun
 
@@ -320,4 +327,4 @@ Semua keputusan visual (warna, tipografi, spacing, radius, komponen button/input
 
 Dokumen ini (`UI-PLAN.md`) sengaja tidak menyebutkan warna/font spesifik apapun supaya tidak konflik dengan sumber kebenaran styling di `atlassian-DESIGN.md`.
 
-Komponen UI (button, input, dialog, dropdown, table) memakai **shadcn/ui** (Tailwind + Radix). Warna/tipografi komponennya tetap wajib diadaptasi dari token `atlassian-DESIGN.md` — jangan pakai styling default shadcn (palet zinc/neutral) apa adanya.
+Komponen UI (button, input, dialog, dropdown, table) memakai **shadcn/ui** (Tailwind + Radix). Warna/tipografi komponennya tetap wajib diadaptasi dari token `atlassian-DESIGN.md` jangan pakai styling default shadcn (palet zinc/neutral) apa adanya.

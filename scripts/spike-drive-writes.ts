@@ -1,12 +1,12 @@
 /**
- * Step 0b spike — does the service account actually have Drive *write* storage?
+ * Step 0b spike does the service account actually have Drive *write* storage?
  *
  * Background: `spreadsheets.create` failed with a quota error, so branch provisioning moved to
  * "copy the template". That only helps if the service account can still create folders, copy
  * files, and upload bytes. This script exercises exactly those three calls once, inside the
  * configured `Parent_Folder_ID`, and deletes everything it creates.
  *
- * It never writes to the Registry (no Sheets writes) — only reads TEMPLATES to find out where to
+ * It never writes to the Registry (no Sheets writes) only reads TEMPLATES to find out where to
  * work. Every artifact is named `MYSHIFT-SPIKE-<timestamp>` so a leftover is obvious.
  *
  *   pnpm exec tsx scripts/spike-drive-writes.ts            # run + clean up
@@ -92,7 +92,7 @@ async function main() {
   console.log("Registry TEMPLATES:");
   console.log(`  Template_Spreadsheet_ID = ${maskSpreadsheetId(templateSpreadsheetId)}`);
   console.log(`  Parent_Folder_ID        = ${parentFolderId || "(kosong)"}`);
-  if (!parentFolderId) throw new Error("Parent_Folder_ID kosong — isi sheet TEMPLATES dulu (SHEETS-SCHEMA §1).");
+  if (!parentFolderId) throw new Error("Parent_Folder_ID kosong isi sheet TEMPLATES dulu (SHEETS-SCHEMA §1).");
 
   await reportContext(templateSpreadsheetId, parentFolderId);
 
@@ -145,7 +145,7 @@ async function main() {
       const native = copied.data.mimeType === GOOGLE_SHEET_MIME;
       return (
         `${copied.data.id} (mimeType=${copied.data.mimeType}` +
-        `${native ? "" : " — BUKAN Google Sheet, hasil copy tidak bisa dibaca Sheets API"})`
+        `${native ? "" : " BUKAN Google Sheet, hasil copy tidak bisa dibaca Sheets API"})`
       );
     });
   }
@@ -203,7 +203,7 @@ async function main() {
   const failed = results.filter((entry) => !entry.ok);
   console.log(`\n${failed.length === 0 ? "SPIKE PASSED" : `SPIKE FAILED (${failed.length} step gagal)`}`);
   if (failed.some((entry) => /storageQuotaExceeded/i.test(entry.detail))) {
-    console.log("storageQuotaExceeded terdeteksi — berhenti dan laporkan ke user (Db refactor-plan Step 0b).");
+    console.log("storageQuotaExceeded terdeteksi berhenti dan laporkan ke user (Db refactor-plan Step 0b).");
   }
   if (failed.length > 0) process.exitCode = 1;
 }

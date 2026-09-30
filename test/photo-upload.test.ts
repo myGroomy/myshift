@@ -88,7 +88,7 @@ test("checklistPhotoFileName never emits a character Drive rejects or exceeds th
 
   const long = checklistPhotoFileName("S".repeat(80), "C".repeat(80), "webp");
   assert.ok(long.length <= DRIVE_NAME_MAX);
-  // Truncation must not eat the extension — the whitelist maps MIME to ext, not the client's name.
+  // Truncation must not eat the extension the whitelist maps MIME to ext, not the client's name.
   assert.ok(long.endsWith(".webp"), `truncated name lost its extension: ${long}`);
 });
 
@@ -105,7 +105,7 @@ test("branchFolderName keeps the branch ID suffix and the 60-char cap", () => {
 
 // The evidence flow is: validate (size/MIME) → find-or-create the photo folder (service account,
 // folders cost no quota) → upload the bytes through the Apps Script bridge (the service account
-// cannot create files — PLAN/Db refactor-plan.md Step 0b). Both collaborator calls are injected so
+// cannot create files PLAN/Db refactor-plan.md Step 0b). Both collaborator calls are injected so
 // the ordering and the payload are pinned without touching Drive.
 test("uploadChecklistEvidence validates, resolves the photo folder, then uploads through the bridge", async () => {
   const calls: Array<Record<string, unknown>> = [];

@@ -21,7 +21,7 @@ const ready: Branch = {
 // Regression guard for the 6-column migration of Daftar_Cabang (SHEETS-SCHEMA §1). Before the
 // migration the row was 4 wide: [Cabang_ID, Nama_Cabang, Spreadsheet_ID, Aktif]. Anything that
 // still writes 4 elements puts TRUE into Folder_Drive_ID and leaves Aktif blank, which reads back
-// as an inactive branch with no Drive folder — silent, and it only shows up on the next
+// as an inactive branch with no Drive folder silent, and it only shows up on the next
 // provisioning attempt. The assertions below pin both the width and the carry-over rule.
 
 test("branchRowValues always writes 6 columns", () => {

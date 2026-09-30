@@ -3,10 +3,10 @@ import { DomainError } from "@/lib/error-codes";
 // Client for the Apps Script Drive bridge (gas/Code.js, gas/README.md).
 //
 // The service account has Drive `storageQuota.limit = 0`, so Drive refuses to let it *create* files
-// (`Service Accounts do not have storage quota` — PLAN/Db refactor-plan.md Step 0b). Everything else
+// (`Service Accounts do not have storage quota` PLAN/Db refactor-plan.md Step 0b). Everything else
 // still works with the service account, including reading/writing the contents of spreadsheets it
-// was granted access to. So exactly three operations go through the bridge — template import,
-// template copy, and photo upload — all executed as the human who owns the Drive folder.
+// was granted access to. So exactly three operations go through the bridge template import,
+// template copy, and photo upload all executed as the human who owns the Drive folder.
 //
 // Trust model: the bridge URL is a privileged public endpoint, guarded only by a shared secret.
 // Therefore this client never sends anything the bridge could abuse (IDs come from the Registry, not
@@ -47,7 +47,7 @@ export function assertBridgeConfigured(config: BridgeConfig | null = readConfig(
   if (!config) {
     throw new DomainError(
       "SHEETS_SETUP_REQUIRED",
-      "Drive bridge (Apps Script) belum dikonfigurasi. Isi GAS_DRIVE_BRIDGE_URL dan GAS_BRIDGE_SECRET — lihat gas/README.md.",
+      "Drive bridge (Apps Script) belum dikonfigurasi. Isi GAS_DRIVE_BRIDGE_URL dan GAS_BRIDGE_SECRET lihat gas/README.md.",
     );
   }
   return config;
@@ -128,7 +128,7 @@ async function callBridge(
       }
 
       if (parsed.ok !== true) {
-        // UNAUTHORIZED is a deployment mistake, not a user mistake — say which one it is.
+        // UNAUTHORIZED is a deployment mistake, not a user mistake say which one it is.
         const hint =
           parsed.error === "UNAUTHORIZED"
             ? "GAS_BRIDGE_SECRET berbeda dengan Script Property MYSHIFT_BRIDGE_SECRET."

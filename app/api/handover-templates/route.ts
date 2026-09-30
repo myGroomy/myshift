@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const { spreadsheetId } = await branchSpreadsheet(branchId);
     const rows = await readRows(spreadsheetId, branchSheetRange("Handover_Template"));
 
-    // Header row already stripped by readRows() — do not slice a second time (audit H-6).
+    // Header row already stripped by readRows() do not slice a second time (audit H-6).
     const records = rows.map((row) => ({
       fieldId: row.values[0] ?? "",
       label: row.values[1] ?? "",

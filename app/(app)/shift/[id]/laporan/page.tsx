@@ -52,7 +52,7 @@ function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> })
       .map((field) => `${field.label}: ${field.value}`)
       .join("\n") || "(belum ada catatan)";
     const message = [
-      `📋 *Laporan Shift* — ${report.branchName}`,
+      `📋 *Laporan Shift* ${report.branchName}`,
       `🕐 ${report.shiftName} · ${report.date} · ${report.employeeName}`,
       "",
       `✅ Checklist: ${report.checklist.completed}/${report.checklist.total} selesai`,

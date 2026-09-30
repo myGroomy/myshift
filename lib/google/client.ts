@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 
-// Lazy singletons — initialized on first use, not at module load.
+// Lazy singletons initialized on first use, not at module load.
 // This prevents build-time crashes when env vars are not yet configured.
 // (Connection objects only: no *data* is cached at module level, per AGENTS.md §5.)
 const SCOPES = [

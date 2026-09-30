@@ -1,10 +1,10 @@
-# Nav Restructure Design — Navigasi Petugas 4 Tab & Halaman Jadwal Terpadu
+# Nav Restructure Design Navigasi Bersama 4 Tab & Halaman Jadwal Terpadu
 
-Status: disetujui user, siap implementasi (2026-09-29)
+Status: implementasi awal 2026-09-29; disempurnakan sesuai keputusan user (2026-09-30)
 
 ## 1. Masalah
 
-Dock petugas (karyawan) saat ini: **Dashboard · Jadwal · Approval · Incident** — memakai
+Dock petugas (karyawan) saat ini: **Dashboard · Jadwal · Approval · Incident** memakai
 menu admin. Padahal petugas (karyawan) bukan pengelola: dashboard, approval, dan kelola
 jadwal bukan kerjaannya. Petugas punya 4 pekerjaan nyata:
 
@@ -14,7 +14,7 @@ jadwal bukan kerjaannya. Petugas punya 4 pekerjaan nyata:
 4. Laporkan incident
 
 Selain itu, `icon="report"` dipakai oleh `/incident` tapi **tidak ada di `ICON_MAP`**
-(`components/dock.tsx`) — jadi ikonnya jatuh ke fallback `LayoutDashboard`.
+(`components/dock.tsx`) jadi ikonnya jatuh ke fallback `LayoutDashboard`.
 
 Ada cela terkait: `GET /api/shifts` bersifat admin-only (`app/api/shifts/route.ts:11`) dan
 `SchedulePage` versi karyawan sengaja tidak memanggilnya (`components/phase1.tsx:825`).
@@ -24,7 +24,7 @@ Akibatnya tab Jadwal Saya menampilkan ID shift mentah ("SFT001"), bukan nama shi
 
 ### 2.1 Navigasi & Dock (`components/nav-config.ts`)
 
-**`KARYAWAN_ITEMS`** jadi 4 entri:
+**Empat tab kerja utama sama pada kedua role:**
 
 | href | label | ikon |
 |---|---|---|
@@ -33,9 +33,15 @@ Akibatnya tab Jadwal Saya menampilkan ID shift mentah ("SFT001"), bukan nama shi
 | `/handover` | Handover | `swap_calls` |
 | `/incident` | Incident | `report` |
 
-- `KARYAWAN_DOCK_TABS` = `KARYAWAN_ITEMS` (tepat 4, tanpa "Lainnya" bawaan)
+- `KARYAWAN_DOCK_TABS` = `KARYAWAN_ITEMS` (tepat 4)
+- `ADMIN_DOCK_TABS` memakai label dan fungsi yang sama: Jadwal (`/jadwal` untuk kelola kalender),
+  Checklist (`/checklist`), Handover (`/handover`), dan Incident (`/incident`)
 - `KARYAWAN_NAV_ITEMS` = items + `/profil` (desktop)
 - `KARYAWAN_DOCK_EXTRAS` tidak berubah
+- Dashboard, Approval, Laporan, template, dan master data Admin tidak mengambil slot tab utama;
+  semuanya dikelompokkan pada menu **Pengelolaan** desktop dan **Lainnya** mobile
+- Admin dapat memakai shift picker Checklist/Handover untuk memeriksa atau mengoreksi catatan pada
+  cabang aktif; halaman tersebut menggunakan navigasi Admin ketika dibuka oleh Admin
 - Route lama `/swap/ajukan`, `/izin/ajukan`, `/riwayat` tetap ada tapi keluar dari semua nav
 - `ICON_MAP` diberi kunci `report: AlertTriangle`
 
@@ -61,14 +67,15 @@ Redirect (hanya `page.tsx` diganti, komponen tetap):
 
 Komponen bersama `ShiftPicker({ mode })` di `components/shift-picker.tsx`.
 
-- Ambil `/api/schedules?startDate=…&endDate=…` — API sudah otomatis menyaring ke jadwal
-  sendiri untuk karyawan (`app/api/schedules/route.ts:71`) dan mendukung rentang tanggal
+- Ambil `/api/schedules?startDate=…&endDate=…` API sudah otomatis menyaring ke jadwal
+  sendiri untuk karyawan (`app/api/schedules/route.ts:71`), sementara Admin melihat jadwal cabang
+  aktif; API mendukung rentang tanggal
 - Kelompok: **Hari ini** → **Mendatang** → **Selesai (7 hari terakhir)**
 - Tiap baris: tanggal, nama shift + jam, `StatusBadge`, progres checklist
 - Klik → `/shift/[id]?tab=checklist` atau `?tab=handover` (Layar Shift Terpadu, tanpa
   perubahan)
 
-### 2.4 Perbaikan nama shift — Opsi A (dipilih user)
+### 2.4 Perbaikan nama shift Opsi A (dipilih user)
 
 Enrich response `GET /api/schedules` dengan `shiftName`, `startTime`, `endTime`.
 
@@ -79,12 +86,12 @@ otorisasi**, dan bug "SFT001" langsung hilang.
 Proyeksi ditarik ke fungsi murni `lib/google/schedules-data.ts` (meniru pola
 `ops-data.ts`) supaya bisa diuji tanpa Sheets. `API-CONTRACT.md` §5 di-update commit sama.
 
-Ditolak: opsi B (longgarkan `GET /api/shifts` ke `staffSession`) — perubahan otorisasi
+Ditolak: opsi B (longgarkan `GET /api/shifts` ke `staffSession`) perubahan otorisasi
 endpoint, dan karyawan jadi bisa baca semua shift template cabang.
 
 ### 2.5 Guard arah (`middleware.ts` + `lib/nav-guard.ts`)
 
-Guard di **middleware** — satu tempat, session sudah diverifikasi di sana. Logika murni
+Guard di **middleware** satu tempat, session sudah diverifikasi di sana. Logika murni
 diekstrak ke `lib/nav-guard.ts` supaya unit-testable.
 
 Pencocokan: `path === entry || path.startsWith(entry + "/")`. Aturan ini membuat semua
@@ -92,15 +99,15 @@ tabrakan nama aman (`/jadwal` tidak menangkap `/jadwal-saya`, `/checklist` tidak
 menangkap `/checklist-template`).
 
 ```
-ADMIN_ONLY  /dashboard  /jadwal  /laporan  /approval  /cabang  /karyawan
+ADMIN_ONLY  /dashboard  /jadwal  /approval  /cabang  /karyawan
             /shift-template  /checklist-template  /handover-template
             /kategori-izin  /kategori-incident
 
-STAFF_ONLY  /jadwal-saya  /checklist  /handover
+STAFF_ONLY  /jadwal-saya
 ```
 
 - karyawan masuk `ADMIN_ONLY` → `/jadwal-saya`
-- admin masuk `STAFF_ONLY` → `/dashboard`
+- checklist, handover, incident, laporan, dan halaman shift dapat diakses kedua role
 
 Simetris dengan redirect login yang sudah ada (`middleware.ts:37-41`).
 
@@ -108,7 +115,7 @@ Simetris dengan redirect login yang sudah ada (`middleware.ts:37-41`).
 `/pilih-cabang`, `/incident` (+ `/ajukan`, `/[id]`), `/shift/[id]`.
 `/shift` sengaja tidak masuk set karena dipakai kedua peran.
 
-`/swap/ajukan`, `/izin/ajukan`, `/riwayat` tidak dimasukkan — sudah redirect dari 2.2.
+`/swap/ajukan`, `/izin/ajukan`, `/riwayat` tidak dimasukkan sudah redirect dari 2.2.
 
 Catatan: API tetap dikunci per-endpoint lewat `adminSession` seperti sekarang. Guard ini
 menutup celah **halaman**, bukan menggantikan API auth.
@@ -125,23 +132,23 @@ dst).
 
 **Baru**
 
-- `test/nav-guard.test.ts` — aturan redirect murni + uji tabrakan awalan
+- `test/nav-guard.test.ts` aturan redirect murni + uji tabrakan awalan
   (`/jadwal` ≠ `/jadwal-saya`, `/checklist` ≠ `/checklist-template`, `/shift` di luar set)
-- `test/schedules-projection.test.ts` — proyeksi enrichmen 2.4 dari baris mentah
+- `test/schedules-projection.test.ts` proyeksi enrichmen 2.4 dari baris mentah
 
 **Diupdate**
 
-- `test/nav-config.test.ts` — href `KARYAWAN_DOCK_TABS` = `jadwal-saya · checklist ·
+- `test/nav-config.test.ts` href `KARYAWAN_DOCK_TABS` = `jadwal-saya · checklist ·
   handover · incident` (panjang 4), assert `/swap`, `/izin`, `/riwayat` keluar dari nav
   karyawan
 
-## 4. Dokumen (commit yang sama — AGENTS.md §6 poin 3–4)
+## 4. Dokumen (commit yang sama AGENTS.md §6 poin 3–4)
 
-- `PLAN/UI-PLAN.md` — §4.1 dock karyawan; §2.3 Jadwal Saya jadi 4 tab; redirect lama;
+- `PLAN/UI-PLAN.md` §4.1 dock karyawan; §2.3 Jadwal Saya jadi 4 tab; redirect lama;
   dua layar baru `/checklist` & `/handover`
-- `PLAN/API-CONTRACT.md` — §5 `GET /api/schedules` menambah `shiftName`, `startTime`,
+- `PLAN/API-CONTRACT.md` §5 `GET /api/schedules` menambah `shiftName`, `startTime`,
   `endTime`
-- `PLAN/SHEETS-SCHEMA.md` — **tidak berubah** (tidak ada sheet/kolom baru)
+- `PLAN/SHEETS-SCHEMA.md` **tidak berubah** (tidak ada sheet/kolom baru)
 
 ## 5. Di luar lingkup
 

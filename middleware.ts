@@ -50,9 +50,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Guard arah: pantulkan peran ke halaman yang bukan miliknya (mis. petugas yang membuka
-    // /approval, atau admin yang membuka /checklist). Hanya untuk halaman — API sudah dikunci
-    // per-endpoint lewat adminSession/staffSession.
+    // Guard arah: pantulkan peran ke halaman yang bukan miliknya. Halaman checklist dan
+    // handover dapat dipakai kedua role; API tetap mengunci setiap operasi per-endpoint.
     if (session && !isLoginPage && !isLandingPage && !isPublicPage) {
       const target = redirectForPage(normalized, session.role);
       if (target) return NextResponse.redirect(new URL(target, request.url));

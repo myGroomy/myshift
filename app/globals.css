@@ -132,6 +132,7 @@
 
   html {
     @apply font-sans;
+    font-size: 87.5%;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -146,6 +147,14 @@
 
   .tnum {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 

@@ -1,6 +1,6 @@
 // Shift lifecycle: scheduled -> started -> completed.
 // A shift can only be closed (POST /api/schedules/:id/checklist/submit) when the
-// checklist is 100% done AND every required handover field is filled — enforced on
+// checklist is 100% done AND every required handover field is filled enforced on
 // the backend per AGENTS.md §5, not just by the disabled button in the UI.
 export const SHIFT_STATUS = {
   scheduled: "scheduled",

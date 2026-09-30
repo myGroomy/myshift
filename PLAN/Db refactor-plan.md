@@ -1,4 +1,4 @@
-# MYSHIFT — DB Refactor Plan (Registry + Copy Template)
+# MYSHIFT DB Refactor Plan (Registry + Copy Template)
 
 > **Tujuan:** memindahkan pembuatan spreadsheet cabang dari `spreadsheets.create` (kena quota) ke **copy template**, dan merapikan Registry supaya jadi satu-satunya sumber untuk mengetahui spreadsheet dan folder tiap cabang. **Sumber kebenaran struktur:** [`SHEETS-SCHEMA.md`](http://SHEETS-SCHEMA.md) (Registry, `TEMPLATES`, alur provisioning) dan [`API-CONTRACT.md`](http://API-CONTRACT.md) (§3 Branches). **Untuk:** coding agent. Kerjakan berurutan, jangan loncat step.
 
@@ -18,7 +18,7 @@
 
 ---
 
-## Step 0 — Audit Kode Saat Ini
+## Step 0 Audit Kode Saat Ini
 
 Sebelum mengubah apa pun, laporkan temuan berikut ke user:
 
@@ -27,7 +27,7 @@ Sebelum mengubah apa pun, laporkan temuan berikut ke user:
 - \[ \] Modul yang membaca Registry sekarang dan kolom apa yang dipakai
 - \[ \] Ada tidaknya cache module-level di modul tersebut (dilarang oleh [`AGENTS.md`](http://AGENTS.md) §4)
 
-## Step 0b — Spike Kuota (kerjakan sebelum refactor)
+## Step 0b Spike Kuota (kerjakan sebelum refactor)
 
 Kuota yang gagal kemarin adalah `spreadsheets.create`. Pastikan jalur baru tidak kena masalah serupa. Dengan service account yang dipakai aplikasi, coba **sekali**:
 
@@ -39,7 +39,7 @@ Catat pesan error persis kalau ada yang gagal. Kalau errornya `storageQuotaExcee
 
 Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bisa edit spreadsheet langsung). Pastikan folder induk sudah dibagikan ke akun admin sehingga hasil copy mewarisi akses, atau tambahkan pemberian akses eksplisit saat provisioning.
 
-> **Hasil Step 0b (spike dieksekusi 2026-09-29, `pnpm spike:drive`): GAGAL — berhenti dan
+> **Hasil Step 0b (spike dieksekusi 2026-09-29, `pnpm spike:drive`): GAGAL berhenti dan
 > dilaporkan ke user, sesuai instruksi Step 0b.** Service account yang dipakai aplikasi punya
 > `storageQuota.limit = 0`, jadi Drive menolak semua pembuatan file:
 >
@@ -54,10 +54,10 @@ Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bis
 > `taufikalwan47@gmail.com` (owner) + 3 service account (writer), jadi hasil copy akan mewarisi akses
 > admin manusia begitu pembuatan file bisa jalan.
 >
-> Konsekuensi: jalur **copy template belum bisa diverifikasi runtime** — bukan karena kodenya, tapi
+> Konsekuensi: jalur **copy template belum bisa diverifikasi runtime** bukan karena kodenya, tapi
 > karena kuota Drive service account. Step 2, Step 3.1, Step 3.2 dan Step 3.3 sudah dikerjakan dan
 > diuji lewat `test/template-verify.test.ts`, `test/branch-lookup.test.ts`,
-> `test/provisioning.test.ts` (fake Drive); Step 3.4 (foto) tetap terhalang batasan yang sama — foto
+> `test/provisioning.test.ts` (fake Drive); Step 3.4 (foto) tetap terhalang batasan yang sama foto
 > adalah file biner, jadi wajib punya pemilik berkuota. Pilihan yang perlu keputusan user:
 > (a) taruh folder induk di **Shared Drive** (butuh akun Google Workspace), atau
 > (b) **delegasi OAuth** (impersonasi user berkuota) untuk Sheets+Drive, atau
@@ -84,13 +84,13 @@ Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bis
 > **Selesai 2026-09-29.** Bridge hidup di project Apps Script baru
 > (`1hUkZgY1A9wnVdXZoWnBwkWqOHjrXm9TmV3N73RGSBsDuK_q9SFDKaM2O`; deployment `Execute as: Me`,
 > `Who has access: Anyone`). Insiden yang tercatat: project pertama (`1KbVNbw…`) sempat berhasil,
-> lalu **tidak bisa dipulihkan** setelah `oauthScopes` dideklarasikan eksplisit di manifest — semua
+> lalu **tidak bisa dipulihkan** setelah `oauthScopes` dideklarasikan eksplisit di manifest semua
 > deployment membalas 401, dan re-auth maupun revert manifest tidak menolong. Pelajaran yang
 > tersimpan: jangan tulis `oauthScopes`; biarkan auto-detect dari kode. Catatan operasional lain:
 > service account **tidak bisa menghapus** file milik user, jadi artefak uji dibersihkan dengan
 > membuang folder induknya (isi ikut ke trash), bukan menghapus file satu per satu.
 >
-> **Step 4 (acceptance) — LOLOS** lewat `pnpm check:provisioning`: reserve baris `pending`;
+> **Step 4 (acceptance) LOLOS** lewat `pnpm check:provisioning`: reserve baris `pending`;
 > provisioning lewat bridge (folder + copy template, ID ditulis sebelum verifikasi); header salinan
 > sesuai §2 (11 sheet, urutan kolom); `getBranch()` resolve spreadsheet + folder; salinan bisa dibuka
 > admin manusia (`taufikalwan47@gmail.com=owner` + 3 service account `writer`); retry saat `failed`
@@ -100,7 +100,7 @@ Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bis
 >
 > **Posisi data per 2026-09-29:** `CBG001` sudah diprovisioning (`ready`, spreadsheet + folder terisi,
 > `getBranch()` bisa membacanya). Cara provisioning cabang yang tertinggal tanpa HTTP:
-> `pnpm provision:branch -- --id=<Cabang_ID>` — logikanya sama dengan
+> `pnpm provision:branch -- --id=<Cabang_ID>` logikanya sama dengan
 > `POST /api/branches/:id/retry-provision`, keduanya memanggil `provisionExistingBranch()` di
 > `lib/google/branch-provisioning.ts` supaya tidak bisa melenceng.
 >
@@ -110,7 +110,7 @@ Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bis
 
 ---
 
-## Step 1 — Migrasi Registry
+## Step 1 Migrasi Registry
 
 Edit spreadsheet Registry yang sudah ada agar sesuai [`SHEETS-SCHEMA.md`](http://SHEETS-SCHEMA.md) §1:
 
@@ -131,13 +131,13 @@ Edit spreadsheet Registry yang sudah ada agar sesuai [`SHEETS-SCHEMA.md`](http:/
 
 Sebelum mengubah, tampilkan rencana perubahan (kolom yang ditambah, baris yang diisi) dan **minta konfirmasi user**, karena ini mengubah data live.
 
-## Step 2 — Verifikasi Template terhadap Skema
+## Step 2 Verifikasi Template terhadap Skema
 
 Buat script kecil (`scripts/verify-template`) yang membaca header tiap sheet di template dan membandingkannya dengan [`SHEETS-SCHEMA.md`](http://SHEETS-SCHEMA.md) §2 (nama sheet, urutan kolom). Script ini dipakai dua kali: sekarang, dan sebagai validasi setelah setiap copy di Step 3. Kalau ada selisih, laporkan, jangan diperbaiki diam-diam.
 
 ---
 
-## Step 3 — Refactor Kode
+## Step 3 Refactor Kode
 
 ### 3.1 Modul lookup cabang
 
@@ -155,7 +155,7 @@ Satu fungsi tunggal, misal `getBranch(cabangId)`, mengembalikan `{ spreadsheetId
 > seluruh laporan. Nama `getBranch` tidak dipakai supaya tidak ada dua nama untuk satu perilaku —
 > `branchSpreadsheet()` tetap nama aslinya di repo.
 >
-> **Caching — opsi yang dipilih: TIDAK pakai cache.** Alasannya:
+> **Caching opsi yang dipilih: TIDAK pakai cache.** Alasannya:
 > 1. Nilainya kecil: satu lookup = satu `values.get`, sedangkan request yang sama biasanya membaca
 >    1–6 range di spreadsheet cabang; penghematannya di bawah 20% kuota baca.
 > 2. Risikonya nyata: PRD mengizinkan admin mengedit `Daftar_Cabang` langsung di spreadsheet, dan
@@ -188,7 +188,7 @@ Syarat:
 - Urutan penulisan aman: catat ID hasil copy ke Registry secepat mungkin setelah copy berhasil, supaya tidak ada spreadsheet yatim
 - Hapus semua pemanggilan `spreadsheets.create`
 
-> **Eksekusi.** `lib/google/provisioning.ts` — `provisionBranchDrive(branchId, nama, options, deps)`.
+> **Eksekusi.** `lib/google/provisioning.ts` `provisionBranchDrive(branchId, nama, options, deps)`.
 > `spreadsheets.create` sudah tidak dipakai di jalur cabang (`scripts/setup-sheets.ts` masih
 > memakainya, tapi hanya untuk bootstrap Registry sekali, dan tidak pernah untuk cabang).
 > `onDriveObject` dipakai route untuk menulis `Spreadsheet_ID`/`Folder_Drive_ID` ke Registry tepat
@@ -211,7 +211,7 @@ Upload foto checklist memakai `Folder_Drive_ID` cabang dari `getBranch()`. Simpa
 
 ---
 
-## Step 4 — Verifikasi (Acceptance)
+## Step 4 Verifikasi (Acceptance)
 
 - \[ \] Tidak ada lagi pemanggilan `spreadsheets.create` di kode
 - \[ \] Membuat cabang uji lewat aplikasi: muncul spreadsheet ber-nama cabang, folder cabang, baris Registry lengkap berstatus `ready`
@@ -223,6 +223,6 @@ Upload foto checklist memakai `Folder_Drive_ID` cabang dari `getBranch()`. Simpa
 - \[ \] Data cabang lama (kalau ada) tetap bisa diakses setelah migrasi Registry
 - \[ \] Hapus cabang uji beserta spreadsheet dan foldernya setelah selesai
 
-## Step 5 — Sinkronisasi Dokumen
+## Step 5 Sinkronisasi Dokumen
 
 Kalau ada penyimpangan dari [`SHEETS-SCHEMA.md`](http://SHEETS-SCHEMA.md) atau [`API-CONTRACT.md`](http://API-CONTRACT.md) selama implementasi, update dokumen itu di commit yang sama (aturan [`AGENTS.md`](http://AGENTS.md) §5).

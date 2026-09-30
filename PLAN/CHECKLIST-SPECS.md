@@ -1,6 +1,6 @@
-# MYSHIFT — [CHECKLIST-SPECS.md](http://CHECKLIST-SPECS.md)
+# MYSHIFT [CHECKLIST-SPECS.md](http://CHECKLIST-SPECS.md)
 
-> **Versi:** 1.1.0 **Tanggal:** 2026-09-29 **Status:** Final — keputusan §5 telah dijawab pengguna. Spesifikasi ini menyelaraskan `FULL-PRD.md` §6.6, `SHEETS-SCHEMA.md`, `API-CONTRACT.md` §8, dan `UI-PLAN.md`.
+> **Versi:** 1.1.0 **Tanggal:** 2026-09-29 **Status:** Final keputusan §5 telah dijawab pengguna. Spesifikasi ini menyelaraskan `FULL-PRD.md` §6.6, `SHEETS-SCHEMA.md`, `API-CONTRACT.md` §8, dan `UI-PLAN.md`.
 
 ---
 
@@ -8,10 +8,10 @@
 
 **Role "Kepala Cabang" dihapus sepenuhnya.** Hanya tersisa 2 role:
 
-- **Admin** (pusat) — kelola semua cabang, semua SOP/Checklist Point, semua approval
-- **Karyawan** — jalankan checklist, isi handover, generate &amp; share laporan shift sendiri
+- **Admin** (pusat) kelola semua cabang, semua SOP/Checklist Point, semua approval
+- **Karyawan** jalankan checklist, isi handover, generate &amp; share laporan shift sendiri
 
-Semua referensi "Kepala Cabang" di dokumen lain (kewenangan checklist template scoped per cabang, approval, dashboard scoped) tidak berlaku lagi — jadi wewenang Admin penuh.
+Semua referensi "Kepala Cabang" di dokumen lain (kewenangan checklist template scoped per cabang, approval, dashboard scoped) tidak berlaku lagi jadi wewenang Admin penuh.
 
 ---
 
@@ -21,8 +21,8 @@ Semua referensi "Kepala Cabang" di dokumen lain (kewenangan checklist template s
 | Istilah                | Arti                                                                                           |
 | ---------------------- | ---------------------------------------------------------------------------------------------- |
 | **Checklist**          | Nama tab/fitur di sisi karyawan                                                                |
-| **Shift**              | Level pengelompokan 1 — Opening/Middle/Closing/custom per cabang                               |
-| **SOP** (Kategori SOP) | Level pengelompokan 2 — bebas dibuat Admin (misal "Kebersihan", "Keamanan Kas", "Food Safety") |
+| **Shift**              | Level pengelompokan 1 Opening/Middle/Closing/custom per cabang                               |
+| **SOP** (Kategori SOP) | Level pengelompokan 2 bebas dibuat Admin (misal "Kebersihan", "Keamanan Kas", "Food Safety") |
 | **Checklist Point**    | Baris individual yang harus diselesaikan karyawan                                              |
 
 
@@ -71,7 +71,7 @@ Hierarki: **Checklist → Shift → SOP → Checklist Point**
 | `Log_ID`      | string, format `CLG-###`                                                                                  | 🔒 Auto |
 | `Schedule_ID` | string                                                                                                    | 🔒 Auto |
 | `Point_ID`    | string                                                                                                    | 🔒 Auto |
-| `Nilai`       | string, generik — menampung `TRUE`/nilai angka/teks/opsi terpilih sesuai `Tipe_Penyelesaian` poin terkait | 🔒 Auto |
+| `Nilai`       | string, generik menampung `TRUE`/nilai angka/teks/opsi terpilih sesuai `Tipe_Penyelesaian` poin terkait | 🔒 Auto |
 | `Foto_URL`    | string, nullable                                                                                          | 🔒 Auto |
 | `Checked_By`  | string, `Employee_ID`                                                                                     | 🔒 Auto |
 | `Checked_At`  | datetime ISO 8601                                                                                         | 🔒 Auto |
@@ -96,7 +96,7 @@ dan `Changed_At`. Log ini ditampilkan pada laporan internal dan publik.
 
 ## 3. UI
 
-### 3.1 Sisi Admin — Kelola Checklist (`/checklist-template`)
+### 3.1 Sisi Admin Kelola Checklist (`/checklist-template`)
 
 ```
 [Pilih Cabang]
@@ -112,7 +112,7 @@ dan `Changed_At`. Log ini ditampilkan pada laporan internal dan publik.
 - Edit tipe pada poin yang sudah punya log → tampilkan warning non-blocking ("data lama tidak berubah, hanya pengisian berikutnya")
 - Delete permanen hanya untuk poin yang belum pernah ada di `Checklist_Log`; kalau sudah ada log, cuma bisa nonaktifkan
 
-### 3.2 Sisi Karyawan — Checklist Shift (`/shift/[id]/checklist`)
+### 3.2 Sisi Karyawan Checklist Shift (`/shift/[id]/checklist`)
 
 - Header: konteks shift saja ("Checklist – Opening – Cabang Antapani"), tidak ada tab Shift lagi (sudah otomatis ter-scope)
 - Section per SOP (accordion), tiap Checklist Point jadi **card**, kontrol sesuai tipe:
@@ -125,7 +125,7 @@ dan `Changed_At`. Log ini ditampilkan pada laporan internal dan publik.
 - Setiap perubahan otomatis disimpan ke server pada jadwal milik akun yang login; teks/angka disimpan setelah jeda mengetik, sedangkan centang, pilihan, dan foto disimpan langsung. Status simpan dan kegagalan ditampilkan per poin.
 - Submit checklist disabled sampai semua poin applicable terisi (validasi juga di backend)
 
-### 3.3 Detail Shift (`/shift/[id]`) — update
+### 3.3 Detail Shift (`/shift/[id]`) update
 
 ```
 ✅ Checklist (15/15 selesai)
@@ -136,25 +136,25 @@ dan `Changed_At`. Log ini ditampilkan pada laporan internal dan publik.
 
 Tombol "Generate Laporan" disabled sampai checklist 100% dan handover terisi (validasi backend, bukan cuma frontend).
 
-### 3.4 Laporan Shift (`/shift/[id]/laporan`) — baru
+### 3.4 Laporan Shift (`/shift/[id]/laporan`) baru
 
 - Sebelum generate: preview data yang akan dirangkum + tombol "Generate Laporan"
 - Setelah generate: tampilkan laporan lengkap (info shift, ringkasan checklist per SOP, isi handover, nama pengisi) + tombol **Share ke WhatsApp**
 - Setelah generate, Admin dan pemilik jadwal tetap boleh mengedit checklist/handover. Perubahan nilai setelah generate masuk ke audit trail dan langsung tercermin pada laporan.
 
-### 3.5 Laporan Publik (`/laporan-publik/[token]`) — baru, tanpa login
+### 3.5 Laporan Publik (`/laporan-publik/[token]`) baru, tanpa login
 
 - Read-only, isi sama seperti §3.4
-- Diakses lewat `Report_Token` di URL — untuk penerima WA yang belum tentu punya akun MYSHIFT
+- Diakses lewat `Report_Token` di URL untuk penerima WA yang belum tentu punya akun MYSHIFT
 
 ---
 
 ## 4. Template Pesan WhatsApp
 
-Tombol "Share ke WhatsApp" membuka `[wa.me/?text=](http://wa.me/?text=)...` (deep link, bukan WhatsApp Business API) — pola sama seperti `waLinkBuilder` di MYCUSTOMER. User klik → WA terbuka dengan teks pre-filled → user pilih kontak/grup sendiri → kirim manual.
+Tombol "Share ke WhatsApp" membuka `[wa.me/?text=](http://wa.me/?text=)...` (deep link, bukan WhatsApp Business API) pola sama seperti `waLinkBuilder` di MYCUSTOMER. User klik → WA terbuka dengan teks pre-filled → user pilih kontak/grup sendiri → kirim manual.
 
 ```
-📋 *Laporan Shift* — {{nama_cabang}}
+📋 *Laporan Shift* {{nama_cabang}}
 🕐 {{nama_shift}} · {{tanggal}} · {{nama_karyawan}}
 
 ✅ Checklist: {{jumlah_selesai}}/{{jumlah_total}} selesai
@@ -182,6 +182,6 @@ Lihat detail lengkap:
 
 ## 6. Yang TIDAK berubah dari dokumen sebelumnya
 
-- Halaman `/laporan` (rekap periodik lintas cabang untuk Admin — Ringkasan, Kehadiran, Checklist, Swap &amp; Izin, Handover) tetap seperti dirancang sebelumnya, terpisah dari fitur Laporan Shift per-kejadian di dokumen ini
-- Provisioning cabang (copy template, Registry, folder Drive per cabang) — tidak tersentuh oleh spec ini
-- Modul Jadwal, Swap, Izin — tidak berubah, hanya kehilangan sentuhan Kepala Cabang (§0)
+- Halaman `/laporan` (rekap periodik lintas cabang untuk Admin Ringkasan, Kehadiran, Checklist, Swap &amp; Izin, Handover) tetap seperti dirancang sebelumnya, terpisah dari fitur Laporan Shift per-kejadian di dokumen ini
+- Provisioning cabang (copy template, Registry, folder Drive per cabang) tidak tersentuh oleh spec ini
+- Modul Jadwal, Swap, Izin tidak berubah, hanya kehilangan sentuhan Kepala Cabang (§0)

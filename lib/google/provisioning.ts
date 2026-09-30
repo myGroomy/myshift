@@ -8,7 +8,7 @@ import { assertBridgeConfigured, bridgeCopyFile } from "@/lib/google/drive-bridg
 
 // Branch provisioning (PLAN/Db refactor-plan.md Step 3.2, SHEETS-SCHEMA.md §1 "Alur Provisioning
 // Cabang Baru"): reserve a registry row, create the branch folder, copy the template, verify the
-// copy's headers, record the IDs. `spreadsheets.create` is not called anywhere — it is what failed
+// copy's headers, record the IDs. `spreadsheets.create` is not called anywhere it is what failed
 // with a Drive storage quota error in the first place.
 
 const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
@@ -124,7 +124,7 @@ async function fileExists(driveApi: DriveFilesApi, fileId: string): Promise<bool
 // `orphans` on the thrown error so they can be cleaned up instead of disappearing.
 //
 // Idempotent by construction: an existing folder is reused, and an existing spreadsheet is reused
-// when it is still readable and matches the schema — so retrying a `failed` branch creates neither
+// when it is still readable and matches the schema so retrying a `failed` branch creates neither
 // a second row nor a second copy.
 export async function provisionBranchDrive(
   branchId: string,
@@ -135,7 +135,7 @@ export async function provisionBranchDrive(
   const { drive: driveApi, templateConfig, verify, copyTemplate } = resolveDeps(deps);
 
   // Fail fast: the copy runs through the Apps Script bridge, so an unconfigured deployment must be
-  // reported before anything is created — creating the folder first would only orphan it.
+  // reported before anything is created creating the folder first would only orphan it.
   if (!deps.copyTemplate) assertBridgeConfigured();
 
   const { templateSpreadsheetId, parentFolderId } = await templateConfig();
@@ -161,7 +161,7 @@ export async function provisionBranchDrive(
       orphans.push(folderId);
     } catch (error) {
       // Drive refusing the folder (no shared-drive access, revoked permission, quota) must be
-      // PROVISION_FAILED, not an opaque 500 — API-CONTRACT §3 promises exactly this code.
+      // PROVISION_FAILED, not an opaque 500 API-CONTRACT §3 promises exactly this code.
       if (isDomainError(error)) throw error;
       throw new DomainError(
         "PROVISION_FAILED",
@@ -215,7 +215,7 @@ export async function provisionBranchDrive(
         { data: { orphans } },
       );
     }
-    // Record the copy immediately — before verification, which is the next thing that can fail.
+    // Record the copy immediately before verification, which is the next thing that can fail.
     await report({ folderId, spreadsheetId });
   } else {
     await report({ folderId, spreadsheetId });
@@ -248,7 +248,7 @@ export async function provisionBranchDrive(
 // TEMPLATE SETUP ONLY (scripts/import-branch-template.ts). Branch copies are *verified* against
 // these headers by `assertBranchSpreadsheetSchema()`, never rewritten: silently fixing a copied
 // spreadsheet would hide a drifted template, which is how data ends up in the wrong column
-// (PLAN/Db refactor-plan.md Step 2 — "kalau ada selisih, laporkan, jangan diperbaiki diam-diam").
+// (PLAN/Db refactor-plan.md Step 2 "kalau ada selisih, laporkan, jangan diperbaiki diam-diam").
 export async function writeBranchHeaders(spreadsheetId: string): Promise<void> {
   const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties" });
   const existing = new Set(
@@ -264,7 +264,7 @@ export async function writeBranchHeaders(spreadsheetId: string): Promise<void> {
     });
   }
 
-  // Write canonical headers (idempotent — overwrites with correct values)
+  // Write canonical headers (idempotent overwrites with correct values)
   await Promise.all(
     BRANCH_SHEET_NAMES.map((name) => {
       const headers = BRANCH_HEADERS[name];

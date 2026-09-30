@@ -12,7 +12,7 @@ const REGISTRY_ID = () => process.env.REGISTRY_SPREADSHEET_ID!;
 const BRANCH_RANGE = registrySheetRange(REGISTRY_SHEETS.branches);
 
 // Provisioning calls the Apps Script Drive bridge (cold start + template copy), which can take a
-// few seconds — well past the default function budget on a serverless host.
+// few seconds well past the default function budget on a serverless host.
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
@@ -132,6 +132,6 @@ async function markFailedThenDelete(
   try {
     await deleteRowById(registryId, REGISTRY_SHEETS.branches, BRANCH_RANGE, branchId);
   } catch {
-    // Nothing further we can do — a leftover row is recoverable via the admin UI.
+    // Nothing further we can do a leftover row is recoverable via the admin UI.
   }
 }

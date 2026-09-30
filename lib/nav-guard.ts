@@ -1,5 +1,5 @@
 /**
- * Guard arah untuk halaman — bukan untuk API.
+ * Guard arah untuk halaman bukan untuk API.
  *
  * Setiap peran punya halaman yang memang bukan miliknya: petugas tidak perlu membuka
  * dashboard/approval/kelola master, dan admin tidak memakai halaman shift-picker milik
@@ -10,7 +10,7 @@
  * (tanpa request/Sheets) supaya bisa diuji langsung di `test/nav-guard.test.ts`.
  *
  * Catatan: guard ini menutup celah **halaman**. Otorisasi data tetap dikunci per-endpoint
- * lewat `adminSession`/`staffSession` di `lib/route-auth.ts` — keduanya saling melengkapi,
+ * lewat `adminSession`/`staffSession` di `lib/route-auth.ts` keduanya saling melengkapi,
  * bukan saling menggantikan.
  */
 
@@ -28,13 +28,13 @@ export const ADMIN_ONLY_PAGES = [
   "/kategori-incident",
 ] as const;
 
-/** Halaman kerja lapangan yang hanya dipakai petugas (karyawan). */
-export const STAFF_ONLY_PAGES = ["/jadwal-saya", "/checklist", "/handover"] as const;
+/** Halaman jadwal personal; checklist, handover, incident dipakai kedua role. */
+export const STAFF_ONLY_PAGES = ["/jadwal-saya"] as const;
 
 /**
  * Cocokkan path persis atau sebagai induk segmen.
  *
- * Syarat `startsWith(entry + "/")` — bukan sekadar `startsWith(entry)` — yang membuat
+ * Syarat `startsWith(entry + "/")` bukan sekadar `startsWith(entry)` yang membuat
  * tabrakan nama aman: `/jadwal` tidak menangkap `/jadwal-saya`, `/checklist` tidak
  * menangkap `/checklist-template`, dan `/shift` bisa sengaja tidak ikut masuk set
  * karena halaman detail shift (`/shift/[id]`) dipakai kedua peran.
@@ -46,7 +46,7 @@ function matches(path: string, entries: readonly string[]): boolean {
 /**
  * Tujuan redirect untuk sebuah halaman, atau `null` bila boleh dilanjutkan.
  *
- * `role` kosong mengembalikan `null` — "belum login" sudah ditangani terpisah di
+ * `role` kosong mengembalikan `null` "belum login" sudah ditangani terpisah di
  * middleware. Role selain `admin` diperlakukan sebagai karyawan, jadi nilai tak dikenal
  * gagal ke arah yang tertutup, bukan ke arah yang terbuka.
  */

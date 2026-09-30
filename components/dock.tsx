@@ -85,7 +85,7 @@ export function Dock({
   const [open, setOpen] = useState(false);
 
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-  // Halaman yang sedang dibuka boleh tersembunyi di dalam "Lainnya" — tombolnya lalu diberi state
+  // Halaman yang sedang dibuka boleh tersembunyi di dalam "Lainnya" tombolnya lalu diberi state
   // aktif supaya pengguna tidak kehilangan jejak halaman mana yang sedang dibuka.
   const insideGroup =
     groups.some((group) => group.items.some((item) => isCurrent(item.href))) ||

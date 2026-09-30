@@ -4,12 +4,12 @@ import { DomainError } from "@/lib/error-codes";
 import type { ErrorCode } from "@/lib/error-codes";
 
 // The single entry point every branch-scoped module uses to find its spreadsheet and Drive folder
-// (PLAN/Db refactor-plan.md Step 3.1). The IDs live in `Daftar_Cabang` — nothing here is
+// (PLAN/Db refactor-plan.md Step 3.1). The IDs live in `Daftar_Cabang` nothing here is
 // hardcoded and nothing comes from a per-branch env var, so a branch is moved to a different
 // spreadsheet by editing the Registry, not by redeploying.
 //
 // Caching: deliberately none. One registry read per request is cheap next to the branch-sheet
-// reads that follow, and the PRD lets admins edit `Daftar_Cabang` in the spreadsheet itself — a
+// reads that follow, and the PRD lets admins edit `Daftar_Cabang` in the spreadsheet itself a
 // cache would serve the stale Spreadsheet_ID for the length of its TTL right when someone is
 // repairing a broken branch.
 
@@ -32,7 +32,7 @@ export function branchUnavailable(branch: Branch): BranchUnavailable | null {
     return {
       code: "SHEETS_SETUP_REQUIRED",
       reason:
-        `Provision_Status cabang ${branch.branchId} masih "${branch.provisionStatus}" — ` +
+        `Provision_Status cabang ${branch.branchId} masih "${branch.provisionStatus}" ` +
         "selesaikan lewat POST /api/branches/:id/retry-provision",
     };
   }

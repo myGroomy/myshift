@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Double-tap / retry guard: the same employee+shift+date must not be appended twice
-    // (contract §12 — the UI also disables the button, the backend must hold the line).
+    // (contract §12 the UI also disables the button, the backend must hold the line).
     const duplicate = scheduleRows.some(
       ({ values }) => values[1] === employeeId && values[2] === shiftId && values[3] === date
     );

@@ -1,5 +1,5 @@
 /**
- * Step 2 of PLAN/Db refactor-plan.md — compares the branch spreadsheet headers against
+ * Step 2 of PLAN/Db refactor-plan.md compares the branch spreadsheet headers against
  * PLAN/SHEETS-SCHEMA.md §2 (via lib/google/sheet-schema.ts) and reports differences.
  *
  * Used twice:
@@ -7,7 +7,7 @@
  *   2. as the validation provisioning runs on every copy before setting `Provision_Status=ready`
  *      (same code path: lib/google/template-verify.ts).
  *
- * Nothing is repaired by this script — a drifted template is reported so a human decides.
+ * Nothing is repaired by this script a drifted template is reported so a human decides.
  *
  *   pnpm verify:template                       # checks TEMPLATES.Template_Spreadsheet_ID
  *   pnpm verify:template -- --spreadsheet=<id> # checks any spreadsheet (e.g. a branch copy)
@@ -41,7 +41,7 @@ async function main() {
   }
 
   if (!spreadsheetId) {
-    throw new Error(`${label} kosong — isi sheet TEMPLATES dulu (SHEETS-SCHEMA.md §1).`);
+    throw new Error(`${label} kosong isi sheet TEMPLATES dulu (SHEETS-SCHEMA.md §1).`);
   }
 
   console.log(`Memeriksa ${label} = ${maskSpreadsheetId(spreadsheetId)}\n`);
@@ -67,14 +67,14 @@ async function main() {
   const blocking = blockingDiffs(diffs);
 
   if (diffs.length === 0) {
-    console.log("OK — nama sheet dan urutan header 13 sheet sesuai SHEETS-SCHEMA.md §2.");
+    console.log("OK nama sheet dan urutan header 13 sheet sesuai SHEETS-SCHEMA.md §2.");
     return;
   }
 
   for (const diff of diffs) {
     console.log(`  ${diff.kind === "extra-sheet" ? "WARN" : "FAIL"}  ${diff.sheet}: ${diff.kind}`);
   }
-  console.log(`\n${blocking.length === 0 ? "OK (dengan peringatan)" : `TIDAK SESUAI — ${describeDiffs(blocking)}`}`);
+  console.log(`\n${blocking.length === 0 ? "OK (dengan peringatan)" : `TIDAK SESUAI ${describeDiffs(blocking)}`}`);
 
   if (blocking.length > 0) {
     console.log(

@@ -2,7 +2,7 @@
 
 Project lama (`1KbVNbw…`) tidak bisa lagi menjalankan web app publik: begitu `oauthScopes` dideklarasikan
 eksplisit, Apps Script membatalkan otorisasi proyek, dan sejak itu **semua** deployment membalas
-HTTP 401 — termasuk yang dibuat ulang, dan termasuk setelah manifest dikembalikan ke versi yang
+HTTP 401 termasuk yang dibuat ulang, dan termasuk setelah manifest dikembalikan ke versi yang
 sebelumnya sempat jalan. Re-auth lewat `authCheck` dan revert manifest tidak memulihkannya.
 Project baru Starting with authorization state that is guaranteed clean.
 
@@ -10,7 +10,7 @@ Semua yang perlu: 1 file kode, 1 manifest, 2 Script Properties, 1 deploy.
 
 ## 1. Buat project
 
-Buka <https://script.new> — pastikan login sebagai **`taufikalwan47@gmail.com`** (pemilik folder
+Buka <https://script.new> pastikan login sebagai **`taufikalwan47@gmail.com`** (pemilik folder
 `MYSHIFT`; kalau project dibuat akun lain, file hasilnya miliknya orang itu dan app tidak bisa
 mengaksesnya).
 
@@ -18,7 +18,7 @@ mengaksesnya).
 
 1. Buka file `gas/Code.js` di repo ini, salin **seluruh** isinya (Ctrl/Cmd+A → Ctrl/Cmd+C).
 2. Di editor Apps Script, hapus isi bawaan `Code.gs` (yang berisi `function myFunction()`), lalu
-   tempel. Simpan (Ctrl/Cmd+S). File di editor akan tetap bernama `Code.gs` — itu normal dan tidak
+   tempel. Simpan (Ctrl/Cmd+S). File di editor akan tetap bernama `Code.gs` itu normal dan tidak
    masalah; yang penting isinya sama.
 
 Isinya ~230 baris: 3 aksi (`importFile`, `copyFile`, `uploadFile`) + penjaga secret/folder.
@@ -41,7 +41,7 @@ Isinya ~230 baris: 3 aksi (`importFile`, `copyFile`, `uploadFile`) + penjaga sec
 }
 ```
 
-**Jangan** menambahkan `oauthScopes` — biarkan Apps Script mendeteksi sendiri scope dari kode
+**Jangan** menambahkan `oauthScopes` biarkan Apps Script mendeteksi sendiri scope dari kode
 (DriveApp + UrlFetchApp). Menulisnya eksplisit justru pemicu rusaknya project lama.
 
 ## 4. Script Properties
@@ -81,5 +81,5 @@ Script ID baru, lalu menjalankan `pnpm probe:bridge` dan `pnpm check:bridge`.
 
 ## Setelah project baru jalan
 
-`gas/.clasp.json` harus diarahkan ke Script ID project baru — saya yang melakukannya begitu URL
+`gas/.clasp.json` harus diarahkan ke Script ID project baru saya yang melakukannya begitu URL
 Anda terkirim, supaya `clasp push` berikutnya tidak mendarat di project rusak.

@@ -1,4 +1,4 @@
-// Single source of truth for the API error vocabulary — mirrors PLAN/API-CONTRACT.md §11.
+// Single source of truth for the API error vocabulary mirrors PLAN/API-CONTRACT.md §11.
 // `fail()` is typed with ErrorCode, so tsc rejects any code that is not in the contract.
 export const ERROR_STATUS = {
   INVALID_CREDENTIALS: 401,

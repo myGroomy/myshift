@@ -24,10 +24,8 @@ test("redirectForPage mengizinkan karyawan mengakses halaman staff-only dan hala
   assert.equal(redirectForPage("/incident", "karyawan"), null);
 });
 
-test("redirectForPage mengarahkan admin yang mengakses halaman staff-only ke /dashboard", () => {
+test("redirectForPage mengarahkan admin dari jadwal personal ke /dashboard", () => {
   assert.equal(redirectForPage("/jadwal-saya", "admin"), "/dashboard");
-  assert.equal(redirectForPage("/checklist", "admin"), "/dashboard");
-  assert.equal(redirectForPage("/handover", "admin"), "/dashboard");
 });
 
 test("redirectForPage mengizinkan admin mengakses halaman admin dan bersama", () => {
@@ -35,6 +33,8 @@ test("redirectForPage mengizinkan admin mengakses halaman admin dan bersama", ()
   assert.equal(redirectForPage("/jadwal", "admin"), null);
   assert.equal(redirectForPage("/checklist-template", "admin"), null);
   assert.equal(redirectForPage("/shift/SCH-20260930-001", "admin"), null);
+  assert.equal(redirectForPage("/checklist", "admin"), null);
+  assert.equal(redirectForPage("/handover", "admin"), null);
   assert.equal(redirectForPage("/incident", "admin"), null);
   assert.equal(redirectForPage("/laporan", "admin"), null);
 });

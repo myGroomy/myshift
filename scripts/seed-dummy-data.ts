@@ -1,331 +1,410 @@
 import { config } from "dotenv";
-import { isValidPin } from "../lib/domain/pin";
 import { hashPin } from "../lib/domain/pin";
-// The app's own lazy client and provisioning path, so seeded branches get the same
-// folder + template copy as a branch created through POST /api/branches. Building a spreadsheet
-// from scratch here would diverge from the template (SHEETS-SCHEMA §2) and from the sheet names
-// in BRANCH_HEADERS.
+import { isValidPin } from "../lib/domain/pin";
 import { sheets } from "../lib/google/client";
-import { provisionBranchDrive } from "../lib/google/provisioning";
-import { branchRowValues } from "../lib/google/registry";
+import { ensureChecklistPhotoFolder, uploadChecklistPhoto } from "../lib/google/photo-upload";
+import {
+  BRANCH_HEADERS,
+  BRANCH_SHEET_NAMES,
+  REGISTRY_HEADERS,
+  branchSheetRange,
+  registrySheetRange,
+} from "../lib/google/sheet-schema";
+import { nextSequentialId } from "../lib/ids";
+import { buildDummySeedPlan, defaultSeedRange, type DummySeedInput } from "./dummy-seed-data";
 
 config({ path: ".env.local" });
 
-const registryId = process.env.REGISTRY_SPREADSHEET_ID!;
+const REGISTRY_ID = process.env.REGISTRY_SPREADSHEET_ID;
+const PIN = process.env.MYSHIFT_SEED_PIN;
+const PHOTO_NAME = "MYSHIFT-DUMMY-SEED.png";
+const PHOTO_MIME = "image/png";
+const PHOTO_PLACEHOLDER = "dry-run-photo-placeholder";
+const PLACEHOLDER_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZykAAAAASUVORK5CYII=";
 
-async function getExistingRows(sheetName: string): Promise<string[][]> {
-  try {
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: registryId,
-      range: `${sheetName}!A:Z`,
-    });
-    return res.data.values || [];
-  } catch {
-    return [];
-  }
+type RegistryBranch = {
+  branchId: string;
+  name: string;
+  spreadsheetId: string;
+  folderId: string;
+  status: string;
+  active: boolean;
+};
+type RegistryEmployee = {
+  id: string;
+  username: string;
+  name: string;
+  role: string;
+  branchId: string;
+  branches: string[];
+  active: boolean;
+};
+type BranchSnapshot = {
+  branch: RegistryBranch;
+  employees: RegistryEmployee[];
+  newEmployeeRows: string[][];
+  input: DummySeedInput;
+};
+
+function localDateNow(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
-async function appendRows(sheetName: string, rows: string[][]): Promise<void> {
+function localTimeNow(): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date());
+}
+
+function parseArgs(args: string[]) {
+  let apply = false;
+  let asOf = localDateNow();
+  for (const arg of args) {
+    if (arg === "--") {
+      continue;
+    } else if (arg === "--apply") {
+      apply = true;
+    } else if (arg.startsWith("--as-of=")) {
+      asOf = arg.slice("--as-of=".length);
+    } else if (arg === "--help" || arg === "-h") {
+      console.log("Usage: pnpm seed:dummy [--as-of=YYYY-MM-DD] [--apply]");
+      console.log("Default is preview-only; --apply appends data to active, ready branches.");
+      process.exit(0);
+    } else {
+      throw new Error(`Argumen tidak dikenal: ${arg}`);
+    }
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf) || new Date(`${asOf}T00:00:00.000Z`).toISOString().slice(0, 10) !== asOf) {
+    throw new Error("--as-of harus berupa tanggal valid YYYY-MM-DD");
+  }
+  return { apply, asOf };
+}
+
+async function readValues(spreadsheetId: string, range: string): Promise<string[][]> {
+  const response = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  return (response.data.values ?? []).map((row) => row.map(String));
+}
+
+async function readMultiple(spreadsheetId: string, ranges: string[]): Promise<Map<string, string[][]>> {
+  const response = await sheets.spreadsheets.values.batchGet({ spreadsheetId, ranges });
+  return new Map(
+    (response.data.valueRanges ?? []).map((valueRange, index) => {
+      const range = valueRange.range?.split("!")[0]?.replace(/^'|'$/g, "") ?? ranges[index].split("!")[0];
+      return [range, (valueRange.values ?? []).map((row) => row.map(String))];
+    }),
+  );
+}
+
+async function branchSchemaIssues(branch: RegistryBranch): Promise<string[]> {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId: branch.spreadsheetId,
+    fields: "sheets.properties.title",
+  });
+  const names = new Set((metadata.data.sheets ?? []).map((sheet) => sheet.properties?.title).filter(Boolean));
+  const issues: string[] = [];
+  const readable = BRANCH_SHEET_NAMES.filter((sheetName) => names.has(sheetName));
+  const headers = await readMultiple(
+    branch.spreadsheetId,
+    readable.map((sheetName) => `${sheetName}!A1:${String.fromCharCode(64 + BRANCH_HEADERS[sheetName].length)}1`),
+  );
+  for (const sheetName of BRANCH_SHEET_NAMES) {
+    const expected = [...BRANCH_HEADERS[sheetName]];
+    if (!names.has(sheetName)) {
+      issues.push(`${sheetName}: sheet belum ada`);
+      continue;
+    }
+    const actual = headers.get(sheetName)?.[0] ?? [];
+    if (expected.length !== actual.length || expected.some((header, index) => actual[index] !== header)) {
+      issues.push(`${sheetName}: header aktual [${actual.join(", ")}], seharusnya [${expected.join(", ")}]`);
+    }
+  }
+  return issues;
+}
+
+async function readCheckedRegistrySheet(
+  sheetName: keyof typeof REGISTRY_HEADERS,
+): Promise<string[][]> {
+  if (!REGISTRY_ID) throw new Error("REGISTRY_SPREADSHEET_ID belum dikonfigurasi");
+  const values = await readValues(REGISTRY_ID, registrySheetRange(sheetName));
+  const expected = [...REGISTRY_HEADERS[sheetName]];
+  if (!values[0] || expected.some((header, index) => values[0][index] !== header) || values[0].length !== expected.length) {
+    throw new Error(`Header Registry ${sheetName} tidak sesuai skema`);
+  }
+  return values.slice(1);
+}
+
+function truthy(value: string | undefined): boolean {
+  return value?.trim().toUpperCase() === "TRUE";
+}
+
+function categoryRows(rows: string[][]) {
+  return rows.map((row) => ({ id: row[0] ?? "", label: row[1] ?? "", active: truthy(row[2]) }));
+}
+
+async function appendRows(spreadsheetId: string, range: string, rows: string[][]): Promise<void> {
   if (rows.length === 0) return;
   await sheets.spreadsheets.values.append({
-    spreadsheetId: registryId,
-    range: `${sheetName}!A:Z`,
+    spreadsheetId,
+    range,
     valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
     requestBody: { values: rows },
   });
 }
 
-function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+function employeeForBranch(employee: RegistryEmployee, branchId: string): boolean {
+  return employee.active && employee.role === "karyawan" &&
+    (employee.branchId === branchId || employee.branches.includes(branchId));
+}
+
+function dummyEmployees(
+  branch: RegistryBranch,
+  employees: RegistryEmployee[],
+  allEmployeeIds: string[],
+  allUsernames: Set<string>,
+): { employees: RegistryEmployee[]; rows: string[][] } {
+  const assigned = employees.filter((employee) => employeeForBranch(employee, branch.branchId));
+  const rows: string[][] = [];
+  let serial = 1;
+  while (assigned.length < 3) {
+    const username = `demo_${branch.branchId.toLowerCase()}_${String(serial).padStart(2, "0")}`;
+    serial += 1;
+    if (allUsernames.has(username)) continue;
+    if (!isValidPin(PIN)) {
+      throw new Error("MYSHIFT_SEED_PIN (4-8 digit) wajib diisi untuk membuat akun demo");
+    }
+    const id = nextSequentialId(allEmployeeIds, "EMP-");
+    allEmployeeIds.push(id);
+    const name = `Karyawan Demo ${String(assigned.length + 1).padStart(2, "0")} - ${branch.name}`;
+    const employee: RegistryEmployee = {
+      id,
+      username,
+      name,
+      role: "karyawan",
+      branchId: branch.branchId,
+      branches: [branch.branchId],
+      active: true,
+    };
+    rows.push([id, username, hashPin(PIN), name, "karyawan", branch.branchId, branch.branchId, "TRUE", "0", ""]);
+    assigned.push(employee);
+    allUsernames.add(username);
+  }
+  return { employees: assigned, rows };
+}
+
+async function loadBranchSnapshot(
+  branch: RegistryBranch,
+  employees: RegistryEmployee[],
+  allEmployeeIds: string[],
+  allUsernames: Set<string>,
+  dates: { startDate: string; endDate: string },
+  currentDate: string,
+  currentTime: string,
+  adminEmployeeId: string,
+): Promise<BranchSnapshot> {
+  const assigned = dummyEmployees(branch, employees, allEmployeeIds, allUsernames);
+  const rawSheetData = await readMultiple(
+    branch.spreadsheetId,
+    BRANCH_SHEET_NAMES.map((sheetName) => branchSheetRange(sheetName)),
+  );
+  const sheetData = new Map<keyof typeof BRANCH_HEADERS, string[][]>();
+  for (const sheetName of BRANCH_SHEET_NAMES) {
+    const values = rawSheetData.get(sheetName) ?? [];
+    const expected = [...BRANCH_HEADERS[sheetName]];
+    if (!values[0] || expected.some((header, index) => values[0][index] !== header) || values[0].length !== expected.length) {
+      throw new Error(`Header ${sheetName} pada ${branch.branchId} berubah setelah preflight; tidak ada data yang ditulis`);
+    }
+    sheetData.set(sheetName, values.slice(1));
+  }
+
+  const shifts = (sheetData.get("Shifts") ?? []).map((row) => ({
+    shiftId: row[0] ?? "",
+    name: row[1] ?? "",
+    startTime: row[2] ?? "",
+    endTime: row[3] ?? "",
+  })).filter((shift) => shift.shiftId && /^\d{2}:\d{2}$/.test(shift.startTime));
+  const checklistPoints = (sheetData.get("Checklist_Point") ?? []).map((row) => ({
+    pointId: row[0] ?? "",
+    description: row[2] ?? "",
+    completionType: (row[3] ?? "centang") as DummySeedInput["checklistPoints"][number]["completionType"],
+    unit: row[4] ?? "",
+    min: row[5] ?? "",
+    max: row[6] ?? "",
+    options: (row[7] ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+    appliesAllShifts: truthy(row[8]),
+    shiftIds: (row[9] ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+    active: truthy(row[11]),
+  })).filter((point) => point.pointId && point.description);
+  const handoverFields = (sheetData.get("Handover_Template") ?? []).map((row) => ({
+    fieldId: row[0] ?? "",
+    label: row[1] ?? "",
+  })).filter((field) => field.fieldId && field.label);
+  const existingSchedules = sheetData.get("Schedules") ?? [];
+  const existingSwaps = sheetData.get("Shift_Swaps") ?? [];
+  const existingIzin = sheetData.get("Izin") ?? [];
+  const existingIncidents = sheetData.get("Incidents") ?? [];
+  const input: DummySeedInput = {
+    branchId: branch.branchId,
+    ...dates,
+    currentDate,
+    currentTime,
+    employees: assigned.employees.map((employee) => ({ employeeId: employee.id, name: employee.name })),
+    shifts,
+    checklistPoints,
+    handoverFields,
+    izinCategories: categoryRows(sheetData.get("Kategori_Izin") ?? []),
+    incidentCategories: categoryRows(sheetData.get("Kategori_Incident") ?? []),
+    adminEmployeeId,
+    photoUrl: PHOTO_PLACEHOLDER,
+    existingSchedules,
+    existingChecklistLogs: sheetData.get("Checklist_Log") ?? [],
+    existingHandoverLogs: sheetData.get("Handover_Log") ?? [],
+    existingSwaps,
+    existingIzin,
+    existingIncidents,
+  };
+  return { branch, employees: assigned.employees, newEmployeeRows: assigned.rows, input };
+}
+
+async function getPhotoUrl(branch: RegistryBranch): Promise<string> {
+  if (!branch.folderId) throw new Error(`Folder Drive cabang ${branch.branchId} belum tersedia`);
+  const folderId = await ensureChecklistPhotoFolder(branch.folderId);
+  const { photoUrl } = await uploadChecklistPhoto({
+    folderId,
+    name: PHOTO_NAME,
+    mimeType: PHOTO_MIME,
+    buffer: Buffer.from(PLACEHOLDER_PNG, "base64"),
+  });
+  return photoUrl;
 }
 
 async function main() {
-  console.log("=== MYSHIFT Dummy Data Seed ===\n");
-
-  console.log("1. Seeding branches...");
-  const existingBranches = await getExistingRows("Daftar_Cabang");
-  const existingBranchIds = new Set(existingBranches.slice(1).map((r) => r[0]));
-
-  const branches = [
-    { id: "CBG001", name: "Mochikin Cabang Pusat" },
-    { id: "CBG002", name: "Mochikin Cabang Selatan" },
-    { id: "CBG003", name: "Mochikin Cabang Timur" },
-  ];
-
-  const newBranches = branches.filter((b) => !existingBranchIds.has(b.id));
-  if (newBranches.length > 0) {
-    for (const branch of newBranches) {
-      // Same two steps as POST /api/branches: folder in the TEMPLATES parent folder, then a copy
-      // of the template spreadsheet. writeBranchHeaders runs inside provisionBranchDrive, so the
-      // sheets and their headers come from BRANCH_HEADERS rather than a hand-written list here.
-      const { spreadsheetId: branchSsId, folderId } = await provisionBranchDrive(branch.id, branch.name);
-
-      const shiftRows = [
-        ["SFT-001", "Opening", "07:00", "15:00"],
-        ["SFT-002", "Middle", "12:00", "20:00"],
-        ["SFT-003", "Closing", "18:00", "22:00"],
-      ];
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: branchSsId,
-        range: "Shifts!A:D",
-        valueInputOption: "RAW",
-        requestBody: { values: shiftRows },
-      });
-
-      const izinRows = [
-        ["KTG-001", "Sakit", "TRUE"],
-        ["KTG-002", "Cuti", "TRUE"],
-        ["KTG-003", "Keperluan Pribadi", "TRUE"],
-        ["KTG-004", "Ibadah", "TRUE"],
-      ];
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: branchSsId,
-        range: "Kategori_Izin!A:C",
-        valueInputOption: "RAW",
-        requestBody: { values: izinRows },
-      });
-
-      const checklistRows = [
-        ["CHK-007", "SOP-001", "Nyalakan mesin kopi", "centang", "", "", "", "", "FALSE", "SFT-001", "1", "TRUE"],
-        ["CHK-008", "SOP-001", "Cek stok bahan baku", "centang_foto", "", "", "", "", "FALSE", "SFT-001", "2", "TRUE"],
-        ["CHK-009", "SOP-001", "Bersihkan area kasir", "centang", "", "", "", "", "TRUE", "", "3", "TRUE"],
-        ["CHK-010", "SOP-001", "Ukur suhu chiller", "angka", "°C", "0", "5", "", "TRUE", "", "4", "TRUE"],
-        ["CHK-011", "SOP-001", "Hitung kasir dan catat omzet", "centang_foto", "", "", "", "", "FALSE", "SFT-003", "1", "TRUE"],
-        ["CHK-012", "SOP-001", "Bersihkan area dapur", "centang_foto", "", "", "", "", "FALSE", "SFT-003", "2", "TRUE"],
-        ["CHK-013", "SOP-001", "Catatan penutupan", "teks", "", "", "", "", "FALSE", "SFT-003", "3", "TRUE"],
-        ["CHK-014", "SOP-001", "Kunci pintu dan alarm", "centang", "", "", "", "", "FALSE", "SFT-003", "4", "TRUE"],
-      ];
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: branchSsId,
-        range: "Checklist_Point!A:L",
-        valueInputOption: "RAW",
-        requestBody: { values: checklistRows },
-      });
-
-      const handoverRows = [
-        ["HOF-001", "Kondisi Kasir", "TRUE", "1"],
-        ["HOF-002", "Stok Bahan Baku", "TRUE", "2"],
-        ["HOF-003", "Peralatan Rusak", "FALSE", "3"],
-        ["HOF-004", "Catatan Khusus", "FALSE", "4"],
-      ];
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: branchSsId,
-        range: "Handover_Template!A:D",
-        valueInputOption: "RAW",
-        requestBody: { values: handoverRows },
-      });
-
-      // 6 columns per SHEETS-SCHEMA §1 — a 4-wide row would leave the row unreadable to
-      // getBranchRows(), so the widths come from branchRowValues, not a literal here.
-      await appendRows("Daftar_Cabang", [
-        branchRowValues({
-          branchId: branch.id,
-          nama: branch.name,
-          spreadsheetId: branchSsId,
-          folderId,
-          provisionStatus: "ready",
-          aktif: true,
-        }),
-      ]);
-      console.log(`  Created ${branch.id} (${branch.name}) with spreadsheet ${branchSsId}`);
-    }
-  } else {
-    console.log("  All branches already exist, skipping");
-  }
-
-  const seedPin = process.env.MYSHIFT_SEED_PIN;
-  if (!isValidPin(seedPin)) {
-    throw new Error("MYSHIFT_SEED_PIN (4-8 digit) wajib diisi untuk seeding data dummy");
-  }
-
-  console.log("\n2. Seeding employees...");
-  const existingEmployees = await getExistingRows("Employees");
-  const existingUsernames = new Set(existingEmployees.slice(1).map((r) => r[1]));
-
-  const employees = [
-    { id: "EMP-002", username: "budi", name: "Budi Santoso", role: "karyawan", branch: "CBG001" },
-    { id: "EMP-003", username: "siti", name: "Siti Rahayu", role: "karyawan", branch: "CBG001" },
-    { id: "EMP-004", username: "agus", name: "Agus Wijaya", role: "karyawan", branch: "CBG001" },
-    { id: "EMP-005", username: "dewi", name: "Dewi Lestari", role: "karyawan", branch: "CBG002" },
-    { id: "EMP-006", username: "rudi", name: "Rudi Hartono", role: "karyawan", branch: "CBG002" },
-    { id: "EMP-007", username: "nina", name: "Nina Putri", role: "karyawan", branch: "CBG002" },
-    { id: "EMP-008", username: "joko", name: "Joko Prasetyo", role: "karyawan", branch: "CBG003" },
-    { id: "EMP-009", username: "maya", name: "Maya Sari", role: "karyawan", branch: "CBG003" },
-    { id: "EMP-010", username: "bambang", name: "Bambang Sutrisno", role: "karyawan", branch: "CBG003" },
-  ];
-
-  const newEmployees = employees.filter((e) => !existingUsernames.has(e.username));
-  if (newEmployees.length > 0) {
-    const employeeRows = newEmployees.map((e) => [
-      e.id,
-      e.username,
-      hashPin(seedPin),
-      e.name,
-      e.role,
-      e.branch,
-      e.branch,
-      "TRUE",
-      "0",
-      "",
-    ]);
-    await appendRows("Employees", employeeRows);
-    console.log(`  Created ${newEmployees.length} employees`);
-    for (const e of newEmployees) {
-      console.log(`    ${e.id} ${e.username} (${e.role}) - ${e.branch}`);
-    }
-  } else {
-    console.log("  All employees already exist, skipping");
-  }
-
-  console.log("\n3. Seeding schedules for current week...");
-
-  const allBranches = await getExistingRows("Daftar_Cabang");
-  const branchData = allBranches.slice(1).map((r) => ({
-    id: r[0],
-    name: r[1],
-    spreadsheetId: r[2],
+  const { apply, asOf } = parseArgs(process.argv.slice(2));
+  const range = defaultSeedRange(asOf);
+  const [branchRows, employeeRows] = await Promise.all([
+    readCheckedRegistrySheet("Daftar_Cabang"),
+    readCheckedRegistrySheet("Employees"),
+  ]);
+  const branches: RegistryBranch[] = branchRows.map((row) => ({
+    branchId: row[0] ?? "",
+    name: row[1] ?? "",
+    spreadsheetId: row[2] ?? "",
+    folderId: row[3] ?? "",
+    status: row[4] ?? "pending",
+    active: truthy(row[5]),
   }));
+  const readyBranches = branches.filter((branch) => branch.active && branch.status === "ready" && branch.spreadsheetId);
+  if (readyBranches.length === 0) throw new Error("Tidak ada cabang aktif berstatus ready; seed tidak menulis data");
+  const schemaProblems: string[] = [];
+  for (const branch of readyBranches) {
+    const issues = await branchSchemaIssues(branch);
+    if (issues.length > 0) {
+      schemaProblems.push(`${branch.branchId} (${branch.name}):\n  - ${issues.join("\n  - ")}`);
+    }
+  }
+  if (schemaProblems.length > 0) {
+    throw new Error(
+      `Skema spreadsheet cabang belum sesuai; seed dihentikan tanpa menulis data.\n${schemaProblems.join("\n")}`,
+    );
+  }
 
-  const allEmployees = await getExistingRows("Employees");
-  const employeeData = allEmployees.slice(1).map((r) => ({
-    id: r[0],
-    username: r[1],
-    name: r[3],
-    role: r[4],
-    branch: r[5],
+  const employees: RegistryEmployee[] = employeeRows.map((row) => ({
+    id: row[0] ?? "",
+    username: (row[1] ?? "").toLowerCase(),
+    name: row[3] ?? "",
+    role: row[4] ?? "",
+    branchId: row[5] ?? "",
+    branches: (row[6] ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+    active: truthy(row[7]),
   }));
+  const allEmployeeIds = employees.map((employee) => employee.id);
+  const allUsernames = new Set(employees.map((employee) => employee.username));
+  const adminEmployeeId = employees.find((employee) => employee.role === "admin" && employee.active)?.id ?? "";
+  const today = localDateNow();
+  const nowTime = asOf === today ? localTimeNow() : "23:59";
+  const snapshots: BranchSnapshot[] = [];
 
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - dayOfWeek + 1);
-
-  let scheduleCount = 0;
-  let swapCount = 0;
-  let izinCount = 0;
-
-  for (const branch of branchData) {
-    if (!branch.spreadsheetId) continue;
-
-    let existingSchedules: string[][] = [];
-    try {
-      const res = await sheets.spreadsheets.values.get({
-        spreadsheetId: branch.spreadsheetId,
-        range: "Schedules!A:G",
-      });
-      existingSchedules = res.data.values || [];
-    } catch {
-      // Sheet might not exist yet
-    }
-
-    if (existingSchedules.length > 1) {
-      console.log(`  ${branch.id}: schedules already exist, skipping`);
-      continue;
-    }
-
-    const branchEmployees = employeeData.filter((e) => e.branch === branch.id);
-    if (branchEmployees.length === 0) continue;
-
-    let shifts: string[][] = [];
-    try {
-      const res = await sheets.spreadsheets.values.get({
-        spreadsheetId: branch.spreadsheetId,
-        range: "Shifts!A:D",
-      });
-      shifts = res.data.values || [];
-    } catch {
-      continue;
-    }
-    const shiftIds = shifts.slice(1).map((s) => s[0]);
-
-    const scheduleRows: string[][] = [];
-    for (let d = 0; d < 7; d++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + d);
-      const dateStr = formatDate(date);
-
-      const dailyEmployees = branchEmployees.slice(0, Math.min(3, branchEmployees.length));
-      for (let i = 0; i < dailyEmployees.length; i++) {
-        const emp = dailyEmployees[i];
-        const shiftId = shiftIds[i % shiftIds.length];
-        const scheduleId = `SCH-${dateStr.replace(/-/g, "")}-${String(i + 1).padStart(3, "0")}`;
-        scheduleRows.push([scheduleId, emp.id, shiftId, dateStr, "scheduled", "", "myshift"]);
-        scheduleCount++;
-      }
-    }
-
-    if (scheduleRows.length > 0) {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: branch.spreadsheetId,
-        range: "Schedules!A:G",
-        valueInputOption: "RAW",
-        requestBody: { values: scheduleRows },
-      });
-      console.log(`  ${branch.id}: created ${scheduleRows.length} schedules`);
-    }
-
-    if (scheduleRows.length >= 2) {
-      const swapRows = [
-        [
-          "SWP-001",
-          scheduleRows[0][0],
-          scheduleRows[0][1],
-          scheduleRows[1][1],
-          "Tukar shift karena keperluan keluarga",
-          "pending",
-          "",
-          "",
-        ],
-      ];
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: branch.spreadsheetId,
-        range: "Shift_Swaps!A:H",
-        valueInputOption: "RAW",
-        requestBody: { values: swapRows },
-      });
-      swapCount++;
-      console.log(`  ${branch.id}: created 1 swap request`);
-    }
-
-    if (scheduleRows.length > 0) {
-      const izinRows = [
-        [
-          "IZN-001",
-          scheduleRows[0][1],
-          scheduleRows[0][0],
-          "KTG-001",
-          "Demam, perlu istirahat",
-          "pending",
-          "",
-          "",
-        ],
-      ];
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: branch.spreadsheetId,
-        range: "Izin!A:H",
-        valueInputOption: "RAW",
-        requestBody: { values: izinRows },
-      });
-      izinCount++;
-      console.log(`  ${branch.id}: created 1 izin request`);
-    }
+  for (const branch of readyBranches) {
+    snapshots.push(
+      await loadBranchSnapshot(
+        branch,
+        employees,
+        allEmployeeIds,
+        allUsernames,
+        range,
+        asOf,
+        nowTime,
+        adminEmployeeId,
+      ),
+    );
   }
 
-  console.log("\n=== Seed Complete ===");
-  console.log(`  Branches: ${newBranches.length} new`);
-  console.log(`  Employees: ${newEmployees.length} new`);
-  console.log(`  Schedules: ${scheduleCount} created`);
-  console.log(`  Swap requests: ${swapCount}`);
-  console.log(`  Izin requests: ${izinCount}`);
-  // Never print PINs: AGENTS.md §5 forbids plaintext PINs in code or logs.
-  console.log("\nSeeded accounts (PIN = value of MYSHIFT_SEED_PIN):");
-  console.log("  admin (Admin Pusat)");
-  for (const e of newEmployees) {
-    console.log(`  ${e.username} (${e.name})`);
+  const plans = snapshots.map((snapshot) => ({
+    snapshot,
+    plan: buildDummySeedPlan(snapshot.input),
+  }));
+  const counts = plans.reduce(
+    (total, { snapshot, plan }) => ({
+      employees: total.employees + snapshot.newEmployeeRows.length,
+      schedules: total.schedules + plan.schedules.length,
+      checklistLogs: total.checklistLogs + plan.checklistLogs.length,
+      handoverLogs: total.handoverLogs + plan.handoverLogs.length,
+      swaps: total.swaps + plan.swaps.length,
+      izin: total.izin + plan.izin.length,
+      incidents: total.incidents + plan.incidents.length,
+    }),
+    { employees: 0, schedules: 0, checklistLogs: 0, handoverLogs: 0, swaps: 0, izin: 0, incidents: 0 },
+  );
+
+  console.log(`${apply ? "APPLY" : "PREVIEW"} dummy data MYSHIFT`);
+  console.log(`Periode: ${range.startDate} s.d. ${range.endDate} (${90} hari)`);
+  console.log(`Cabang aktif & ready: ${snapshots.length}`);
+  for (const { snapshot, plan } of plans) {
+    console.log(
+      `  ${snapshot.branch.branchId}: ${snapshot.branch.name} — ` +
+      `akun baru ${snapshot.newEmployeeRows.length}, jadwal ${plan.schedules.length}, ` +
+      `checklist ${plan.checklistLogs.length}, handover ${plan.handoverLogs.length}, ` +
+      `swap ${plan.swaps.length}, izin ${plan.izin.length}, incident ${plan.incidents.length}`,
+    );
   }
+  console.log("Total:", JSON.stringify(counts));
+  if (!apply) {
+    console.log("Preview only; tidak ada data yang ditulis. Jalankan dengan --apply untuk menyimpan.");
+    return;
+  }
+
+  const newEmployeeRows = snapshots.flatMap((snapshot) => snapshot.newEmployeeRows);
+  if (newEmployeeRows.length > 0) {
+    if (!REGISTRY_ID) throw new Error("REGISTRY_SPREADSHEET_ID belum dikonfigurasi");
+    await appendRows(REGISTRY_ID, registrySheetRange("Employees"), newEmployeeRows);
+  }
+
+  for (const { snapshot } of plans) {
+    const seedPlan = buildDummySeedPlan(snapshot.input);
+    const needsPhoto = seedPlan.checklistLogs.some((row) => row[4] === PHOTO_PLACEHOLDER);
+    const photoUrl = needsPhoto ? await getPhotoUrl(snapshot.branch) : "";
+    const plan = buildDummySeedPlan({ ...snapshot.input, photoUrl });
+    await appendRows(snapshot.branch.spreadsheetId, branchSheetRange("Schedules"), plan.schedules);
+    await appendRows(snapshot.branch.spreadsheetId, branchSheetRange("Checklist_Log"), plan.checklistLogs);
+    await appendRows(snapshot.branch.spreadsheetId, branchSheetRange("Handover_Log"), plan.handoverLogs);
+    await appendRows(snapshot.branch.spreadsheetId, branchSheetRange("Shift_Swaps"), plan.swaps);
+    await appendRows(snapshot.branch.spreadsheetId, branchSheetRange("Izin"), plan.izin);
+    await appendRows(snapshot.branch.spreadsheetId, branchSheetRange("Incidents"), plan.incidents);
+  }
+  console.log("Seed tersimpan. Baris yang sudah ada tidak diubah atau dihapus.");
+  console.log(`PIN akun demo baru sama dengan MYSHIFT_SEED_PIN; PIN tidak ditampilkan.`);
 }
 
-main().catch((err) => {
-  console.error("Seed error:", err);
-  process.exit(1);
+main().catch((error) => {
+  console.error("Seed dummy gagal:", error instanceof Error ? error.message : error);
+  process.exitCode = 1;
 });

@@ -4,7 +4,7 @@ import { DomainError } from "@/lib/error-codes";
 export type SheetRow = { rowNumber: number; values: string[] };
 
 // ---------------------------------------------------------------------------
-// Retry helper — handles transient Google Sheets errors (429, 500, 503, ECONNRESET).
+// Retry helper handles transient Google Sheets errors (429, 500, 503, ECONNRESET).
 // Attempts up to MAX_ATTEMPTS with exponential backoff before re-throwing.
 // ---------------------------------------------------------------------------
 const MAX_ATTEMPTS = 3;

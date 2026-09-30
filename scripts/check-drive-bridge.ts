@@ -1,5 +1,5 @@
 /**
- * End-to-end check for the Apps Script Drive bridge (gas/README.md) — the counterpart of
+ * End-to-end check for the Apps Script Drive bridge (gas/README.md) the counterpart of
  * `pnpm spike:drive`, which exercises the *service account* path instead.
  *
  * Runs the exact sequence provisioning uses, inside the configured MYSHIFT parent folder, then
@@ -7,7 +7,7 @@
  *
  *   1. service account creates a temp branch-like folder (folders cost no storage quota)
  *   2. bridge `copyFile` of the template into it
- *   3. bridge `copyFile` again with the same name — must return the *same* fileId (idempotency,
+ *   3. bridge `copyFile` again with the same name must return the *same* fileId (idempotency,
  *      which is what makes a retry after a timeout safe)
  *   4. bridge `uploadFile` of a small photo
  *   5. read both back through the service account (proving the app can keep writing their Sheets)
@@ -62,7 +62,7 @@ async function main() {
   console.log(`Bridge URL  : ${config_.url}`);
   console.log(`Template    : ${maskSpreadsheetId(templateSpreadsheetId)}`);
   console.log(`Folder induk: ${parentFolderId || "(kosong)"}`);
-  if (!parentFolderId) throw new Error("TEMPLATES.Parent_Folder_ID kosong — isi sheet TEMPLATES dulu.");
+  if (!parentFolderId) throw new Error("TEMPLATES.Parent_Folder_ID kosong isi sheet TEMPLATES dulu.");
   if (!templateSpreadsheetId) throw new Error("TEMPLATES.Template_Spreadsheet_ID kosong.");
 
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");

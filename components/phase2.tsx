@@ -38,7 +38,7 @@ type SwapPartner = {
 };
 
 /**
- * Isi form Ajukan Swap TANPA shell — sekarang jadi tab "Swap" di `/jadwal-saya`
+ * Isi form Ajukan Swap TANPA shell sekarang jadi tab "Swap" di `/jadwal-saya`
  * (`components/jadwal-saya.tsx`), bukan halaman tersendiri.
  */
 export function SwapAjukanContent() {
@@ -518,7 +518,7 @@ export function SwapApprovalPage() {
 }
 
 /**
- * Isi form Ajukan Izin TANPA shell — sekarang jadi tab "Izin" di `/jadwal-saya`
+ * Isi form Ajukan Izin TANPA shell sekarang jadi tab "Izin" di `/jadwal-saya`
  * (`components/jadwal-saya.tsx`), bukan halaman tersendiri.
  */
 export function IzinAjukanContent() {

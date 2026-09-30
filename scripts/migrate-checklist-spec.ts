@@ -13,6 +13,8 @@ import {
 import { BRANCH_HEADERS } from "@/lib/google/sheet-schema";
 import { readRows } from "@/lib/google/sheets-data";
 import { branchSheetRange } from "@/lib/google/sheet-schema";
+import { nextSequentialId } from "@/lib/ids";
+import { blockingDiffs, describeDiffs, verifyBranchSpreadsheet } from "@/lib/google/template-verify";
 
 config({ path: ".env.local" });
 
@@ -20,6 +22,17 @@ const LEGACY_TEMPLATE = "Checklist_Template";
 const LEGACY_LOG = "Checklist_Log";
 const TEMPLATE_ARCHIVE = "Checklist_Template_Legacy";
 const LOG_ARCHIVE = "Checklist_Log_Legacy";
+const DEFAULT_INCIDENT_CATEGORIES = [
+  "Mesin Rusak",
+  "Komplain Customer",
+  "Barang Rusak",
+  "Stok Habis",
+  "Kesalahan Order",
+  "Kebersihan",
+  "Keamanan",
+  "Karyawan Berhalangan",
+  "Lainnya",
+];
 
 function arg(name: string) {
   const match = process.argv.slice(2).find((value) => value.startsWith(`--${name}=`));
@@ -45,6 +58,36 @@ async function ensureMigration(branchId: string, apply: boolean) {
     : [];
   const checklistLogIsLegacy = titleSet.has(LEGACY_LOG)
     && (legacyLogHeader[2] === "Item_ID" || legacyLogHeader.length < 7);
+  const scheduleHeader = (await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "Schedules!A1:I1",
+  })).data.values?.[0]?.map(String) ?? [];
+  const legacyScheduleHeader = BRANCH_HEADERS.Schedules.slice(0, 7);
+  if (
+    scheduleHeader.length > 0 &&
+    scheduleHeader.join("|") !== legacyScheduleHeader.join("|") &&
+    scheduleHeader.join("|") !== BRANCH_HEADERS.Schedules.join("|")
+  ) {
+    throw new Error(`${branchId}: header Schedules tidak dikenal; migrasi dibatalkan.`);
+  }
+  if (titleSet.has("Checklist_Point")) {
+    const header = (await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Checklist_Point!A1:L1",
+    })).data.values?.[0]?.map(String) ?? [];
+    if (header.length > 0 && header.join("|") !== BRANCH_HEADERS.Checklist_Point.join("|")) {
+      throw new Error(`${branchId}: header Checklist_Point tidak dikenal; migrasi dibatalkan.`);
+    }
+  }
+  if (titleSet.has("SOP_Kategori")) {
+    const header = (await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "SOP_Kategori!A1:D1",
+    })).data.values?.[0]?.map(String) ?? [];
+    if (header.length > 0 && header.join("|") !== BRANCH_HEADERS.SOP_Kategori.join("|")) {
+      throw new Error(`${branchId}: header SOP_Kategori tidak dikenal; migrasi dibatalkan.`);
+    }
+  }
   const hasLegacyTemplate = titleSet.has(oldTemplateSource);
   const hasLegacyLog = titleSet.has(oldLogSource);
   const legacyTemplateRows = hasLegacyTemplate
@@ -62,6 +105,12 @@ async function ensureMigration(branchId: string, apply: boolean) {
     : [];
   const categoryRows = titleSet.has("SOP_Kategori")
     ? await readRows(spreadsheetId, branchSheetRange("SOP_Kategori"))
+    : [];
+  const incidentCategoryRows = titleSet.has("Kategori_Incident")
+    ? await readRows(spreadsheetId, branchSheetRange("Kategori_Incident"))
+    : [];
+  const incidentRows = titleSet.has("Incidents")
+    ? await readRows(spreadsheetId, branchSheetRange("Incidents"))
     : [];
 
   const legacyItems: LegacyChecklistRow[] = legacyTemplateRows.map(({ values }) => ({
@@ -86,6 +135,14 @@ async function ensureMigration(branchId: string, apply: boolean) {
   }));
   const existingCategoryIds = categoryRows.map((row) => row.values[0] ?? "");
   const categoryId = existingCategoryIds[0] || nextSopCategoryId(existingCategoryIds);
+  const existingIncidentCategoryIds = incidentCategoryRows.map((row) => row.values[0] ?? "");
+  const incidentCategoryValues = incidentCategoryRows.length
+    ? incidentCategoryRows.map((row) => row.values)
+    : DEFAULT_INCIDENT_CATEGORIES.map((label) => {
+        const id = nextSequentialId(existingIncidentCategoryIds, "KIC-");
+        existingIncidentCategoryIds.push(id);
+        return [id, label, "TRUE"];
+      });
   const pointMigration = pointRows.length
     ? []
     : migrateLegacyChecklistRows({ items: legacyItems, shifts, categoryId });
@@ -114,6 +171,28 @@ async function ensureMigration(branchId: string, apply: boolean) {
   }
   if (!titleSet.has("SOP_Kategori")) requests.push({ addSheet: { properties: { title: "SOP_Kategori" } } });
   if (!titleSet.has("Shift_Report_Audit")) requests.push({ addSheet: { properties: { title: "Shift_Report_Audit" } } });
+  if (!titleSet.has("Kategori_Incident")) requests.push({ addSheet: { properties: { title: "Kategori_Incident" } } });
+  if (!titleSet.has("Incidents")) requests.push({ addSheet: { properties: { title: "Incidents" } } });
+
+  for (const [sheetName, dataRows, width] of [
+    ["Kategori_Incident", incidentCategoryRows, 3],
+    ["Incidents", incidentRows, 10],
+  ] as const) {
+    if (!titleSet.has(sheetName)) continue;
+    const header = (await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A1:${String.fromCharCode(64 + width)}1`,
+    })).data.values?.[0]?.map(String) ?? [];
+    if (
+      header.length > 0 &&
+      header.join("|") !== BRANCH_HEADERS[sheetName].join("|")
+    ) {
+      throw new Error(`${branchId}: header ${sheetName} sudah ada tetapi tidak sesuai; perlu ditinjau manual.`);
+    }
+    if (dataRows.length > 0 && header.length === 0) {
+      throw new Error(`${branchId}: ${sheetName} berisi data tanpa header; perlu ditinjau manual.`);
+    }
+  }
 
   const summary = {
     branchId,
@@ -122,6 +201,7 @@ async function ensureMigration(branchId: string, apply: boolean) {
     legacyChecklistLogs: legacyLogs.length,
     newPointsToWrite: pointMigration.length,
     newLogsToWrite: logMigration.length,
+    incidentCategoriesToWrite: incidentCategoryRows.length ? 0 : incidentCategoryValues.length,
     archiveOldTemplate: titleSet.has(LEGACY_TEMPLATE) && !titleSet.has(TEMPLATE_ARCHIVE),
     archiveOldLogs: titleSet.has(LEGACY_LOG) && !titleSet.has(LOG_ARCHIVE),
     createNewSheets: requests.filter((request) => "addSheet" in request).map((request) =>
@@ -151,10 +231,16 @@ async function ensureMigration(branchId: string, apply: boolean) {
         { range: "Checklist_Point!A1:L", values: [[...BRANCH_HEADERS.Checklist_Point], ...pointValues] },
         { range: "Checklist_Log!A1:G", values: [[...BRANCH_HEADERS.Checklist_Log], ...logValues] },
         { range: "Shift_Report_Audit!A1:I", values: [[...BRANCH_HEADERS.Shift_Report_Audit]] },
+        { range: "Kategori_Incident!A1:C", values: [[...BRANCH_HEADERS.Kategori_Incident], ...incidentCategoryValues] },
+        { range: "Incidents!A1:J", values: [[...BRANCH_HEADERS.Incidents]] },
         { range: "Schedules!H1:I1", values: [["Report_Generated_At", "Report_Token"]] },
       ],
     },
   });
+  const diffs = blockingDiffs(await verifyBranchSpreadsheet(spreadsheetId));
+  if (diffs.length > 0) {
+    throw new Error(`${branchId}: migrasi selesai sebagian, header belum sesuai: ${describeDiffs(diffs)}`);
+  }
 }
 
 async function main() {

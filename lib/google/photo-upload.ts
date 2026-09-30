@@ -5,7 +5,7 @@ import { DRIVE_NAME_MAX, driveSafeName } from "@/lib/google/provisioning";
 import { bridgeUploadFile } from "@/lib/google/drive-bridge";
 
 // Checklist evidence photos (API-CONTRACT §8). Uploaded to the branch's own Drive folder, never to
-// an arbitrary path — the folder comes from `Daftar_Cabang.Folder_Drive_ID`, so one branch can
+// an arbitrary path the folder comes from `Daftar_Cabang.Folder_Drive_ID`, so one branch can
 // never write into another branch's folder.
 //
 // Everything the browser claims is re-checked here. The `accept` attribute on <input type=file> is
@@ -80,7 +80,7 @@ export function driveViewerUrl(fileId: string): string {
 // cheaper than probing Drive on every checklist tap, and the name is fixed so the lookup is exact.
 // Folder creation stays on the service account: folders consume no Drive storage quota, so it works
 // even with `storageQuota.limit = 0` (verified by `pnpm spike:drive`). Only *file* bytes need the
-// Apps Script bridge — the service account cannot create files at all.
+// Apps Script bridge the service account cannot create files at all.
 export async function ensureChecklistPhotoFolder(folderId: string): Promise<string> {
   const listed = await drive.files.list({
     q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,

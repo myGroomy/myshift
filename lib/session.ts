@@ -41,7 +41,7 @@ async function hmacKey(usage: "sign" | "verify") {
   );
 }
 
-// iat/exp are always rewritten from the server clock — callers can pass a previous payload
+// iat/exp are always rewritten from the server clock callers can pass a previous payload
 // (e.g. select-branch) without being able to extend their own session.
 export async function createSessionToken(payload: SessionPayload) {
   const issuedAt = Math.floor(Date.now() / 1000);

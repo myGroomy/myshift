@@ -1,4 +1,4 @@
-// ID generators — formats are fixed by PLAN/SHEETS-SCHEMA.md §3 and must never drift to
+// ID generators formats are fixed by PLAN/SHEETS-SCHEMA.md §3 and must never drift to
 // UUID-shaped values: IDs are primary keys also mapped manually during SSO integration.
 export const ID_PREFIX = {
   branch: "CBG",

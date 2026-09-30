@@ -11,7 +11,7 @@ type Context = { params: Promise<{ id: string }> };
 export const maxDuration = 60;
 
 // Re-runs steps 3-6 of the row-first flow in API-CONTRACT §3 for a branch that never finished
-// provisioning. The registry row is never deleted here — the branch already exists as far as the
+// provisioning. The registry row is never deleted here the branch already exists as far as the
 // app is concerned, and dropping it would lose the ID history and any folder already created.
 // The provisioning itself lives in `provisionExistingBranch()` so this endpoint and the
 // `pnpm provision:branch` CLI cannot drift apart.

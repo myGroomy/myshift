@@ -1,7 +1,7 @@
 /**
  * Sumber tunggal untuk semua item navigasi (UI-PLAN §Navigasi).
  *
- * Desktop memakai nav horizontal, mobile memakai dock 4 tab + "Lainnya" — keduanya membaca dari
+ * Desktop memakai nav horizontal, mobile memakai dock 4 tab + "Lainnya" keduanya membaca dari
  * file ini, jadi keduanya tidak mungkin melenceng. Item yang promoted ke tab dock otomatis
  * dikeluarkan dari grup "Lainnya" lewat `groupsWithoutTabs()`.
  *
@@ -13,7 +13,9 @@ export type NavGroup = { label: string; items: NavItem[]; adminOnly?: boolean };
 
 const OPERASIONAL: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard", adminOnly: true },
-  { href: "/jadwal", label: "Jadwal", icon: "calendar_today", adminOnly: true },
+  { href: "/jadwal", label: "Jadwal", icon: "event_note", adminOnly: true },
+  { href: "/checklist", label: "Checklist", icon: "checklist" },
+  { href: "/handover", label: "Handover", icon: "swap_calls" },
   { href: "/incident", label: "Incident", icon: "report" },
   { href: "/laporan", label: "Laporan", icon: "bar_chart" },
 ];
@@ -34,23 +36,35 @@ const TEMPLATE: NavItem[] = [
 const APPROVAL: NavItem[] = [{ href: "/approval", label: "Approval Hub", icon: "approval", adminOnly: true }];
 
 export const ADMIN_NAV_GROUPS: NavGroup[] = [
-  { label: "Operasional", items: OPERASIONAL },
+  {
+    label: "Monitoring & Laporan",
+    items: [OPERASIONAL[0], OPERASIONAL[5], APPROVAL[0]],
+  },
+  { label: "Operasional", items: [OPERASIONAL[1], OPERASIONAL[2], OPERASIONAL[3], OPERASIONAL[4]] },
   // Master data hanya dikelola oleh Admin.
   { label: "Master Data", adminOnly: true, items: MASTER_DATA },
   { label: "Template", items: TEMPLATE },
-  { label: "Approval", items: APPROVAL },
+];
+
+/** Dashboard, approval, laporan, dan pengaturan khusus Admin dikelompokkan di luar tab kerja. */
+export const ADMIN_DESKTOP_PRIMARY: NavItem[] = [OPERASIONAL[1], OPERASIONAL[2], OPERASIONAL[3], OPERASIONAL[4]];
+
+export const ADMIN_SETTINGS_GROUPS: NavGroup[] = [
+  { label: "Monitoring & Laporan", items: [OPERASIONAL[0], APPROVAL[0], OPERASIONAL[5]] },
+  { label: "Data Utama", items: MASTER_DATA },
+  { label: "Template Operasional", items: TEMPLATE },
 ];
 
 /**
- * Empat tab dock untuk admin. Alasannya: Dashboard (monitoring), Jadwal (pekerjaan
- * inti), Approval (antrean harian), Laporan (rekap). Sisanya konfigurasi yang jarang dibuka dan
- * pindah ke sheet "Lainnya". Menukar prioritas cukup mengubah array ini.
+ * Empat tab kerja Admin memakai label/fungsi yang sama dengan tab Karyawan.
+ * Jadwal Admin menuju kalender pengelolaan; Checklist dan Handover membuka shift picker
+ * yang juga dapat dipakai Admin untuk memeriksa atau mengoreksi data operasional.
  */
 export const ADMIN_DOCK_TABS: NavItem[] = [
-  OPERASIONAL[0],
   OPERASIONAL[1],
-  APPROVAL[0],
   OPERASIONAL[2],
+  OPERASIONAL[3],
+  OPERASIONAL[4],
 ];
 
 /** Ekstra di sheet "Lainnya" untuk admin. Profil & Keluar tetap di header, jadi tidak diulang. */
@@ -59,11 +73,11 @@ export const ADMIN_DOCK_EXTRAS: NavItem[] = [
 ];
 
 /**
- * Karyawan (petugas shift) — hanya pekerjaan lapangan, tanpa menu admin.
+ * Karyawan (petugas shift) hanya pekerjaan lapangan, tanpa menu pengelolaan Admin.
  *
  * Empat pekerjaan nyata petugas: lihat jadwal & urus swap/izin, kerjakan checklist,
  * isi handover, dan laporkan incident. Swap/izin/riwayat digabung sebagai tab di dalam
- * `/jadwal-saya`, bukan entri dock terpisah — jadi route lama `/swap/ajukan`,
+ * `/jadwal-saya`, bukan entri dock terpisah jadi route lama `/swap/ajukan`,
  * `/izin/ajukan`, dan `/riwayat` tetap ada sebagai redirect tapi keluar dari semua nav.
  */
 export const KARYAWAN_ITEMS: NavItem[] = [

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const employees = await getEmployees();
   return ok(
     employees
-      // pinHash never reaches the client — it is a de-facto credential for a 4-8 digit PIN.
+      // pinHash never reaches the client it is a de-facto credential for a 4-8 digit PIN.
       .map(toPublicEmployee)
       .filter(
         (employee) =>

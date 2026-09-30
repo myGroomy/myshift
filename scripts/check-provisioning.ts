@@ -1,5 +1,5 @@
 /**
- * Acceptance check (PLAN/Db refactor-plan.md Step 4) — menjalankan alur provisioning cabang
+ * Acceptance check (PLAN/Db refactor-plan.md Step 4) menjalankan alur provisioning cabang
  * sungguhan terhadap infra live, lalu membersihkannya kembali. Melengkapi unit test
  * (`test/provisioning.test.ts`) yang hanya menguji logika dengan Drive/bridge palsu.
  *
@@ -29,7 +29,7 @@ config({ path: ".env.local" });
 const RANGE = registrySheetRange(REGISTRY_SHEETS.branches);
 const TEST_NAME = "MYSHIFT Uji Acceptance";
 
-// 1x1 PNG — yang divalidasi backend hanya MIME + ukuran, jadi ini cukup realistis.
+// 1x1 PNG yang divalidasi backend hanya MIME + ukuran, jadi ini cukup realistis.
 const TINY_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
   "base64",
@@ -81,7 +81,7 @@ async function main() {
   };
 
   try {
-    // 1. Reserve baris dengan `pending` — urutan yang sama dengan POST /api/branches, supaya ID
+    // 1. Reserve baris dengan `pending` urutan yang sama dengan POST /api/branches, supaya ID
     //    cabang tidak hilang kalau Drive gagal di tengah jalan.
     await appendRow(registryId, RANGE, [branchId, TEST_NAME, "", "", "pending", "TRUE"]);
     rowWritten = true;
@@ -97,7 +97,7 @@ async function main() {
     folderId = provisioned.folderId;
     pass("provisioning lewat bridge", `folder=${folderId} sheet=${provisioned.spreadsheetId}`);
 
-    // 3. Header salinan — provisioning sudah menolak sendiri kalau tidak sesuai; diulang di sini
+    // 3. Header salinan provisioning sudah menolak sendiri kalau tidak sesuai; diulang di sini
     //    sebagai bukti eksplisit.
     const diffs = await verifyBranchSpreadsheet(provisioned.spreadsheetId);
     if (diffs.length > 0) throw new Error(`header salinan tidak sesuai: ${JSON.stringify(diffs)}`);
@@ -147,7 +147,7 @@ async function main() {
       buffer: TINY_PNG,
     });
     assertEqual(photo.photoUrl, driveViewerUrl(photo.fileId), "Foto_URL harus URL viewer Drive");
-    // Foto tidak ditaruh langsung di folder cabang, tapi di subfolder `Checklist Foto` — jadi
+    // Foto tidak ditaruh langsung di folder cabang, tapi di subfolder `Checklist Foto` jadi
     // yang diperiksa adalah rantainya, bukan parent pertama.
     const stored = await drive.files.get({ fileId: photo.fileId, fields: "id,name,parents", supportsAllDrives: true });
     const photoFolderId = stored.data.parents?.[0] ?? "";

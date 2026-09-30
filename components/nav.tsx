@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,13 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { request } from "@/lib/api";
 import { Dock } from "@/components/dock";
 import { useLogout } from "@/components/use-logout";
-import { LogOut, Store, CircleUserRound } from "lucide-react";
+import { ChevronDown, CircleUserRound, LogOut, Settings2, Store } from "lucide-react";
 import {
+  ADMIN_DESKTOP_PRIMARY,
   ADMIN_DOCK_EXTRAS,
   ADMIN_DOCK_TABS,
   ADMIN_NAV_GROUPS,
+  ADMIN_SETTINGS_GROUPS,
   groupsForRole,
   groupsWithoutTabs,
   itemsForRole,
@@ -32,7 +34,7 @@ type SessionInfo = {
 /**
  * Header navigasi Admin.
  *
- * Desktop (`lg+`): nav horizontal di header — ruangnya cukup, jadi semua menu tampil datar.
+ * Desktop (`lg+`): nav horizontal di header ruangnya cukup, jadi semua menu tampil datar.
  * Mobile: tidak ada hamburger lagi; navigasi pindah ke dock 4 tab + "Lainnya" (`<Dock />`), satu
  * model navigasi yang sama dengan karyawan.
  */
@@ -40,6 +42,7 @@ export function Nav() {
   const pathname = usePathname();
   const [session, setSession] = useState<SessionInfo | null>(null);
   const logout = useLogout();
+  const settingsMenuRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     request<SessionInfo>("/api/auth/session")
@@ -47,11 +50,18 @@ export function Nav() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    settingsMenuRef.current?.removeAttribute("open");
+  }, [pathname]);
+
   const isAdmin = session?.role === "admin";
 
   // Satu sumber data untuk header dan dock: item yang jadi tab dock tidak boleh muncul dua kali.
-  const desktopGroups = groupsForRole(ADMIN_NAV_GROUPS, isAdmin);
-  const desktopItems = desktopGroups.flatMap((group) => group.items);
+  const desktopItems = itemsForRole(ADMIN_DESKTOP_PRIMARY, isAdmin);
+  const settingsGroups = isAdmin ? ADMIN_SETTINGS_GROUPS : [];
+  const isSettingsCurrent = settingsGroups.some((group) =>
+    group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)),
+  );
   const dockTabs = itemsForRole(ADMIN_DOCK_TABS, isAdmin);
   const dockGroups = groupsWithoutTabs(groupsForRole(ADMIN_NAV_GROUPS, isAdmin), dockTabs);
 
@@ -91,6 +101,52 @@ export function Nav() {
                   </Link>
                 </li>
               ))}
+              {settingsGroups.length > 0 && (
+                <li>
+                  <details ref={settingsMenuRef} className="group relative">
+                    <summary
+                      className={cn(
+                        "flex cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors [&::-webkit-details-marker]:hidden",
+                        isSettingsCurrent
+                          ? "bg-accent font-semibold text-accent-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <Settings2 size={14} />
+                      Pengelolaan
+                      <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-border bg-card p-2 shadow-sm">
+                      {settingsGroups.map((group) => (
+                        <section key={group.label} className="mb-2 last:mb-0">
+                          <h2 className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {group.label}
+                          </h2>
+                          <ul>
+                            {group.items.map((item) => (
+                              <li key={item.href}>
+                                <Link
+                                  href={item.href}
+                                  onClick={() => settingsMenuRef.current?.removeAttribute("open")}
+                                  aria-current={isCurrent(item.href) ? "page" : undefined}
+                                  className={cn(
+                                    "block rounded-md px-2 py-2 text-sm transition-colors",
+                                    isCurrent(item.href)
+                                      ? "bg-accent font-semibold text-accent-foreground"
+                                      : "text-foreground hover:bg-muted",
+                                  )}
+                                >
+                                  {item.label}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+                    </div>
+                  </details>
+                </li>
+              )}
             </ul>
           </nav>
 

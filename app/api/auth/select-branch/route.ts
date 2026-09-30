@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   // createSessionToken always rewrites iat/exp from the server clock, so this is also a
-  // sliding refresh — a stolen payload cannot extend its own lifetime.
+  // sliding refresh a stolen payload cannot extend its own lifetime.
   const token = await createSessionToken({ ...session, activeBranchId: branchId });
   return ok({ activeBranchId: branchId }, { headers: sessionCookieHeader(token) });
 }

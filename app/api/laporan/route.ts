@@ -7,6 +7,7 @@ import { branchSheetRange } from "@/lib/google/sheet-schema";
 import { todayInWIB } from "@/lib/domain/date";
 import { toCsv } from "@/lib/domain/csv";
 import { reportBranchId } from "@/lib/domain/report-validation";
+import { filterReportRows, parseReportType, type ReportType } from "@/lib/domain/report-type-validation";
 import { checklistPointComplete } from "@/lib/domain/checklist-spec-validation";
 import { isResponse, staffSession } from "@/lib/route-auth";
 import type { Branch } from "@/lib/google/registry";
@@ -17,13 +18,14 @@ interface LaporanRow {
   type: string;
   id: string;
   date: string;
+  branchName: string;
   employeeId: string;
   employeeName: string;
   details: string;
   status: string;
 }
 
-const CSV_HEADERS = ["Tipe", "ID", "Tanggal", "Karyawan", "Nama", "Detail", "Status"];
+const CSV_HEADERS = ["Tipe", "ID", "Tanggal", "Cabang", "Karyawan", "Nama", "Detail", "Status"];
 
 async function targetBranches(session: SessionPayload, branchFilter: string): Promise<Branch[]> {
   // `usableBranches` also drops branches whose provisioning never finished: laporan reads every
@@ -38,6 +40,7 @@ async function fetchLaporan(input: {
   startDate: string;
   endDate: string;
   branchFilter: string;
+  reportType: ReportType;
   session: SessionPayload;
 }): Promise<LaporanRow[]> {
   const [branches, employees] = await Promise.all([
@@ -56,6 +59,10 @@ async function fetchLaporan(input: {
         scheduleRows,
         swapRows,
         izinRows,
+        shiftRows,
+        izinCategoryRows,
+        incidentCategoryRows,
+        sopCategoryRows,
         checklistPointRows,
         checklistLogs,
         handoverTemplates,
@@ -65,6 +72,10 @@ async function fetchLaporan(input: {
         readRows(spreadsheetId, branchSheetRange("Schedules")),
         readRows(spreadsheetId, branchSheetRange("Shift_Swaps")),
         readRows(spreadsheetId, branchSheetRange("Izin")),
+        readRows(spreadsheetId, branchSheetRange("Shifts")),
+        readRows(spreadsheetId, branchSheetRange("Kategori_Izin")),
+        readRows(spreadsheetId, branchSheetRange("Kategori_Incident")),
+        readRows(spreadsheetId, branchSheetRange("SOP_Kategori")),
         readRows(spreadsheetId, branchSheetRange("Checklist_Point")),
         readRows(spreadsheetId, branchSheetRange("Checklist_Log")),
         readRows(spreadsheetId, branchSheetRange("Handover_Template")),
@@ -72,6 +83,25 @@ async function fetchLaporan(input: {
         readRows(spreadsheetId, branchSheetRange("Incidents")),
       ]);
       const schedulesById = new Map(scheduleRows.map((row) => [row.values[0] ?? "", row.values]));
+      const shiftsById = new Map(
+        shiftRows.map((row) => [
+          row.values[0] ?? "",
+          {
+            name: row.values[1] ?? row.values[0] ?? "",
+            startTime: row.values[2] ?? "",
+            endTime: row.values[3] ?? "",
+          },
+        ]),
+      );
+      const izinCategoriesById = new Map(
+        izinCategoryRows.map((row) => [row.values[0] ?? "", row.values[1] ?? row.values[0] ?? ""]),
+      );
+      const incidentCategoriesById = new Map(
+        incidentCategoryRows.map((row) => [row.values[0] ?? "", row.values[1] ?? row.values[0] ?? ""]),
+      );
+      const sopCategoriesById = new Map(
+        sopCategoryRows.map((row) => [row.values[0] ?? "", row.values[1] ?? row.values[0] ?? ""]),
+      );
       const rows: LaporanRow[] = [];
       const checklistPoints: ChecklistPointRecord[] = checklistPointRows.map(({ rowNumber, values }) => ({
         rowNumber,
@@ -119,24 +149,32 @@ async function fetchLaporan(input: {
           type: "Jadwal",
           id: row.values[0] ?? "",
           date,
+          branchName: branch.nama,
           employeeId,
           employeeName: nameOf(employeeId),
-          details: `${row.values[2] ?? ""} — ${row.values[4] ?? "scheduled"}`,
+          details: `${shiftsById.get(row.values[2] ?? "")?.name ?? row.values[2] ?? ""} · ${shiftsById.get(row.values[2] ?? "")?.startTime ?? ""}–${shiftsById.get(row.values[2] ?? "")?.endTime ?? ""}`,
           status: row.values[4] ?? "scheduled",
         });
       }
 
       for (const row of swapRows) {
-        const date = schedulesById.get(row.values[1] ?? "")?.[3] ?? "";
+        const schedule = schedulesById.get(row.values[1] ?? "");
+        const date = schedule?.[3] ?? "";
         if (!inRange(date)) continue;
         const employeeId = row.values[2] ?? "";
+        const partnerId = row.values[3] ?? "";
+        const shift = shiftsById.get(schedule?.[2] ?? "");
+        const shiftDetails = shift
+          ? `${shift.name}${shift.startTime && shift.endTime ? ` (${shift.startTime}–${shift.endTime})` : ""}`
+          : schedule?.[2] ?? "shift tidak diketahui";
         rows.push({
           type: "Swap",
           id: row.values[0] ?? "",
           date,
+          branchName: branch.nama,
           employeeId,
           employeeName: nameOf(employeeId),
-          details: `${row.values[3] ?? ""} — ${row.values[4] ?? ""}`,
+          details: `Tukar dengan ${nameOf(partnerId) || partnerId} · ${date} · ${shiftDetails} · Alasan: ${row.values[4] ?? "—"}`,
           status: row.values[5] ?? "pending",
         });
       }
@@ -149,9 +187,10 @@ async function fetchLaporan(input: {
           type: "Izin",
           id: row.values[0] ?? "",
           date,
+          branchName: branch.nama,
           employeeId,
           employeeName: nameOf(employeeId),
-          details: `${row.values[3] ?? ""} — ${row.values[4] ?? ""}`,
+          details: `${izinCategoriesById.get(row.values[3] ?? "") ?? row.values[3] ?? ""} · ${row.values[4] ?? ""}`,
           status: row.values[5] ?? "pending",
         });
       }
@@ -166,17 +205,41 @@ async function fetchLaporan(input: {
           item.active && (item.appliesAllShifts || item.shiftIds.includes(scheduleShiftId))
         );
         const checkedItems = checkedChecklistBySchedule.get(scheduleId) ?? new Map();
-        const completedChecklistItems = activeChecklistItems.filter((item) => {
+        const completedItems = activeChecklistItems.filter((item) => {
           const value = checkedItems.get(item.pointId);
           return checklistPointComplete(item, value?.value ?? "", value?.photoUrl ?? "");
-        }).length;
+        });
+        const completedChecklistItems = completedItems.length;
+        const completedPointIds = new Set(completedItems.map((item) => item.pointId));
+        const checklistGroups = new Map<string, { completed: number; total: number }>();
+        for (const item of activeChecklistItems) {
+          const group = checklistGroups.get(item.categoryId) ?? { completed: 0, total: 0 };
+          group.total += 1;
+          if (completedPointIds.has(item.pointId)) group.completed += 1;
+          checklistGroups.set(item.categoryId, group);
+        }
+        const sopSummary = [...checklistGroups.entries()]
+          .map(([categoryId, group]) =>
+            `${sopCategoriesById.get(categoryId) ?? categoryId} ${group.completed}/${group.total}`
+          )
+          .join("; ");
+        const incompleteItems = activeChecklistItems
+          .filter((item) => !completedPointIds.has(item.pointId))
+          .map((item) => item.description);
+        const shift = shiftsById.get(scheduleShiftId);
         rows.push({
           type: "Checklist",
           id: scheduleId,
           date,
+          branchName: branch.nama,
           employeeId: schedule.values[1] ?? "",
           employeeName: nameOf(schedule.values[1] ?? ""),
-          details: `${completedChecklistItems}/${activeChecklistItems.length} item selesai`,
+          details: [
+            shift?.name ?? scheduleShiftId,
+            `${completedChecklistItems}/${activeChecklistItems.length} item selesai`,
+            sopSummary,
+            incompleteItems.length ? `Belum selesai: ${incompleteItems.join(", ")}` : "",
+          ].filter(Boolean).join(" · "),
           status: completedChecklistItems === activeChecklistItems.length ? "completed" : "incomplete",
         });
 
@@ -188,6 +251,7 @@ async function fetchLaporan(input: {
           type: "Handover",
           id: scheduleId,
           date,
+          branchName: branch.nama,
           employeeId: schedule.values[1] ?? "",
           employeeName: nameOf(schedule.values[1] ?? ""),
           details: `${completedHandoverFields}/${requiredHandoverFields.length} field wajib terisi`,
@@ -203,9 +267,10 @@ async function fetchLaporan(input: {
           type: "Incident",
           id: row.values[0] ?? "",
           date,
+          branchName: branch.nama,
           employeeId,
           employeeName: nameOf(employeeId),
-          details: `${row.values[1] ?? ""} — ${row.values[2] ?? ""} (${row.values[3] ?? ""})`,
+          details: `${incidentCategoriesById.get(row.values[1] ?? "") ?? row.values[1] ?? ""} · ${row.values[2] ?? ""} (${row.values[3] ?? ""})`,
           status: row.values[5] ?? "open",
         });
       }
@@ -214,7 +279,7 @@ async function fetchLaporan(input: {
     })
   );
 
-  return perBranch.flat().sort((a, b) => b.date.localeCompare(a.date));
+  return filterReportRows(perBranch.flat().sort((a, b) => b.date.localeCompare(a.date)), input.reportType);
 }
 
 // Quoting + formula neutralization live in lib/domain/csv.ts (audit M-11: free-text reasons
@@ -222,7 +287,7 @@ async function fetchLaporan(input: {
 function toCsvResponse(rows: LaporanRow[]) {
   const csv = toCsv(
     CSV_HEADERS,
-    rows.map((row) => [row.type, row.id, row.date, row.employeeId, row.employeeName, row.details, row.status])
+    rows.map((row) => [row.type, row.id, row.date, row.branchName, row.employeeId, row.employeeName, row.details, row.status])
   );
   return new NextResponse(csv, {
     headers: {
@@ -245,6 +310,7 @@ function readFilters(request: NextRequest, session: SessionPayload) {
     startDate: request.nextUrl.searchParams.get("startDate") ?? "",
     endDate: request.nextUrl.searchParams.get("endDate") ?? "",
     branchFilter: request.nextUrl.searchParams.get("branchId") ?? "",
+    reportType: parseReportType(request.nextUrl.searchParams.get("reportType")),
     session,
   };
 }
@@ -254,7 +320,8 @@ export async function GET(request: NextRequest) {
   if (isResponse(auth)) return auth;
   try {
     const format = request.nextUrl.searchParams.get("format") ?? "json";
-    const rows = await fetchLaporan(readFilters(request, auth));
+    const filters = readFilters(request, auth);
+    const rows = await fetchLaporan(filters);
     if (format === "csv") return toCsvResponse(rows);
     if (format !== "json" && format !== "") return rejectUnsupportedFormat(format);
     return ok(rows);
@@ -269,7 +336,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const format = typeof body.format === "string" ? body.format : "csv";
-    const rows = await fetchLaporan(readFilters(request, auth));
+    const filters = readFilters(request, auth);
+    const rows = await fetchLaporan(filters);
     if (format === "csv") return toCsvResponse(rows);
     if (format !== "json") return rejectUnsupportedFormat(format);
     return ok(rows);

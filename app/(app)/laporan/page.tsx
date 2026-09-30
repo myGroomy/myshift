@@ -14,7 +14,7 @@ import { SkeletonTable } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { controlClass } from "@/lib/ui";
 import { todayInWIB } from "@/lib/domain/date";
-import { Search, Download } from "lucide-react";
+import { BarChart3, Search, Download } from "lucide-react";
 import type { Branch } from "@/lib/types";
 import { FilterPanel } from "@/components/ui/filter-panel";
 
@@ -22,6 +22,7 @@ type LaporanRow = {
   type: string;
   id: string;
   date: string;
+  branchName: string;
   employeeId: string;
   employeeName: string;
   details: string;
@@ -34,6 +35,15 @@ type Session = {
   branches: Branch[];
 };
 
+const REPORT_TABS = [
+  { id: "semua", label: "Semua" },
+  { id: "jadwal", label: "Jadwal" },
+  { id: "checklist", label: "Checklist" },
+  { id: "handover", label: "Handover" },
+  { id: "pengajuan", label: "Swap & Izin" },
+  { id: "incident", label: "Incident" },
+] as const;
+
 export default function LaporanPage() {
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
@@ -44,6 +54,7 @@ export default function LaporanPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [reportType, setReportType] = useState<(typeof REPORT_TABS)[number]["id"]>("semua");
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -68,14 +79,16 @@ export default function LaporanPage() {
       });
   }, [toast]);
 
-  async function load() {
+  async function load(nextReportType = reportType) {
     setLoading(true);
     setSearched(true);
+    setReportType(nextReportType);
     try {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       if (branchFilter) params.set("branchId", branchFilter);
+      params.set("reportType", nextReportType);
 
       const data = await request<LaporanRow[]>(`/api/laporan?${params}`);
       setRows(data);
@@ -94,6 +107,7 @@ export default function LaporanPage() {
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       if (branchFilter) params.set("branchId", branchFilter);
+      params.set("reportType", reportType);
       params.set("format", "csv");
 
       const res = await fetch(`/api/laporan?${params}`);
@@ -111,7 +125,7 @@ export default function LaporanPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `laporan-${todayInWIB()}.csv`;
+      a.download = `laporan-${reportType}-${todayInWIB()}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -129,8 +143,8 @@ export default function LaporanPage() {
       title="Laporan Operasional"
       lead={
         session?.role === "admin"
-          ? "Rekap jadwal, swap, izin, checklist, handover, dan incident per cabang."
-          : "Ringkasan operasional seluruh tim di cabang aktif."
+          ? "Rekap aktivitas kerja per periode: jadwal, pengajuan swap/izin, progres checklist, handover, dan incident. Ini bukan laporan absensi atau payroll."
+          : "Ringkasan aktivitas jadwal dan operasional seluruh tim di cabang aktif. Ini bukan laporan absensi atau payroll."
       }
     >
       <FilterPanel
@@ -180,7 +194,7 @@ export default function LaporanPage() {
         </div>
 
         <div className="flex min-w-0 gap-2 sm:col-span-2 lg:col-span-1">
-          <Button onClick={load} disabled={loading} size="lg" className="h-11 min-w-0 flex-1">
+          <Button onClick={() => void load()} disabled={loading} size="lg" className="h-11 min-w-0 flex-1">
             <Search size={14} />
             {loading ? "Mencari..." : "Tampilkan"}
           </Button>
@@ -199,11 +213,42 @@ export default function LaporanPage() {
         </div>
       </FilterPanel>
 
+      <div
+        role="group"
+        aria-label="Pilih jenis laporan"
+        className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1"
+      >
+        {REPORT_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            aria-pressed={reportType === tab.id}
+            disabled={loading}
+            onClick={() => searched ? void load(tab.id) : setReportType(tab.id)}
+            className={`min-h-10 shrink-0 rounded-md px-3 text-sm font-medium transition-colors ${
+              reportType === tab.id
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <p className="mb-3 text-xs text-muted-foreground">
+        {reportType === "checklist"
+          ? "Rekap checklist per shift mencakup progres tiap kategori SOP dan nama point yang belum selesai."
+          : reportType === "pengajuan"
+            ? "Menampilkan pengajuan swap dan izin. Detail swap menyebut pemohon, rekan tukar, tanggal, shift, dan alasan."
+            : "Setiap baris adalah satu aktivitas atau ringkasan shift pada tanggal terpilih. Pilih jenis laporan untuk memfokuskan data."}
+      </p>
+
       {loading ? (
         <SkeletonTable rows={5} />
       ) : rows.length === 0 ? (
         <EmptyState
-          icon="assessment"
+          icon={<BarChart3 size={40} />}
           title={searched ? "Tidak ada catatan laporan" : "Belum memuat laporan"}
           description={
             searched
@@ -214,7 +259,7 @@ export default function LaporanPage() {
           actionHref="#"
         />
       ) : (
-        <DataTable columns={["Tipe", "ID", "Tanggal", "Karyawan", "Detail", "Status"]}>
+        <DataTable columns={["Tipe", "ID", "Tanggal", "Cabang", "Karyawan", "Detail", "Status"]}>
           {rows.map((row, i) => (
             <motion.tr
               key={`${row.type}-${row.id}-${i}`}
@@ -230,6 +275,7 @@ export default function LaporanPage() {
                 <span className="font-mono text-xs text-muted-foreground">{row.id}</span>
               </td>
               <td className={tdClass}>{row.date}</td>
+              <td className={tdClass}>{row.branchName}</td>
               <td className={tdClass}>
                 <span className="font-medium text-foreground">
                   {row.employeeName || row.employeeId}

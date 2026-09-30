@@ -26,13 +26,14 @@ type Schedule = {
 
 type Session = {
   employeeId: string;
-  role: string;
+  role: "admin" | "karyawan";
   activeBranchId?: string;
 };
 
 export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
   const router = useRouter();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [role, setRole] = useState<Session["role"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +41,7 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
     async function loadData() {
       try {
         const session = await request<Session>("/api/auth/session");
+        setRole(session.role);
         const branchId = session.activeBranchId;
         const res = await request<Schedule[]>(`/api/schedules${branchId ? `?branchId=${branchId}` : ""}`);
         setSchedules(res);
@@ -60,10 +62,14 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
   const pastSchedules = schedules.filter((s) => s.date < todayStr && s.date >= sevenDaysAgo);
 
   const isChecklist = mode === "checklist";
-  const title = isChecklist ? "Pilih Shift — Checklist" : "Pilih Shift — Handover";
+  const title = isChecklist ? "Pilih Shift Checklist" : "Pilih Shift Handover";
   const lead = isChecklist
-    ? "Pilih jadwal shift Anda untuk mengisi atau mengecek checklist operasional."
-    : "Pilih jadwal shift Anda untuk mengisi atau membaca berita acara handover.";
+    ? role === "admin"
+      ? "Pilih shift di cabang aktif untuk memeriksa atau mengoreksi checklist operasional."
+      : "Pilih jadwal shift Anda untuk mengisi atau mengecek checklist operasional."
+    : role === "admin"
+      ? "Pilih shift di cabang aktif untuk memeriksa atau mengoreksi handover."
+      : "Pilih jadwal shift Anda untuk mengisi atau membaca berita acara handover.";
 
   function renderGroup(groupTitle: string, items: Schedule[]) {
     if (items.length === 0) return null;
@@ -119,7 +125,11 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
         <EmptyState
           icon={isChecklist ? <ClipboardCheck size={40} /> : <ArrowRightLeft size={40} />}
           title="Tidak Ada Jadwal Shift"
-          description="Anda belum memiliki jadwal shift aktif untuk mengakses checklist atau handover."
+          description={
+            role === "admin"
+              ? "Belum ada jadwal shift di cabang aktif untuk menampilkan checklist atau handover."
+              : "Anda belum memiliki jadwal shift aktif untuk mengakses checklist atau handover."
+          }
         />
       ) : (
         <div>

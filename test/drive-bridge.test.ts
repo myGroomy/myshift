@@ -13,7 +13,7 @@ import { isDomainError } from "@/lib/error-codes";
 // what stands between provisioning and the service account's zero Drive storage
 // (PLAN/Db refactor-plan.md Step 0b). What must stay true: it is never called without a config, its
 // failures surface as contract error codes (never a stack trace), and only *transient* failures are
-// retried — a definitive one is reported straight away.
+// retried a definitive one is reported straight away.
 
 const CONFIG = { url: "https://script.google.com/macros/s/ABC/exec", secret: "s3cret" };
 
@@ -106,7 +106,7 @@ test("a wrong secret is reported as an actionable PROVISION_FAILED, without retr
       return true;
     },
   );
-  assert.equal(calls.length, 1, "a 200 with ok:false is definitive — do not retry it");
+  assert.equal(calls.length, 1, "a 200 with ok:false is definitive do not retry it");
 });
 
 test("a transient 503 is retried once, then succeeds", async () => {

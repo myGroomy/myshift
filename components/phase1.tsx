@@ -181,7 +181,7 @@ export function BranchesPage() {
               <td className={tdClass}>
                 <StatusBadge status={item.aktif ? "active" : "inactive"} />
               </td>
-              {/* A branch whose provisioning never finished is unusable — the API rejects it — so its
+              {/* A branch whose provisioning never finished is unusable the API rejects it so its
                   state has to be visible here, not just in the registry sheet. */}
               <td className={tdClass}>
                 <StatusBadge status={item.provisionStatus ?? "pending"} />
@@ -800,7 +800,7 @@ export function ShiftsPage() {
 // 4. JADWAL (UI-PLAN §2.3 / §2.11)
 // ---------------------------------------------------------------------------
 /**
- * Isi halaman jadwal TANPA shell — dipakai dua tempat: `/jadwal` (admin, `mine=false`)
+ * Isi halaman jadwal TANPA shell dipakai dua tempat: `/jadwal` (admin, `mine=false`)
  * lewat `SchedulePage`, dan tab pertama `/jadwal-saya` (petugas) lewat `JadwalSayaPage`.
  * Tanpa dipisah begini, keduanya akan menaruh `KaryawanShell` di dalam `KaryawanShell`
  * sehingga header dan dock ter-render dua kali.
@@ -1140,7 +1140,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
 }
 
 /**
- * Halaman `/jadwal` — versi admin. Petugas tidak memakai ini; dia masuk lewat
+ * Halaman `/jadwal` versi admin. Petugas tidak memakai ini; dia masuk lewat
  * `JadwalSayaPage` (`components/jadwal-saya.tsx`) yang membungkus `ScheduleContent`.
  */
 export function SchedulePage({ mine = false }: { mine?: boolean }) {

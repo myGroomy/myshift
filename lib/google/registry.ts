@@ -103,7 +103,7 @@ export function branchRowValues(branch: Branch): string[] {
 
 // The only editable branch fields are Nama_Cabang and Aktif (API-CONTRACT §3). Kept here, next to
 // branchRowValues, so the "carry the provisioning columns over verbatim" rule lives with the row
-// writer instead of in the handler — and is covered by test/branch-edit.test.ts.
+// writer instead of in the handler and is covered by test/branch-edit.test.ts.
 export function applyBranchEdits(
   branch: Branch,
   edits: { nama?: string; aktif?: boolean }

@@ -22,7 +22,7 @@ export async function PATCH(request: NextRequest, context: Context) {
 
     // Only Nama_Cabang and Aktif are editable (API-CONTRACT §3). Rebuild the whole row through
     // applyBranchEdits() + branchRowValues() so the row is written 6-wide and Spreadsheet_ID,
-    // Folder_Drive_ID and Provision_Status carry over verbatim — writing a 4-element array here
+    // Folder_Drive_ID and Provision_Status carry over verbatim writing a 4-element array here
     // would shift Aktif into Folder_Drive_ID and silently unprovision every edited branch.
     const edited = applyBranchEdits(row.branch, { nama: name, aktif });
     const saved = await replaceRowById(

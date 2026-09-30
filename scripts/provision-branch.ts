@@ -1,5 +1,5 @@
 /**
- * Provisioning cabang yang barisnya sudah ada di `Daftar_Cabang` — jalur yang sama dengan
+ * Provisioning cabang yang barisnya sudah ada di `Daftar_Cabang` jalur yang sama dengan
  * `POST /api/branches/:id/retry-provision`, tanpa perlu HTTP + sesi admin.
  *
  * Dipakai untuk cabang yang tercatat `pending`/`failed`, terutama saat setup awal: cabang seperti
@@ -25,7 +25,7 @@ function arg(name: string): string | undefined {
   return match?.slice(name.length + 3)?.trim();
 }
 
-/** Flag tanpa nilai (`--list`, `--dry-run`) — `arg()` hanya menangani pasangan `--nama=nilai`. */
+/** Flag tanpa nilai (`--list`, `--dry-run`) `arg()` hanya menangani pasangan `--nama=nilai`. */
 function hasFlag(name: string): boolean {
   return process.argv.includes(`--${name}`);
 }
@@ -58,7 +58,7 @@ async function main() {
     return;
   }
 
-  console.log(`${branch.branchId} — ${branch.nama}`);
+  console.log(`${branch.branchId} ${branch.nama}`);
   console.log(`  status saat ini : ${branch.provisionStatus}`);
   console.log(`  spreadsheet     : ${branch.spreadsheetId || "(kosong)"}`);
   console.log(`  folder          : ${branch.folderId || "(kosong)"}`);
@@ -68,7 +68,7 @@ async function main() {
     return;
   }
   if (branch.provisionStatus === "ready") {
-    console.log("\nSudah ready — tidak ada yang perlu diprovisioning.");
+    console.log("\nSudah ready tidak ada yang perlu diprovisioning.");
     return;
   }
 

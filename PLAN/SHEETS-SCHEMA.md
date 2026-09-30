@@ -1,14 +1,14 @@
-# MYSHIFT — Sheets Schema (Source of Truth)
+# MYSHIFT Sheets Schema (Source of Truth)
 
 > **Versi:** 1.3.0
 > **Tanggal:** 2026-09-29
 > **Turunan dari:** `FULL-PRD.md`
-> **Tujuan:** Karena admin bisa edit data langsung lewat spreadsheet, dokumen ini adalah kontrak PASTI struktur tiap sheet — nama, urutan kolom, tipe data, dan mana yang boleh diedit manual vs auto-generate oleh sistem. **Jangan ubah struktur di spreadsheet tanpa update dokumen ini juga.**
+> **Tujuan:** Karena admin bisa edit data langsung lewat spreadsheet, dokumen ini adalah kontrak PASTI struktur tiap sheet nama, urutan kolom, tipe data, dan mana yang boleh diedit manual vs auto-generate oleh sistem. **Jangan ubah struktur di spreadsheet tanpa update dokumen ini juga.**
 
 Legend kolom "Sumber":
-- 🔒 **Auto** — digenerate sistem, jangan diedit manual (bisa merusak relasi/ID)
-- ✏️ **Manual OK** — aman diedit admin langsung di spreadsheet
-- ⚠️ **Manual hati-hati** — bisa diedit manual tapi harus ikut format yang ditentukan (enum/ID reference)
+- 🔒 **Auto** digenerate sistem, jangan diedit manual (bisa merusak relasi/ID)
+- ✏️ **Manual OK** aman diedit admin langsung di spreadsheet
+- ⚠️ **Manual hati-hati** bisa diedit manual tapi harus ikut format yang ditentukan (enum/ID reference)
 
 ---
 
@@ -27,7 +27,7 @@ Legend kolom "Sumber":
 
 > Kolom `Aktif` tetap posisi **terakhir** (F). `Folder_Drive_ID` dan `Provision_Status` disisipkan di
 >mgrinya, kolom lama tidak digeser. Urutan kolom ini dienkode di `REGISTRY_HEADERS.Daftar_Cabang`
-> (`lib/google/sheet-schema.ts`) — ubah di sini **dan** di sana dalam satu commit.
+> (`lib/google/sheet-schema.ts`) ubah di sini **dan** di sana dalam satu commit.
 
 ### Sheet: `TEMPLATES`
 
@@ -80,28 +80,28 @@ pnpm template:branch   # -> PLAN/templates/MYSHIFT-Template-Cabang.xlsx
 - Isi file: 13 sheet pada urutan `BRANCH_SHEET_NAMES`, baris header di baris 1, freeze pane di baris 2.
 - **Sheet ber-seed** (master data, boleh diubah admin): `Shifts` (3 shift), `Kategori_Izin` (3 kategori), `SOP_Kategori` (1 kategori), `Checklist_Point` (6 point), `Handover_Template` (4 field), `Kategori_Incident` (9 kategori).
 - **Sheet header-only** (log/permintaan, ditulis aplikasi): `Schedules`, `Shift_Swaps`, `Izin`, `Checklist_Log`, `Shift_Report_Audit`, `Handover_Log`, `Incidents`.
-- Semua kolom diformat sebagai teks (`@`) kecuali `Urutan` yang numerik — app membaca `FORMATTED_VALUE`, dan `validDate` butuh literal `YYYY-MM-DD` serta `timeOverlaps` butuh literal `HH:mm` (bukan serial number Sheets).
+- Semua kolom diformat sebagai teks (`@`) kecuali `Urutan` yang numerik app membaca `FORMATTED_VALUE`, dan `validDate` butuh literal `YYYY-MM-DD` serta `timeOverlaps` butuh literal `HH:mm` (bukan serial number Sheets).
 
 Alur pasang template (sekali, manual):
 
 1. `pnpm template:branch`
-2. `pnpm template:import` — meng-import `.xlsx` ke folder induk **lewat Drive bridge**
+2. `pnpm template:import` meng-import `.xlsx` ke folder induk **lewat Drive bridge**
    (`gas/Code.js`, `uploadType`-konversi setara) lalu menulis ulang header 13 sheet. **Bukan** upload
-   manual lalu "Save as Google Sheets" — upload `.xlsx` mentah menghasilkan file `.xlsx`, dan
+   manual lalu "Save as Google Sheets" upload `.xlsx` mentah menghasilkan file `.xlsx`, dan
    `files.copy` memang tidak bisa dipakai untuk template `.xlsx`. (Konversi harus lewat bridge:
    service account tidak punya kuota Drive untuk membuat file. Paksa jalur lama dengan
    `--via=service-account` hanya kalau akunnya punya kuota sendiri.)
 3. Bagikan hasil import ke `GOOGLE_SERVICE_ACCOUNT_EMAIL` sebagai **Editor**
 4. Tulis ID hasil import ke `TEMPLATES.Template_Spreadsheet_ID` dan folder induk ke
    `TEMPLATES.Parent_Folder_ID` (lihat §1). Env var `TEMPLATE_SPREADSHEET_ID` / `MYSHIFT_FOLDER`
-   sudah dihapus — sheet `TEMPLATES` yang jadi sumber config.
+   sudah dihapus sheet `TEMPLATES` yang jadi sumber config.
 5. Verifikasi: `pnpm verify:template` harus melaporkan header 13 sheet sesuai §2 sebelum cabang
    pertama dibuat.
 
 > **Prasyarat Drive (keputusan user 2026-09-29): Drive bridge Apps Script.** Service account aplikasi
 > punya `storageQuota.limit = 0`, jadi **semua pembuatan file** olehnya ditolak Drive
 > (`Service Accounts do not have storage quota` / `The user's Drive storage quota has been exceeded`)
-> — termasuk `files.copy` dan pembuatan Google Sheet native, tidak hanya upload. Folders tetap bisa
+> termasuk `files.copy` dan pembuatan Google Sheet native, tidak hanya upload. Folders tetap bisa
 > dibuat (folder tidak makan kuota). Karena itu: konversi template, copy template ke folder cabang, dan
 > upload foto checklist dijalankan lewat `gas/Code.js` sebagai pemilik folder; baca/tulis isi
 > spreadsheet tetap lewat service account. Cek jalannya dengan `pnpm spike:drive` (jalur service
@@ -147,7 +147,7 @@ service account, jadi mewarisi permission folder induk.
 | `Report_Generated_At` | datetime ISO 8601, nullable | 🔒 Auto | Waktu laporan shift dibuat; checklist dan handover tetap dapat diedit, dengan audit perubahan |
 | `Report_Token` | string, nullable | 🔒 Auto | HMAC-signed, akses publik tanpa kedaluwarsa; token tetap tersimpan pada jadwal |
 
-> ⚠️ Sheet ini sebaiknya **tidak diedit manual** untuk baris yang sudah ada (buat/ubah jadwal lewat aplikasi, bukan langsung di spreadsheet) — kolom `Status`/`Started_At` bisa jadi tidak konsisten kalau diedit manual. Menambah baris manual untuk migrasi data awal masih aman selama format ID diikuti persis.
+> ⚠️ Sheet ini sebaiknya **tidak diedit manual** untuk baris yang sudah ada (buat/ubah jadwal lewat aplikasi, bukan langsung di spreadsheet) kolom `Status`/`Started_At` bisa jadi tidak konsisten kalau diedit manual. Menambah baris manual untuk migrasi data awal masih aman selama format ID diikuti persis.
 
 ### Sheet: `Shift_Swaps`
 
@@ -285,9 +285,9 @@ dicatat append-only di `Shift_Report_Audit`.
 
 ---
 
-## 3. Format ID — Ringkasan
+## 3. Format ID Ringkasan
 
-Semua ID pakai prefix bermakna + nomor urut (konsisten dengan pola STOKIS, bukan UUID polos ala MYCUSTOMER — supaya lebih mudah dipetakan manual saat integrasi SSO nanti):
+Semua ID pakai prefix bermakna + nomor urut (konsisten dengan pola STOKIS, bukan UUID polos ala MYCUSTOMER supaya lebih mudah dipetakan manual saat integrasi SSO nanti):
 
 | Entitas | Format | Contoh |
 |---|---|---|
@@ -314,9 +314,9 @@ Semua ID pakai prefix bermakna + nomor urut (konsisten dengan pola STOKIS, bukan
 Karena data awal (karyawan, cabang, shift) rencananya diinput langsung ke spreadsheet:
 
 1. **Isi Registry dulu**: `Daftar_Cabang` → `Employees` (pastikan `Cabang_ID` di `Employees` sudah ada di `Daftar_Cabang`)
-2. **PIN tidak boleh diisi plaintext** — kalau migrasi manual, PIN harus di-hash dulu lewat script kecil (scrypt) sebelum dimasukkan ke kolom `PIN_Hash`, atau isi lewat form aplikasi (bukan langsung spreadsheet) untuk baris karyawan
+2. **PIN tidak boleh diisi plaintext** kalau migrasi manual, PIN harus di-hash dulu lewat script kecil (scrypt) sebelum dimasukkan ke kolom `PIN_Hash`, atau isi lewat form aplikasi (bukan langsung spreadsheet) untuk baris karyawan
 3. **Baru isi per-cabang spreadsheet**: `Shifts` dulu, baru `Schedules` kalau mau migrasi jadwal existing
-4. Sheet yang murni log/auto (`Checklist_Log`, `Handover_Log`) **tidak perlu** diisi manual — biarkan kosong, terisi otomatis begitu aplikasi jalan
+4. Sheet yang murni log/auto (`Checklist_Log`, `Handover_Log`) **tidak perlu** diisi manual biarkan kosong, terisi otomatis begitu aplikasi jalan
 
 ### Migrasi role `kepala_cabang`
 
@@ -332,24 +332,24 @@ Registry. Script hanya mengganti kolom `Role`; ID, PIN hash, cabang, dan status 
 - Nama sheet
 - Urutan/nama kolom pada baris header
 - Format ID (prefix, jumlah digit)
-- Enum values (`Status`, `Role`, `Tipe`) — menambah/mengubah nilai enum butuh update kode aplikasi juga
+- Enum values (`Status`, `Role`, `Tipe`) menambah/mengubah nilai enum butuh update kode aplikasi juga
 
-Semua hal di atas dipatok oleh satu modul kode (`lib/google/sheet-schema.ts`) dan diverifikasi test `test/sheet-schema.test.ts` terhadap tabel di dokumen ini — kalau dokumen dan kode berbeda, test gagal.
+Semua hal di atas dipatok oleh satu modul kode (`lib/google/sheet-schema.ts`) dan diverifikasi test `test/sheet-schema.test.ts` terhadap tabel di dokumen ini kalau dokumen dan kode berbeda, test gagal.
 
 ---
 
 ## 6. Catatan Implementasi Kolom Otomatis
 
-- **`Failed_Login_Attempts` / `Locked_Until`** — ditulis aplikasi pada `POST /api/auth/login`: bertambah 1 tiap kegagalan, akun terkunci 15 menit setelah 5 kegagalan berturut-turut, direset saat login sukses / reset PIN / lock berakhir. Jangan diisi manual.
-- **`Spreadsheet_ID`** — diisi otomatis oleh provisioning saat `POST /api/branches`: spreadsheet
+- **`Failed_Login_Attempts` / `Locked_Until`** ditulis aplikasi pada `POST /api/auth/login`: bertambah 1 tiap kegagalan, akun terkunci 15 menit setelah 5 kegagalan berturut-turut, direset saat login sukses / reset PIN / lock berakhir. Jangan diisi manual.
+- **`Spreadsheet_ID`** diisi otomatis oleh provisioning saat `POST /api/branches`: spreadsheet
   cabang dibuat dengan `drive.files.copy` dari `TEMPLATES.Template_Spreadsheet_ID` (bukan
   `spreadsheets.create`, yang kena kuota Drive), header 13 sheet **diverifikasi** terhadap
-  `lib/google/sheet-schema.ts` — bukan ditulis ulang — lalu baris `Daftar_Cabang` dibuat. Kalau
+  `lib/google/sheet-schema.ts` bukan ditulis ulang lalu baris `Daftar_Cabang` dibuat. Kalau
   header hasil copy menyimpang, provisioning berhenti dengan `SHEETS_SETUP_REQUIRED` dan menyebut
   sheet yang bermasalah; perbaikannya di template, bukan di salinan.
-- **Verifikasi header** — dipakai dua kali lewat `lib/google/template-verify.ts`: script
+- **Verifikasi header** dipakai dua kali lewat `lib/google/template-verify.ts`: script
   `pnpm verify:template` (manual, terhadap template) dan gate sebelum `Provision_Status=ready`
   (otomatis, terhadap tiap salinan). Sheet tambahan yang tidak dikenal hanya diperingatkan.
-- **ID log** (`CLG-###`, `HLG-###`) dan **ID master** (`CHK-###`, `HOF-###`) memakai penomoran urut sesuai §3 — bukan UUID. Nomor berikutnya dihitung dari nilai maksimum yang ada di sheet.
+- **ID log** (`CLG-###`, `HLG-###`) dan **ID master** (`CHK-###`, `HOF-###`) memakai penomoran urut sesuai §3 bukan UUID. Nomor berikutnya dihitung dari nilai maksimum yang ada di sheet.
 - **`Status` jadwal** hanya boleh berubah lewat aplikasi: `scheduled` → `started` (`start-shift`) → `completed` (`checklist/submit`, hanya jika checklist 100% dan semua field handover wajib terisi).
 - **Migrasi checklist cabang lama**: jalankan `pnpm migrate:checklist` untuk preview (default read-only), lalu tinjau jumlah point/log. `pnpm migrate:checklist -- --branch=CBG### --apply` menerapkan satu cabang; `--apply` tanpa `--branch` menerapkan semua cabang ready. Sheet lama dipertahankan sebagai `Checklist_Template_Legacy` dan `Checklist_Log_Legacy`; data diproyeksikan ke struktur baru tanpa menghapus arsip.

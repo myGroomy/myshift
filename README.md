@@ -53,6 +53,12 @@ pnpm run provision:branch -- --id=CBG001     # provision/retry cabang tanpa lewa
 MYSHIFT_SEED_PIN=123456 npx tsx scripts/seed-dummy-data.ts
 ```
 
+`seed:dummy` memakai rentang 90 hari sampai hari ini dan hanya cabang aktif berstatus `ready`.
+Perintahnya default **preview-only** dan tidak mengubah data. Jalankan `pnpm seed:dummy -- --apply`
+untuk append data simulasi yang ditandai `[DUMMY-SEED]`; data lama tidak diubah/dihapus, dan rerun
+tidak menggandakan baris. Akun demo baru memakai `MYSHIFT_SEED_PIN` (4–8 digit); seed tidak membuat
+cabang atau spreadsheet baru.
+
 `setup:sheets` menyiapkan Registry Spreadsheet. `template:import` meng-import template dan menulis
 header 11 sheet dari `lib/google/sheet-schema.ts`; ID hasil import ditulis ke
 `TEMPLATES.Template_Spreadsheet_ID`, folder induk ke `TEMPLATES.Parent_Folder_ID`. Cabang baru dibuat
@@ -60,7 +66,7 @@ aplikasi (`POST /api/branches`, atau tombol Retry di `/cabang` untuk cabang yang
 gagal).
 
 > **Drive bridge (wajib):** service account punya `storageQuota.limit = 0`, jadi Drive menolak semua
-> file yang dibuatnya — copy template, konversi template, dan upload foto berjalan lewat Web App
+> file yang dibuatnya copy template, konversi template, dan upload foto berjalan lewat Web App
 > Apps Script `gas/Code.js` sebagai pemilik folder. `GAS_DRIVE_BRIDGE_URL` + `GAS_BRIDGE_SECRET`
 > wajib diisi (lihat `gas/README.md`); tanpa keduanya endpoint provisioning berhenti dengan
 > `SHEETS_SETUP_REQUIRED` sebelum menyentuh Drive. Rincian temuan: `PLAN/Db refactor-plan.md` Step 0b.

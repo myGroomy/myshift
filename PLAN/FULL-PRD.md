@@ -1,8 +1,8 @@
-# MYSHIFT — Product Requirements Document (Full / Production)
+# MYSHIFT Product Requirements Document (Full / Production)
 
 > **Versi:** 1.3.0
 > **Tanggal:** 2026-09-29
-> **Status:** Draft — PRD Awal + Incident Feature
+> **Status:** Draft PRD Awal + Incident Feature
 > **Bagian dari:** Ekosistem MOCHIKIN-APPS (F&B UMKM internal operational apps)
 
 ---
@@ -55,11 +55,11 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 |---|---|
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui |
 | Backend | Next.js API Routes |
-| Database | **Google Sheets API v4** — konsisten dengan seluruh ekosistem (bukan Postgres, bukan GAS) |
+| Database | **Google Sheets API v4** konsisten dengan seluruh ekosistem (bukan Postgres, bukan GAS) |
 | Isolasi data | Registry pattern ala STOKIS: 1 spreadsheet Registry + 1 spreadsheet per cabang (isolasi fisik) |
 | Auth | PIN-based login, hash **scrypt** (ikut pola MYLAUNCHER, bukan pola belum-terverifikasi STOKIS/MYCUSTOMER), session cookie HMAC-signed, httpOnly |
 | Hosting | Vercel |
-| Security headers | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy — dipasang sejak awal (belajar dari gap MYLAUNCHER) |
+| Security headers | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy dipasang sejak awal (belajar dari gap MYLAUNCHER) |
 | Validasi | Dedicated validation layer per domain (ikut pola `so-validation.ts` STOKIS), format error terstruktur `{ success, error: { code, message } }` |
 | Cache | Tidak pakai in-memory module-level cache (belajar dari masalah multi-instance di LAUNCHER & STOKIS) |
 
@@ -137,12 +137,12 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 - Perubahan checklist setelah laporan dibuat tetap diperbolehkan oleh Admin dan pemilik jadwal serta dicatat pada `Shift_Report_Audit`.
 
 ### 6.7 Handover
-- **Wajib diisi setiap akhir shift** — tidak bisa diskip
+- **Wajib diisi setiap akhir shift** tidak bisa diskip
 - Terdiri dari form-form terstruktur; sebagian field **wajib**, sebagian **opsional** (dikonfigurasi lewat `Handover_Template`)
 - Terlihat oleh karyawan shift berikutnya saat mereka mulai shift
 
 ### 6.8 Mulai Shift (bukan absensi formal)
-- Tombol sederhana "mulai shift" — hanya menandai waktu, tanpa verifikasi wajah/lokasi
+- Tombol sederhana "mulai shift" hanya menandai waktu, tanpa verifikasi wajah/lokasi
 - Bukan pengganti sistem absensi resmi di POS
 
 ### 6.9 Dashboard & Laporan
@@ -166,7 +166,7 @@ Fitur untuk mencatat kejadian abnormal selama operasi yang tidak cocok masuk che
 
 | Field | Tipe | Wajib | Keterangan |
 |---|---|---|---|
-| `Incident_ID` | text (auto) | — | Format `INC-###` |
+| `Incident_ID` | text (auto) | | Format `INC-###` |
 | `Kategori_ID` | text | ✅ | FK ke `Kategori_Incident` |
 | `Deskripsi` | text | ✅ | Penjelasan kejadian |
 | `Severity` | enum | ✅ | `low` / `medium` / `high` |
@@ -212,7 +212,7 @@ Fitur untuk mencatat kejadian abnormal selama operasi yang tidak cocok masuk che
 - **Skala target:** 3–10 cabang (adaptif/configurable), ~5 karyawan per cabang, 2–3 shift/hari, ~5×3 pengguna aktif bersamaan
 - **Performa:** wajar untuk skala UMKM; tidak perlu optimasi ekstrem di awal
 - **Keamanan:** PIN di-hash (scrypt), session HMAC-signed, security headers lengkap sejak hari pertama
-- **Kecepatan development:** prioritas tinggi — dibangun secepat mungkin, MVP dulu (lihat `MVP-plan.md`)
+- **Kecepatan development:** prioritas tinggi dibangun secepat mungkin, MVP dulu (lihat `MVP-plan.md`)
 
 ---
 

@@ -2,7 +2,7 @@
 // registers it as the branch template (PLAN/SHEETS-SCHEMA.md §2).
 //
 // Why an import and not an upload: a raw `.xlsx` upload stays a binary Excel file, and
-// `drive.files.copy` cannot turn it into a Google Sheet — every per-branch `files.copy` would
+// `drive.files.copy` cannot turn it into a Google Sheet every per-branch `files.copy` would
 // hand the app a binary file that the Sheets API cannot read. The conversion has to happen once,
 // here, so the template that provisioning copies is a Sheet. The mimeType assertion below is the
 // check that catches a silent regression back to a raw `.xlsx`.
@@ -90,7 +90,7 @@ async function importFromXlsx(sourceId: string, name: string, parentId: string):
 
   // `uploadType: "import"` + `importAs` is what converts the uploaded bytes into a Google Sheet.
   // googleapis' generated Drive v3 types omit both query params, so widen them here rather than
-  // casting the whole call to `any` — everything else stays type-checked.
+  // casting the whole call to `any` everything else stays type-checked.
   const params: ImportFileParams = {
     uploadType: "import",
     importAs: SHEET_MIME,
@@ -119,7 +119,7 @@ async function main() {
   if (meta.data.mimeType !== SHEET_MIME) {
     throw new Error(
       `Template bukan Google Sheet (mimeType=${meta.data.mimeType}). ` +
-        "Provisioning akan gagal saat reads — jalankan ulang tanpa --force."
+        "Provisioning akan gagal saat reads jalankan ulang tanpa --force."
     );
   }
   if (!meta.data.parents?.includes(parentId)) {

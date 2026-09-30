@@ -1,4 +1,4 @@
-// Column layout of every sheet — the executable copy of PLAN/SHEETS-SCHEMA.md §1–§2.
+// Column layout of every sheet the executable copy of PLAN/SHEETS-SCHEMA.md §1–§2.
 // Ranges and headers for both the app and the setup/provisioning scripts come from here,
 // so the docs and the code cannot drift apart silently (AGENTS.md §6.4).
 // Order matters: readers are positional, so reordering a column breaks the app.

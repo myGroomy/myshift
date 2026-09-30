@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { provisionBranchDrive, type DriveFilesApi, type ProvisionDeps } from "@/lib/google/provisioning";
 import { DomainError, isDomainError } from "@/lib/error-codes";
 
-// PLAN/Db refactor-plan.md Step 3.2 — provisioning is exercised against a fake Drive so the
+// PLAN/Db refactor-plan.md Step 3.2 provisioning is exercised against a fake Drive so the
 // behaviour that matters (idempotent retry, verification before `ready`, orphan reporting) is
 // pinned without a network call. Step 0b showed the real service account currently has zero Drive
 // storage, so this suite is the only way to test the flow today (see the Step 0b note in that doc).
@@ -35,7 +35,7 @@ function fakeDrive(options: {
       },
     },
     // The template copy goes through the Apps Script bridge in production (the service account
-    // cannot create files), so the fake carries a bridge stand-in on the same object — same call
+    // cannot create files), so the fake carries a bridge stand-in on the same object same call
     // shape, same failure mode, wired up by depsOver() below.
     copyTemplate: async (input: { templateSpreadsheetId: string; folderId: string; name: string }) => {
       calls.push({ op: "copy", fileId: input.templateSpreadsheetId, name: input.name, parents: [input.folderId] });
@@ -100,7 +100,7 @@ test("a folder that was deleted in Drive is recreated instead of failing", async
   assert.equal(drive.ops().filter((op) => op === "create").length, 1);
 });
 
-test("retry reuses a copy that still exists and matches the schema — no second copy", async () => {
+test("retry reuses a copy that still exists and matches the schema no second copy", async () => {
   const drive = fakeDrive({ existing: ["folder-1", "sheet-old"] });
   const verified: string[] = [];
 
@@ -241,7 +241,7 @@ function depsOver(overrides: ProvisionDeps = {}): ProvisionDeps {
 
 test("an unconfigured Drive bridge fails before anything is created in Drive", async () => {
   // Provisioning copies through gas/Code.js. Without GAS_DRIVE_BRIDGE_URL / GAS_BRIDGE_SECRET the
-  // flow must stop *before* making the folder — otherwise every failed provisioning would leave an
+  // flow must stop *before* making the folder otherwise every failed provisioning would leave an
   // empty branch folder behind.
   const drive = fakeDrive({ folderId: "folder-1", copyId: "sheet-1" });
 

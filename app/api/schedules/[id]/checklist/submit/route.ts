@@ -17,7 +17,7 @@ import type { NextRequest } from "next/server";
 type Context = { params: Promise<{ id: string }> };
 
 // Submitting the checklist is what closes the shift (scheduled|started -> completed).
-// Closing requires 100% checklist AND every required handover field, validated here — the
+// Closing requires 100% checklist AND every required handover field, validated here the
 // disabled button in the UI is not a control (AGENTS.md §5). Idempotent on re-submit.
 export async function POST(request: NextRequest, context: Context) {
   const auth = await staffSession(request);

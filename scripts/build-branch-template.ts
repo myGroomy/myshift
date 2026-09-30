@@ -1,4 +1,4 @@
-// Builds PLAN/templates/MYSHIFT-Template-Cabang.xlsx — the file admins upload once and
+// Builds PLAN/templates/MYSHIFT-Template-Cabang.xlsx the file admins upload once and
 // duplicate per branch, instead of having POST /api/branches spend Sheets quota on a
 // spreadsheet.create() for every new branch (lib/google/provisioning.ts copies this file).
 //
@@ -7,7 +7,7 @@
 // (AGENTS.md §6.4). The only thing hard-coded here is the default *content* per sheet.
 //
 // Every column is written as plain text (numFmt "@") except `Urutan`. The app reads cells with
-// the Sheets default FORMATTED_VALUE rendering and slices them as strings — validDate() wants
+// the Sheets default FORMATTED_VALUE rendering and slices them as strings validDate() wants
 // "YYYY-MM-DD" and timeOverlaps() slices "HH:mm". If the import coerced those to date/time
 // serials, both would break on a locale-dependent render.
 //
@@ -111,7 +111,7 @@ const DEFAULT_WIDTH = 18;
 const WIDE_WIDTH = 42;
 
 // ---------------------------------------------------------------------------
-// Minimal OOXML writer — an .xlsx is a zip of XML parts, so this avoids taking an
+// Minimal OOXML writer an .xlsx is a zip of XML parts, so this avoids taking an
 // xlsx-writing dependency for a one-file template generator.
 // ---------------------------------------------------------------------------
 

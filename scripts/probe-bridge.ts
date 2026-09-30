@@ -4,7 +4,7 @@
  * Menembak endpoint dengan aksi `ping` (tidak efek samping: script membalas
  * `{ok:false, error:"UNKNOWN_ACTION"}` kalau permintaannya benar-benar sampai ke `doPost`).
  * Yang ditampilkan: apakah ada redirect ke `script.googleusercontent.com`, content-type, dan teks
- * halaman — karena kesalahan paling umum di sini bukan kode, tapi setelan deployment:
+ * halaman karena kesalahan paling umum di sini bukan kode, tapi setelan deployment:
  * halaman "Anda tidak memiliki izin" = "Who has access" bukan Anyone, sedangkan halaman
  * `<title>Salah</title>` = deployment-nya read-only/test sehingga URL `/exec`-nya tidak valid.
  *
@@ -67,7 +67,7 @@ async function main() {
   const urls = [...html.matchAll(/https:\/\/accounts\.google\.com\/[^"'\\ ]{0,60}/g)].map((m) => m[0]);
   console.log("  href accounts.google.com:", urls.slice(0, 3).join(" | ") || "(tidak ada)");
 
-  // Ambil teks yang terlihat di halaman — pesannya lebih berguna daripada keyword tebakan.
+  // Ambil teks yang terlihat di halaman pesannya lebih berguna daripada keyword tebakan.
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -77,7 +77,7 @@ async function main() {
     .trim();
   console.log("  teks halaman:", text.slice(0, 500) || "(kosong)");
   if (followed.status !== 200) {
-    // Untuk 401/403, pesan specificsnya biasanya jauh di dalam HTML — tampilkan lebih banyak.
+    // Untuk 401/403, pesan specificsnya biasanya jauh di dalam HTML tampilkan lebih banyak.
     console.log("  teks lengkap:", text.slice(0, 2000) || "(kosong)");
     const codes = [...html.matchAll(/"(error|reason|message)"\s*:\s*"([^"]{5,120})"/g)].map((m) => m[2]);
     console.log("  kode/pesan di HTML:", [...new Set(codes)].slice(0, 8).join(" | ") || "(tidak ada)");

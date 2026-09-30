@@ -1,19 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ADMIN_DESKTOP_PRIMARY,
   ADMIN_DOCK_EXTRAS,
   ADMIN_DOCK_TABS,
   ADMIN_NAV_GROUPS,
+  ADMIN_SETTINGS_GROUPS,
   KARYAWAN_DOCK_EXTRAS,
   KARYAWAN_DOCK_TABS,
   KARYAWAN_NAV_ITEMS,
   groupsForRole,
   groupsWithoutTabs,
-  itemsForRole,
   type NavGroup,
 } from "@/components/nav-config";
 
-// UI-PLAN §4: dock 4 tab + "Lainnya". Invariant yang dijaga test ini — kalau salah satu dilanggar,
+// UI-PLAN §4: dock 4 tab + "Lainnya". Invariant yang dijaga test ini kalau salah satu dilanggar,
 // user akan melihat menu yang sama dua kali atau kehilangan jalan ke suatu halaman.
 
 const flatten = (groups: NavGroup[]) => groups.flatMap((group) => group.items);
@@ -22,7 +23,31 @@ test("dock admin persis 4 tab", () => {
   assert.equal(ADMIN_DOCK_TABS.length, 4);
   assert.deepEqual(
     ADMIN_DOCK_TABS.map((item) => item.href),
-    ["/dashboard", "/jadwal", "/approval", "/incident"],
+    ["/jadwal", "/checklist", "/handover", "/incident"],
+  );
+});
+
+test("navigasi Admin memakai empat tab kerja yang sama dan mengelompokkan fitur tambahannya", () => {
+  assert.deepEqual(
+    ADMIN_DESKTOP_PRIMARY.map((item) => item.href),
+    ["/jadwal", "/checklist", "/handover", "/incident"],
+  );
+  const settings = flatten(ADMIN_SETTINGS_GROUPS).map((item) => item.href);
+  assert.deepEqual(settings, [
+    "/dashboard",
+    "/approval",
+    "/laporan",
+    "/cabang",
+    "/karyawan",
+    "/shift-template",
+    "/kategori-izin",
+    "/kategori-incident",
+    "/checklist-template",
+    "/handover-template",
+  ]);
+  assert.equal(
+    new Set([...ADMIN_DESKTOP_PRIMARY, ...flatten(ADMIN_SETTINGS_GROUPS)].map((item) => item.href)).size,
+    14,
   );
 });
 
@@ -31,6 +56,13 @@ test("dock karyawan persis 4 tab", () => {
   assert.deepEqual(
     KARYAWAN_DOCK_TABS.map((item) => item.href),
     ["/jadwal-saya", "/checklist", "/handover", "/incident"],
+  );
+});
+
+test("tab utama Admin dan Karyawan sama secara fungsi dan label", () => {
+  assert.deepEqual(
+    ADMIN_DOCK_TABS.map(({ label, icon }) => [label, icon]),
+    KARYAWAN_DOCK_TABS.map(({ label, icon }) => [label, icon]),
   );
 });
 
@@ -72,7 +104,7 @@ test("groupsWithoutTabs membuang tab dock dari 'Lainnya' supaya tidak tampil dua
   }
   // Sisa yang harusnya masih terjangkau lewat sheet.
   for (const href of ["/cabang", "/karyawan", "/shift-template", "/kategori-izin", "/checklist-template", "/handover-template"]) {
-    assert.equal(hrefs.includes(href), true, `${href} hilang dari Lainnya — jadi tidak terjangkau`);
+    assert.equal(hrefs.includes(href), true, `${href} hilang dari Lainnya jadi tidak terjangkau`);
   }
 });
 
@@ -98,11 +130,6 @@ test("tidak ada href yang muncul dua kali di dock admin (tabs + Lainnya + extras
   for (const item of flatten(groupsWithoutTabs(ADMIN_NAV_GROUPS, ADMIN_DOCK_TABS))) register("lainnya", item.href);
   for (const item of ADMIN_DOCK_EXTRAS) register("extras", item.href);
   assert.ok(seen.size > 4, "dock harus punya lebih dari 4 tujuan");
-});
-
-test("tab dock Admin tidak dibagikan ke Karyawan", () => {
-  const forEmployee = itemsForRole(ADMIN_DOCK_TABS, false);
-  assert.deepEqual(forEmployee.map((item) => item.href), ["/incident"]);
 });
 
 test("karyawan: profil & pilih cabang tetap terjangkau, logout ditangani pemanggil", () => {

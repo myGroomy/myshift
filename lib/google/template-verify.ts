@@ -1,8 +1,8 @@
 // Header verification for a branch spreadsheet (PLAN/Db refactor-plan.md Step 2).
 //
 // Two callers, one implementation:
-//   - `scripts/verify-template.ts` — run by hand against TEMPLATES.Template_Spreadsheet_ID
-//   - `provisionBranchDrive()` — run against every freshly copied branch spreadsheet, *before*
+//   - `scripts/verify-template.ts` run by hand against TEMPLATES.Template_Spreadsheet_ID
+//   - `provisionBranchDrive()` run against every freshly copied branch spreadsheet, *before*
 //     the Registry row is set to `ready` (Step 3.2 #6)
 //
 // The point of verifying instead of rewriting is that a drifted template must be reported, not
@@ -123,7 +123,7 @@ export async function assertBranchSpreadsheetSchema(
   if (blocking.length === 0) return;
   throw new DomainError(
     "SHEETS_SETUP_REQUIRED",
-    `Struktur spreadsheet cabang tidak sesuai PLAN/SHEETS-SCHEMA.md §2 — ${describeDiffs(blocking)}. ` +
+    `Struktur spreadsheet cabang tidak sesuai PLAN/SHEETS-SCHEMA.md §2 ${describeDiffs(blocking)}. ` +
       "Perbaiki template cabang lalu jalankan ulang provisioning.",
     { data: { mismatches: blocking } },
   );

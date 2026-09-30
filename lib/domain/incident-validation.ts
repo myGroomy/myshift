@@ -1,6 +1,6 @@
 import { DomainError } from "@/lib/error-codes";
 
-// Incident domain validation (AGENTS.md §5 — dedicated validation layer per domain).
+// Incident domain validation (AGENTS.md §5 dedicated validation layer per domain).
 // Every failure is a typed DomainError → VALIDATION_ERROR 400 with per-field detail.
 
 const SEVERITIES = ["low", "medium", "high"] as const;

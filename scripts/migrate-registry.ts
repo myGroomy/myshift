@@ -67,7 +67,7 @@ async function main() {
 
   // The column layout is determined by the header, never by probing values. Probing cannot
   // distinguish a legacy 4-wide row from a migrated one, because an unwritten Folder_Drive_ID
-  // reads as "" rather than null — a `??` fallback on that would silently reset `Aktif`.
+  // reads as "" rather than null a `??` fallback on that would silently reset `Aktif`.
   const legacyLayout = liveBranchHeader.length < BRANCH_ROW_WIDTH;
   const spreadsheetId = (branchRow.values[2] ?? "").trim();
   const folderId = legacyLayout ? "" : (branchRow.values[3] ?? "").trim();
@@ -168,11 +168,11 @@ async function main() {
   const settingsHeader = await readRawHeader(registryId, REGISTRY_SHEETS.settings);
   if (settingsHeader.join("|") !== REGISTRY_HEADERS.Settings_Global.join("|")) {
     changes.push(
-      `Settings_Global header differs (${JSON.stringify(settingsHeader)} vs ${JSON.stringify(REGISTRY_HEADERS.Settings_Global)}) — reported only, not rewritten (positional reads make it harmless).`,
+      `Settings_Global header differs (${JSON.stringify(settingsHeader)} vs ${JSON.stringify(REGISTRY_HEADERS.Settings_Global)}) reported only, not rewritten (positional reads make it harmless).`,
     );
   }
 
-  console.log(`\n${apply ? "APPLIED" : "DRY RUN"} — ${changes.length} change(s):\n`);
+  console.log(`\n${apply ? "APPLIED" : "DRY RUN"} ${changes.length} change(s):\n`);
   for (const change of changes) console.log(`  - ${change}`);
   if (!apply) console.log(`\nRe-run with --apply to write these changes.`);
   if (apply) console.log(`\nProvisioning is still outstanding: run \`pnpm template:import\`, then re-run this script.`);
