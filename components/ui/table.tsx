@@ -9,18 +9,23 @@ interface DataTableProps {
 export function DataTable({ columns, children }: DataTableProps) {
   return (
     <div className={tableWrapClass}>
-      <table className={tableClass}>
-        <thead>
-          <tr className={tableHeadClass}>
-            {columns.map((column) => (
-              <th key={column} scope="col" className={thClass}>
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
+      <p className="border-b border-border px-3 py-2 text-xs text-muted-foreground lg:hidden">
+        Geser tabel ke samping untuk melihat semua kolom.
+      </p>
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className={`${tableClass} min-w-[640px] md:min-w-full`}>
+          <thead>
+            <tr className={tableHeadClass}>
+              {columns.map((column) => (
+                <th key={column} scope="col" className={thClass}>
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
     </div>
   );
 }

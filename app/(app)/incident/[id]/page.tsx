@@ -125,7 +125,7 @@ export default function IncidentDetailPage() {
 
       <div className="max-w-3xl space-y-6">
         {/* Header Card */}
-        <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-mono text-muted-foreground">{incident.incidentId}</p>
@@ -158,7 +158,7 @@ export default function IncidentDetailPage() {
         </div>
 
         {/* Meta Info */}
-        <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
           <h3 className="mb-4 text-sm font-semibold text-foreground">Informasi</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex items-center gap-3">

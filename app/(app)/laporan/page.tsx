@@ -16,6 +16,7 @@ import { controlClass } from "@/lib/ui";
 import { todayInWIB } from "@/lib/domain/date";
 import { Search, Download } from "lucide-react";
 import type { Branch } from "@/lib/types";
+import { FilterPanel } from "@/components/ui/filter-panel";
 
 type LaporanRow = {
   type: string;
@@ -132,7 +133,11 @@ export default function LaporanPage() {
           : "Ringkasan operasional seluruh tim di cabang aktif."
       }
     >
-      <div className="mb-6 grid max-w-4xl gap-3 sm:grid-cols-2 md:grid-cols-4">
+      <FilterPanel
+        className="max-w-4xl"
+        contentClassName="lg:grid-cols-4"
+        label="Filter laporan operasional"
+      >
         {session?.role === "admin" && (
           <div>
             <Label htmlFor="branch-filter">Cabang</Label>
@@ -174,8 +179,8 @@ export default function LaporanPage() {
           />
         </div>
 
-        <div className="flex items-end gap-2">
-          <Button onClick={load} disabled={loading} size="lg" className="h-11 flex-1">
+        <div className="flex min-w-0 gap-2 sm:col-span-2 lg:col-span-1">
+          <Button onClick={load} disabled={loading} size="lg" className="h-11 min-w-0 flex-1">
             <Search size={14} />
             {loading ? "Mencari..." : "Tampilkan"}
           </Button>
@@ -185,14 +190,14 @@ export default function LaporanPage() {
             disabled={exporting}
             variant="outline"
             size="lg"
-            className="h-11"
+            className="h-11 min-w-0 flex-1"
             title="Download file CSV spreadsheet"
           >
             <Download size={14} />
             CSV
           </Button>
         </div>
-      </div>
+      </FilterPanel>
 
       {loading ? (
         <SkeletonTable rows={5} />

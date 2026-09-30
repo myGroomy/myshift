@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { controlClass } from "@/lib/ui";
 import { AlertTriangle, Plus } from "lucide-react";
+import { FilterPanel } from "@/components/ui/filter-panel";
 
 type Incident = {
   incidentId: string;
@@ -81,14 +82,18 @@ export default function IncidentPage() {
   });
 
   const Shell = session?.role === "karyawan" ? KaryawanShell : AdminShell;
+  const categories = [...new Map(items.map((item) => [item.kategoriId, item.kategoriLabel])).entries()];
 
   return (
     <Shell
       title="Incident / Catatan Operasional"
       lead="Catat kejadian abnormal selama operasi: mesin rusak, komplain, stok habis, dll."
     >
-      <div className="mb-6 flex flex-wrap items-end gap-3">
-        <div className="w-48">
+      <FilterPanel
+        contentClassName="lg:grid-cols-4"
+        label="Filter daftar incident"
+      >
+        <div className="min-w-0">
           <Label htmlFor="kategori-filter">Kategori</Label>
           <Select
             id="kategori-filter"
@@ -97,15 +102,15 @@ export default function IncidentPage() {
             className={controlClass}
           >
             <option value="all">Semua Kategori</option>
-            {[...new Set(items.map((i) => i.kategoriLabel))].map((label) => (
-              <option key={label} value={label}>
+            {categories.map(([categoryId, label]) => (
+              <option key={categoryId} value={categoryId}>
                 {label}
               </option>
             ))}
           </Select>
         </div>
 
-        <div className="w-40">
+        <div className="min-w-0">
           <Label htmlFor="severity-filter">Severity</Label>
           <Select
             id="severity-filter"
@@ -120,7 +125,7 @@ export default function IncidentPage() {
           </Select>
         </div>
 
-        <div className="w-40">
+        <div className="min-w-0">
           <Label htmlFor="status-filter">Status</Label>
           <Select
             id="status-filter"
@@ -134,15 +139,15 @@ export default function IncidentPage() {
           </Select>
         </div>
 
-        <div className="ml-auto">
-          <Button asChild size="lg" className="h-11">
+        <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+          <Button asChild size="lg" className="h-11 w-full">
             <Link href="/incident/ajukan">
               <Plus size={16} />
               Buat Incident
             </Link>
           </Button>
         </div>
-      </div>
+      </FilterPanel>
 
       {loading ? (
         <SkeletonTable rows={4} />

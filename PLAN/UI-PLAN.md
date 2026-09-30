@@ -250,6 +250,9 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 - **Mobile-first untuk sisi Karyawan** — diakses dari HP di lapangan (Jadwal Saya, Layar Shift Terpadu, Ajukan Swap/Izin).
 - **Desktop-first untuk sisi Admin** — halaman kelola & laporan (tabel, kalender grid mingguan).
+- **Filter pada mobile** dibungkus panel surface dengan grid satu kolom pada layar sempit, label tetap terlihat, dan kontrol/aksi memakai lebar penuh bila dibutuhkan. Filter majemuk membentuk grid dua kolom hanya saat ruang cukup; segmented control boleh digeser horizontal tanpa membuat halaman ikut overflow.
+- **Box dan form** memakai padding mobile yang lebih rapat (`16px`) lalu kembali ke kepadatan desktop pada breakpoint `sm`; field grid wajib memakai `min-width: 0` agar input, label panjang, dan tombol tidak mendorong viewport melebar.
+- **Tabel data di mobile** tetap dapat digeser horizontal, memiliki lebar kolom minimum agar isi tidak terjepit, dan menampilkan petunjuk geser sebelum breakpoint desktop.
 - **Auto-Skip Pilih Cabang:** Jika user hanya terafiliasi dengan 1 cabang aktif, bypass halaman `/pilih-cabang` langsung ke `/jadwal-saya` atau `/dashboard`.
 - **Thumb-Zone Optimization (Mobile):** Tombol aksi utama (Mulai Shift, Submit Checklist, Send Handover) ditempatkan di area jangkauan jempol (sticky bottom bar).
 - **Kompresi Client-side:** Foto bukti checklist dikompres otomatis (<500KB WebP) di frontend sebelum diunggah ke Google Drive via GAS bridge.

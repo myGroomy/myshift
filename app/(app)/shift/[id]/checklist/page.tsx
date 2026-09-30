@@ -295,7 +295,7 @@ function ShiftChecklistContent({ params }: { params: Promise<{ id: string }> }) 
           <div className="mb-2 flex justify-between text-sm"><span>Progress Checklist</span><strong>{checklist.completed}/{checklist.total} ({percent}%)</strong></div>
           <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} /></div>
         </div>
-        {checklist.groups.length === 0 ? <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">Tidak ada checklist point yang berlaku untuk shift ini.</div> :
+        {checklist.groups.length === 0 ? <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground sm:p-6">Tidak ada checklist point yang berlaku untuk shift ini.</div> :
           checklist.groups.map((group) => (
             <section key={group.categoryId} className="space-y-3">
               <h2 className="text-base font-semibold">{group.categoryName}</h2>

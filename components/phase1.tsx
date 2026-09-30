@@ -16,6 +16,7 @@ import { request } from "@/lib/api";
 import { todayInWIB } from "@/lib/domain/date";
 import type { Branch, Employee, Schedule, Shift } from "@/lib/types";
 import { controlClass } from "@/lib/ui";
+import { FilterPanel } from "@/components/ui/filter-panel";
 import { Copy, FolderOpen, Sheet } from "lucide-react";
 
 function msg(error: unknown): string {
@@ -366,7 +367,7 @@ export function EmployeesPage() {
       {/* Form Pendaftaran Card */}
       <form
         onSubmit={submit}
-        className="mb-8 grid max-w-3xl gap-4 rounded-lg border border-border bg-card p-6 shadow-sm sm:grid-cols-2"
+        className="mb-8 grid max-w-3xl gap-4 rounded-lg border border-border bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-6"
       >
         <h2 className="sm:col-span-2 text-base font-semibold text-foreground">
           Pendaftaran Karyawan Baru
@@ -450,8 +451,12 @@ export function EmployeesPage() {
       </form>
 
       {/* Filter and Search Bar */}
-      <div className="mb-6 flex flex-wrap items-end gap-3">
-        <div className="w-full sm:w-64">
+      <FilterPanel
+        className="max-w-3xl"
+        contentClassName="md:grid-cols-[minmax(0,1fr)_minmax(14rem,16rem)]"
+        label="Filter daftar karyawan"
+      >
+        <div className="min-w-0">
           <Label htmlFor="emp-search">Cari Karyawan</Label>
           <Input
             id="emp-search"
@@ -462,7 +467,7 @@ export function EmployeesPage() {
           />
         </div>
 
-        <div className="w-full sm:w-56">
+        <div className="min-w-0">
           <Label htmlFor="emp-branch-filter">Filter Cabang</Label>
           <Select
             id="emp-branch-filter"
@@ -478,12 +483,12 @@ export function EmployeesPage() {
             ))}
           </Select>
         </div>
-      </div>
+      </FilterPanel>
 
       {/* Reset PIN Modal */}
       {resettingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-4 shadow-xl sm:p-6">
             <h3 className="text-base font-bold text-foreground">
               Reset PIN: {resettingUser.nama}
             </h3>
@@ -701,7 +706,7 @@ export function ShiftsPage() {
 
       <form
         onSubmit={submit}
-        className="mb-8 grid max-w-xl gap-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:grid-cols-2"
+        className="mb-8 grid max-w-xl gap-4 rounded-lg border border-border bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-5"
       >
         <h2 className="sm:col-span-2 text-sm font-semibold text-foreground">
           Tambah Template Shift Baru
@@ -964,7 +969,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
       {!mine && (
         <form
           onSubmit={submit}
-          className="mb-8 grid max-w-4xl gap-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:grid-cols-4"
+          className="mb-8 grid max-w-4xl gap-4 rounded-lg border border-border bg-card p-4 shadow-sm sm:grid-cols-4 sm:p-5"
         >
           <div className="sm:col-span-4 flex items-center justify-between border-b border-border/60 pb-3">
             <h2 className="text-sm font-semibold text-foreground">Plot Jadwal Baru</h2>
@@ -1081,7 +1086,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className={`flex flex-col justify-between rounded-lg border p-5 shadow-xs transition-shadow hover:shadow-sm ${
+                className={`flex min-w-0 flex-col justify-between rounded-lg border p-4 shadow-xs transition-shadow hover:shadow-sm sm:p-5 ${
                   item.conflictWarning
                     ? "border-destructive-wash bg-destructive-wash/30 text-destructive-foreground"
                     : "border-border bg-card"

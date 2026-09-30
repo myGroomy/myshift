@@ -401,7 +401,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -545,7 +545,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
               </div>
 
               {!checklist || checklist.items.length === 0 ? (
-                <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                <div className="rounded-lg border border-border bg-card p-4 text-center text-sm text-muted-foreground sm:p-8">
                   Tidak ada item checklist aktif untuk cabang ini.
                 </div>
               ) : (
@@ -683,7 +683,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                 </div>
 
                 {handoverFields.map((field) => (
-                  <div key={field.fieldId} className="rounded-lg border border-border bg-card p-5 shadow-sm">
+                  <div key={field.fieldId} className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
                     <Label htmlFor={field.fieldId} className="mb-2 block text-sm font-semibold text-foreground">
                       {field.label}
                       {field.isRequired && (
@@ -739,7 +739,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl"
+            className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-xl sm:p-6"
           >
             <div className="flex items-start justify-between">
               <div>

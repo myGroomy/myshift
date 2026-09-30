@@ -152,7 +152,7 @@ function LoginForm() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.5 }}
           onSubmit={submit}
-          className="space-y-5 rounded-lg border border-border bg-card p-6 shadow-sm"
+          className="space-y-5 rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6"
         >
           <div>
             <Label htmlFor="username">Username</Label>

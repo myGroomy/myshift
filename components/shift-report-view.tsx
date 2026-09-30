@@ -53,7 +53,7 @@ export function ShiftReportView({ report }: { report: ShiftReport }) {
   }));
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
         <h1 className="text-xl font-bold text-foreground">Laporan Shift</h1>
         <p className="mt-1 text-sm text-muted-foreground">{report.branchName} · {report.shiftName} · {report.date}</p>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
@@ -63,7 +63,7 @@ export function ShiftReportView({ report }: { report: ShiftReport }) {
           <div><dt className="text-muted-foreground">Laporan digenerate</dt><dd className="font-medium">{report.reportGeneratedAt ? new Date(report.reportGeneratedAt).toLocaleString("id-ID") : "Preview"}</dd></div>
         </dl>
       </section>
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold">Checklist</h2>
           <span className="text-sm font-medium">{report.checklist.completed}/{report.checklist.total} selesai</span>
@@ -95,7 +95,7 @@ export function ShiftReportView({ report }: { report: ShiftReport }) {
           {report.checklist.total === 0 && <p className="text-sm text-muted-foreground">Tidak ada checklist point yang berlaku untuk shift ini.</p>}
         </div>
       </section>
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
         <h2 className="text-base font-semibold">Handover</h2>
         <div className="mt-3 space-y-3">
           {report.handover.fields.map((field) => (
@@ -108,7 +108,7 @@ export function ShiftReportView({ report }: { report: ShiftReport }) {
           {report.handover.fields.length === 0 && <p className="text-sm text-muted-foreground">Tidak ada field handover.</p>}
         </div>
       </section>
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
         <h2 className="flex items-center gap-2 text-base font-semibold"><Clock3 size={16} />Riwayat Perubahan</h2>
         <div className="mt-3 space-y-3">
           {report.auditHistory.map((entry) => (

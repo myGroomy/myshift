@@ -92,7 +92,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08, duration: 0.4 }}
-              className="flex flex-col justify-between rounded-lg border border-border bg-card p-5 shadow-xs transition-shadow hover:shadow-sm"
+              className="flex min-w-0 flex-col justify-between rounded-lg border border-border bg-card p-4 shadow-xs transition-shadow hover:shadow-sm sm:p-5"
             >
               <div>
                 <div className="flex items-center justify-between">

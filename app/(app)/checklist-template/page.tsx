@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { controlClass } from "@/lib/ui";
 import type { Branch } from "@/lib/types";
+import { FilterPanel } from "@/components/ui/filter-panel";
 
 type Session = { activeBranchId: string; branches: Branch[] };
 type SopCategory = { categoryId: string; name: string; order: number; active: boolean };
@@ -228,7 +229,11 @@ export default function ChecklistTemplatePage() {
 
   return (
     <AdminShell title="Kelola Checklist" lead="Atur kategori SOP dan checklist point untuk setiap shift.">
-      <div className="mb-5 grid max-w-3xl gap-4 sm:grid-cols-2">
+      <FilterPanel
+        className="max-w-3xl"
+        contentClassName="md:grid-cols-2"
+        label="Pilih cabang dan shift checklist"
+      >
         <div>
           <Label htmlFor="branch-select">Pilih Cabang</Label>
           <Select id="branch-select" value={branchId} onChange={(event) => setBranchId(event.target.value)} className={controlClass}>
@@ -241,9 +246,9 @@ export default function ChecklistTemplatePage() {
             {shifts.map((shift) => <option key={shift.shiftId} value={shift.shiftId}>{shift.name}</option>)}
           </Select>
         </div>
-      </div>
+      </FilterPanel>
 
-      <section className="mb-8 max-w-3xl rounded-lg border border-border bg-card p-5">
+      <section className="mb-8 max-w-3xl rounded-lg border border-border bg-card p-4 sm:p-5">
         <h2 className="text-base font-semibold">{editingId ? "Edit Checklist Point" : "Tambah Checklist Point"}</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
@@ -254,9 +259,9 @@ export default function ChecklistTemplatePage() {
               )}
             </Select>
           </div>
-          <div className="flex items-end gap-2">
-            <Input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="Nama SOP baru" aria-label="Nama SOP baru" className={controlClass} />
-            <Button type="button" variant="outline" onClick={createCategory} disabled={!newCategory.trim()}>Buat SOP</Button>
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+            <Input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="Nama SOP baru…" aria-label="Nama SOP baru" className={controlClass} />
+            <Button type="button" variant="outline" onClick={createCategory} disabled={!newCategory.trim()} className="min-h-11">Buat SOP</Button>
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="point-description">Deskripsi Checklist Point</Label>
@@ -309,11 +314,11 @@ export default function ChecklistTemplatePage() {
             ))}
           </div>}
         </fieldset>
-        <div className="mt-5 flex gap-2">
-          <Button onClick={savePoint} disabled={saving || !form.description.trim() || !form.categoryId}>
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:flex">
+          <Button onClick={savePoint} disabled={saving || !form.description.trim() || !form.categoryId} className="w-full sm:w-auto">
             {saving ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "Tambah Checklist Point"}
           </Button>
-          {editingId && <Button variant="outline" onClick={resetForm}>Batal</Button>}
+          {editingId && <Button variant="outline" onClick={resetForm} className="w-full sm:w-auto">Batal</Button>}
         </div>
         {editingId && points.find((point) => point.pointId === editingId)?.hasLogs && (
           <p className="mt-3 text-xs text-muted-foreground">Perubahan tipe tidak mengubah log sebelumnya; hanya memengaruhi pengisian berikutnya.</p>
@@ -324,9 +329,9 @@ export default function ChecklistTemplatePage() {
         <h2 className="mb-3 text-base font-semibold">Kategori SOP</h2>
         <div className="space-y-2">
           {categories.map((category) => (
-            <div key={category.categoryId} className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-              <span>{category.name} <span className="text-xs text-muted-foreground">({category.categoryId})</span></span>
-              <Button size="sm" variant="outline" onClick={() => toggleCategory(category)}>{category.active ? "Nonaktifkan" : "Aktifkan"}</Button>
+            <div key={category.categoryId} className="flex flex-col items-stretch gap-3 rounded-lg border border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+              <span className="min-w-0 break-words">{category.name} <span className="text-xs text-muted-foreground">({category.categoryId})</span></span>
+              <Button size="sm" variant="outline" onClick={() => toggleCategory(category)} className="w-full sm:w-auto">{category.active ? "Nonaktifkan" : "Aktifkan"}</Button>
             </div>
           ))}
         </div>
@@ -342,7 +347,7 @@ export default function ChecklistTemplatePage() {
               <summary className="cursor-pointer border-b border-border px-4 py-3 font-semibold">{category.name} <span className="text-xs font-normal text-muted-foreground">({items.length})</span></summary>
               <div className="divide-y divide-border">
                 {items.map((point) => (
-                  <div key={point.pointId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div key={point.pointId} className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">{point.description}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -352,10 +357,10 @@ export default function ChecklistTemplatePage() {
                       </p>
                       {point.completionType === "pilihan" && <p className="text-xs text-muted-foreground">Opsi: {point.options.join(", ")}</p>}
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => editPoint(point)}>Edit</Button>
-                      <Button size="sm" variant="outline" onClick={() => togglePoint(point)}>{point.active ? "Nonaktifkan" : "Aktifkan"}</Button>
-                      <Button size="sm" variant="outline" onClick={() => deletePoint(point)}>{point.hasLogs ? "Arsipkan" : "Hapus"}</Button>
+                    <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
+                      <Button size="sm" variant="outline" onClick={() => editPoint(point)} className="min-w-0">Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => togglePoint(point)} className="min-w-0">{point.active ? "Nonaktifkan" : "Aktifkan"}</Button>
+                      <Button size="sm" variant="outline" onClick={() => deletePoint(point)} className="min-w-0">{point.hasLogs ? "Arsipkan" : "Hapus"}</Button>
                     </div>
                   </div>
                 ))}

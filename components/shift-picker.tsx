@@ -69,7 +69,7 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
     if (items.length === 0) return null;
     return (
       <div className="mb-6">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {groupTitle} ({items.length})
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -83,14 +83,14 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
                 key={item.scheduleId}
                 type="button"
                 onClick={() => router.push(isChecklist ? `/shift/${item.scheduleId}/checklist` : `/shift/${item.scheduleId}?tab=handover`)}
-                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-slate-400 hover:shadow-md"
+                className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:p-4"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-900">{shiftText}</span>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="break-words font-semibold text-foreground">{shiftText}</span>
                     <StatusBadge status={item.status} />
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
                       {item.date}
@@ -98,7 +98,7 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
                     <span>ID: {item.scheduleId}</span>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-400" />
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
               </button>
             );
           })}
@@ -112,9 +112,9 @@ export function ShiftPicker({ mode }: { mode: "checklist" | "handover" }) {
   return (
     <KaryawanShell title={title} lead={lead}>
       {loading ? (
-        <div className="p-8 text-center text-sm text-slate-500">Memuat jadwal shift...</div>
+        <div className="p-6 text-center text-sm text-muted-foreground">Memuat jadwal shift…</div>
       ) : error ? (
-        <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</div>
+        <div className="rounded-lg border border-destructive-wash bg-destructive-wash p-4 text-sm text-destructive-foreground">{error}</div>
       ) : !hasAnySchedules ? (
         <EmptyState
           icon={isChecklist ? <ClipboardCheck size={40} /> : <ArrowRightLeft size={40} />}

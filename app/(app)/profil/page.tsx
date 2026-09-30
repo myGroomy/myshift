@@ -66,7 +66,7 @@ export default function ProfilPage() {
           className="grid gap-6 lg:grid-cols-3"
         >
           {/* Profile Card */}
-          <div className="lg:col-span-2 rounded-lg border border-border bg-card p-6 shadow-sm">
+          <div className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6 lg:col-span-2">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -118,7 +118,7 @@ export default function ProfilPage() {
           </div>
 
           {/* Session Card */}
-          <div className="rounded-lg border border-border bg-card p-6 shadow-sm h-fit">
+          <div className="h-fit rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
             <h3 className="mb-2 text-base font-semibold text-foreground">Sesi Akun</h3>
             <p className="mb-4 text-xs text-muted-foreground">
               Akhiri sesi kerja Anda saat bertukar perangkat atau selesai shift.

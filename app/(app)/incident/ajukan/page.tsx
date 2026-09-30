@@ -69,7 +69,7 @@ export default function IncidentAjukanPage() {
         </Link>
       </div>
 
-      <form onSubmit={submit} className="max-w-2xl space-y-5 rounded-lg border border-border bg-card p-6 shadow-sm">
+      <form onSubmit={submit} className="max-w-2xl space-y-5 rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
         <div>
           <Label htmlFor="kategori-incident">Kategori Incident</Label>
           <Select
@@ -148,16 +148,16 @@ export default function IncidentAjukanPage() {
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2">
+        <div className="grid grid-cols-1 gap-3 pt-2 sm:flex">
           <Button
             type="submit"
             size="lg"
             disabled={loading || !kategoriId || deskripsi.trim().length < 10}
-            className="h-11"
+            className="h-11 w-full sm:w-auto"
           >
             {loading ? "Mengirim..." : "Kirim Laporan Incident"}
           </Button>
-          <Button asChild variant="outline" size="lg" className="h-11">
+          <Button asChild variant="outline" size="lg" className="h-11 w-full sm:w-auto">
             <Link href="/incident">Batal</Link>
           </Button>
         </div>

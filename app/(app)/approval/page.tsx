@@ -14,6 +14,7 @@ import { request } from "@/lib/api";
 import type { Branch, Izin, Swap } from "@/lib/types";
 import { controlClass } from "@/lib/ui";
 import { cn } from "@/lib/utils";
+import { FilterPanel } from "@/components/ui/filter-panel";
 
 type Session = {
   employeeId: string;
@@ -208,14 +209,19 @@ function UnifiedApprovalContent() {
       lead="Pusat persetujuan permohonan Tukar Shift (Swap) dan Izin Tidak Masuk dalam satu pintu."
     >
       {/* Top Filter Controls */}
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <FilterPanel
+        label="Filter permohonan approval"
+        contentClassName="lg:grid-cols-[minmax(0,1fr)_minmax(16rem,auto)]"
+      >
+        <div className="min-w-0">
           {/* Segmented Type Control */}
-          <div className="flex rounded-lg border border-border bg-muted/50 p-1">
+          <div role="group" aria-label="Jenis permohonan" className="flex min-w-0 overflow-x-auto rounded-lg border border-border bg-muted/50 p-1">
             <button
+              type="button"
+              aria-pressed={typeTab === "all"}
               onClick={() => setTypeTab("all")}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
+                "flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
                 typeTab === "all"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -228,9 +234,11 @@ function UnifiedApprovalContent() {
             </button>
 
             <button
+              type="button"
+              aria-pressed={typeTab === "swap"}
               onClick={() => setTypeTab("swap")}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
+                "flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
                 typeTab === "swap"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -243,9 +251,11 @@ function UnifiedApprovalContent() {
             </button>
 
             <button
+              type="button"
+              aria-pressed={typeTab === "izin"}
               onClick={() => setTypeTab("izin")}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
+                "flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
                 typeTab === "izin"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -257,10 +267,11 @@ function UnifiedApprovalContent() {
               </span>
             </button>
           </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 lg:min-w-[26rem] lg:grid-cols-2">
             {session?.role === "admin" && (
-              <div className="w-52">
+              <div className="min-w-0">
                 <Label htmlFor="branch-filter" className="sr-only">Cabang</Label>
                 <Select
                   id="branch-filter"
@@ -277,7 +288,7 @@ function UnifiedApprovalContent() {
               </div>
             )}
 
-            <div className="w-44">
+            <div className="min-w-0">
               <Label htmlFor="status-filter" className="sr-only">Status</Label>
               <Select
                 id="status-filter"
@@ -291,9 +302,8 @@ function UnifiedApprovalContent() {
                 <option value="all">Semua Status</option>
               </Select>
             </div>
-          </div>
         </div>
-      </div>
+      </FilterPanel>
 
       {loading ? (
         <SkeletonTable rows={4} />

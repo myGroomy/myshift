@@ -138,7 +138,7 @@ export default function HandoverTemplatePage() {
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Add Field Form */}
         <div className="lg:col-span-1">
-          <div className="rounded-lg border border-border bg-card p-5 shadow-sm sticky top-24">
+          <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5 lg:sticky lg:top-24">
             <h2 className="mb-3 text-sm font-semibold text-foreground">Tambah Field Handover Baru</h2>
             <div className="space-y-3">
               <div>
@@ -196,7 +196,7 @@ export default function HandoverTemplatePage() {
                   key={field.fieldId}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 shadow-sm"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 shadow-sm sm:p-4"
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">{field.label}</p>

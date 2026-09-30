@@ -16,6 +16,7 @@ import { AdminShell, RejectButton, StatusBadge } from "@/components/shell";
 import { request } from "@/lib/api";
 import type { Branch, Category, Izin, Schedule, Swap } from "@/lib/types";
 import { controlClass } from "@/lib/ui";
+import { FilterPanel } from "@/components/ui/filter-panel";
 
 function msg(error: unknown): string {
   return error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -202,14 +203,16 @@ export function RiwayatContent() {
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Kategori pengajuan" className="flex rounded-lg border border-border p-1 bg-card">
+      <FilterPanel
+        label="Filter riwayat pengajuan"
+        contentClassName="md:grid-cols-[minmax(0,1fr)_14rem]"
+      >
+        <div role="group" aria-label="Kategori pengajuan" className="flex min-w-0 overflow-x-auto rounded-lg border border-border bg-card p-1">
           <button
             type="button"
-            role="tab"
-            aria-selected={tab === "swap"}
+            aria-pressed={tab === "swap"}
             onClick={() => setTab("swap")}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-11 shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:px-4 ${
               tab === "swap"
                 ? "bg-accent font-semibold text-accent-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -219,10 +222,9 @@ export function RiwayatContent() {
           </button>
           <button
             type="button"
-            role="tab"
-            aria-selected={tab === "izin"}
+            aria-pressed={tab === "izin"}
             onClick={() => setTab("izin")}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-11 shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:px-4 ${
               tab === "izin"
                 ? "bg-accent font-semibold text-accent-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -232,7 +234,7 @@ export function RiwayatContent() {
           </button>
         </div>
 
-        <div className="w-44">
+        <div className="min-w-0">
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -245,7 +247,7 @@ export function RiwayatContent() {
             <option value="rejected">Ditolak</option>
           </Select>
         </div>
-      </div>
+      </FilterPanel>
 
       {loading ? (
         <SkeletonTable rows={4} />
@@ -417,9 +419,13 @@ export function SwapApprovalPage() {
       title="Approval Tukar Shift"
       lead="Tinjau dan setujui permohonan pertukaran shift antar karyawan per cabang."
     >
-      <div className="mb-6 flex flex-wrap items-end gap-3">
+      <FilterPanel
+        className="max-w-2xl"
+        contentClassName="md:grid-cols-2"
+        label="Filter permohonan swap"
+      >
         {session?.role === "admin" && (
-          <div className="w-56">
+          <div className="min-w-0">
             <Label htmlFor="branch-filter">Pilih Cabang</Label>
             <Select
               id="branch-filter"
@@ -436,7 +442,7 @@ export function SwapApprovalPage() {
           </div>
         )}
 
-        <div className="w-48">
+        <div className="min-w-0">
           <Label htmlFor="status-filter">Filter Status</Label>
           <Select
             id="status-filter"
@@ -450,7 +456,7 @@ export function SwapApprovalPage() {
             <option value="all">Semua Status</option>
           </Select>
         </div>
-      </div>
+      </FilterPanel>
 
       {loading ? (
         <SkeletonTable rows={4} />
@@ -569,10 +575,10 @@ export function IzinAjukanContent() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-xl font-bold tracking-tight text-slate-900">Ajukan Izin Tidak Masuk</h2>
-        <p className="text-sm text-slate-500">Pilih jadwal shift dan alasan ketidakhadiran untuk diteruskan ke Admin.</p>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Ajukan Izin Tidak Masuk</h2>
+        <p className="text-sm text-muted-foreground">Pilih jadwal shift dan alasan ketidakhadiran untuk diteruskan ke Admin.</p>
       </div>
-      <form onSubmit={submit} className="mb-6 grid max-w-2xl gap-4 sm:grid-cols-2">
+      <form onSubmit={submit} className="mb-6 grid max-w-2xl gap-4 rounded-lg border border-border bg-card p-4 sm:grid-cols-2 sm:p-5">
         <div>
           <Label htmlFor="jadwal-izin">Jadwal Shift yang Ditinggalkan</Label>
           <Select
@@ -723,9 +729,13 @@ export function IzinApprovalPage() {
       title="Approval Izin Karyawan"
       lead="Tinjau dan setujui permohonan izin staf outlet per cabang."
     >
-      <div className="mb-6 flex flex-wrap items-end gap-3">
+      <FilterPanel
+        className="max-w-2xl"
+        contentClassName="md:grid-cols-2"
+        label="Filter permohonan izin"
+      >
         {session?.role === "admin" && (
-          <div className="w-56">
+          <div className="min-w-0">
             <Label htmlFor="branch-izin-filter">Pilih Cabang</Label>
             <Select
               id="branch-izin-filter"
@@ -742,7 +752,7 @@ export function IzinApprovalPage() {
           </div>
         )}
 
-        <div className="w-48">
+        <div className="min-w-0">
           <Label htmlFor="status-izin-filter">Filter Status</Label>
           <Select
             id="status-izin-filter"
@@ -756,7 +766,7 @@ export function IzinApprovalPage() {
             <option value="all">Semua Status</option>
           </Select>
         </div>
-      </div>
+      </FilterPanel>
 
       {loading ? (
         <SkeletonTable rows={4} />

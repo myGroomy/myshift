@@ -93,8 +93,8 @@ export default function KategoriIncidentPage() {
       title="Kelola Kategori Incident"
       lead="Daftar kategori kejadian yang bisa dipilih karyawan saat melaporkan incident."
     >
-      <form onSubmit={submit} className="mb-6 flex max-w-xl items-end gap-3">
-        <div className="flex-1">
+      <form onSubmit={submit} className="mb-6 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div className="min-w-0">
           <Label htmlFor="kategori-label">Nama Kategori Baru</Label>
           <Input
             id="kategori-label"
@@ -105,7 +105,7 @@ export default function KategoriIncidentPage() {
             className={controlClass}
           />
         </div>
-        <Button type="submit" disabled={submitting || !label.trim()} size="lg" className="h-11">
+        <Button type="submit" disabled={submitting || !label.trim()} size="lg" className="h-11 w-full sm:w-auto">
           {submitting ? "Menyimpan..." : "Tambah"}
         </Button>
       </form>

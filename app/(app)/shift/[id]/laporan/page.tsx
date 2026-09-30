@@ -68,7 +68,7 @@ function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> })
   }
 
   if (loading) return <KaryawanShell title="Laporan Shift" lead="Memuat laporan..."><SkeletonCard /></KaryawanShell>;
-  if (!report) return <KaryawanShell title="Laporan Shift"><p className="rounded-lg border border-border bg-card p-5 text-sm">Laporan shift tidak dapat dimuat.</p></KaryawanShell>;
+  if (!report) return <KaryawanShell title="Laporan Shift"><p className="rounded-lg border border-border bg-card p-4 text-sm sm:p-5">Laporan shift tidak dapat dimuat.</p></KaryawanShell>;
   const canGenerate = report.checklist.complete && report.handover.complete;
 
   return (

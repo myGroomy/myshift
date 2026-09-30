@@ -18,12 +18,12 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
+    <div className="mb-5 flex min-w-0 flex-wrap items-start justify-between gap-3 sm:mb-6 sm:items-end">
+      <div className="min-w-0 flex-1">
         <h1 className={pageTitleClass}>{title}</h1>
         {lead ? <p className={pageLeadClass}>{lead}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div> : null}
     </div>
   );
 }
