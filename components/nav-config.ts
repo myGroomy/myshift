@@ -5,7 +5,7 @@
  * file ini, jadi keduanya tidak mungkin melenceng. Item yang promoted ke tab dock otomatis
  * dikeluarkan dari grup "Lainnya" lewat `groupsWithoutTabs()`.
  *
- * Menu pengelolaan dan template hanya boleh dibuka Admin; Karyawan mendapat menu kerja shift.
+ * Menu pengelolaan dan template hanya boleh dibuka Admin; Petugas mendapat menu kerja shift.
  */
 
 export type NavItem = { href: string; label: string; icon: string; adminOnly?: boolean };
@@ -56,7 +56,7 @@ export const ADMIN_SETTINGS_GROUPS: NavGroup[] = [
 ];
 
 /**
- * Empat tab kerja Admin memakai label/fungsi yang sama dengan tab Karyawan.
+ * Empat tab kerja Admin memakai label/fungsi yang sama dengan tab Petugas.
  * Jadwal Admin menuju kalender pengelolaan; Checklist dan Handover membuka shift picker
  * yang juga dapat dipakai Admin untuk memeriksa atau mengoreksi data operasional.
  */
@@ -73,29 +73,29 @@ export const ADMIN_DOCK_EXTRAS: NavItem[] = [
 ];
 
 /**
- * Karyawan (petugas shift) hanya pekerjaan lapangan, tanpa menu pengelolaan Admin.
+ * Petugas hanya mendapat pekerjaan lapangan, tanpa menu pengelolaan Admin.
  *
  * Empat pekerjaan nyata petugas: lihat jadwal & urus swap/izin, kerjakan checklist,
  * isi handover, dan laporkan incident. Swap/izin/riwayat digabung sebagai tab di dalam
  * `/jadwal-saya`, bukan entri dock terpisah jadi route lama `/swap/ajukan`,
  * `/izin/ajukan`, dan `/riwayat` tetap ada sebagai redirect tapi keluar dari semua nav.
  */
-export const KARYAWAN_ITEMS: NavItem[] = [
+export const PETUGAS_ITEMS: NavItem[] = [
   { href: "/jadwal-saya", label: "Jadwal", icon: "event_note" },
   { href: "/checklist", label: "Checklist", icon: "checklist" },
   { href: "/handover", label: "Handover", icon: "swap_calls" },
   { href: "/incident", label: "Incident", icon: "report" },
 ];
 
-export const KARYAWAN_NAV_ITEMS: NavItem[] = [
-  ...KARYAWAN_ITEMS,
+export const PETUGAS_NAV_ITEMS: NavItem[] = [
+  ...PETUGAS_ITEMS,
   { href: "/laporan", label: "Laporan", icon: "bar_chart" },
   { href: "/profil", label: "Profil", icon: "person" },
 ];
 
-export const KARYAWAN_DOCK_TABS: NavItem[] = KARYAWAN_ITEMS;
+export const PETUGAS_DOCK_TABS: NavItem[] = PETUGAS_ITEMS;
 
-export const KARYAWAN_DOCK_EXTRAS: NavItem[] = [
+export const PETUGAS_DOCK_EXTRAS: NavItem[] = [
   { href: "/laporan", label: "Laporan", icon: "bar_chart" },
   { href: "/profil", label: "Profil", icon: "person" },
   { href: "/pilih-cabang", label: "Pilih Cabang", icon: "storefront" },

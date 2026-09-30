@@ -1,5 +1,6 @@
 import { DomainError } from "@/lib/error-codes";
 import { canStartShift } from "@/lib/domain/shift-lifecycle";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 export type ScheduleLite = {
   scheduleId: string;
@@ -34,11 +35,11 @@ export function assertScheduleOwner(scheduleEmployeeId: string, actorId: string)
 }
 
 export function assertScheduleAccess(input: {
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   scheduleEmployeeId: string;
   actorId: string;
 }) {
-  if (input.role === "karyawan") assertScheduleOwner(input.scheduleEmployeeId, input.actorId);
+  if (input.role === "petugas") assertScheduleOwner(input.scheduleEmployeeId, input.actorId);
 }
 
 export function assertCanStartShift(status: string) {

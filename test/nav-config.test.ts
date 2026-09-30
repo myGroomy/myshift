@@ -6,9 +6,9 @@ import {
   ADMIN_DOCK_TABS,
   ADMIN_NAV_GROUPS,
   ADMIN_SETTINGS_GROUPS,
-  KARYAWAN_DOCK_EXTRAS,
-  KARYAWAN_DOCK_TABS,
-  KARYAWAN_NAV_ITEMS,
+  PETUGAS_DOCK_EXTRAS,
+  PETUGAS_DOCK_TABS,
+  PETUGAS_NAV_ITEMS,
   groupsForRole,
   groupsWithoutTabs,
   type NavGroup,
@@ -51,10 +51,10 @@ test("navigasi Admin memakai empat tab kerja yang sama dan mengelompokkan fitur 
   );
 });
 
-test("dock karyawan persis 4 tab", () => {
-  assert.equal(KARYAWAN_DOCK_TABS.length, 4);
+test("dock Petugas persis 4 tab", () => {
+  assert.equal(PETUGAS_DOCK_TABS.length, 4);
   assert.deepEqual(
-    KARYAWAN_DOCK_TABS.map((item) => item.href),
+    PETUGAS_DOCK_TABS.map((item) => item.href),
     ["/jadwal-saya", "/checklist", "/handover", "/incident"],
   );
 });
@@ -62,12 +62,12 @@ test("dock karyawan persis 4 tab", () => {
 test("tab utama Admin dan Karyawan sama secara fungsi dan label", () => {
   assert.deepEqual(
     ADMIN_DOCK_TABS.map(({ label, icon }) => [label, icon]),
-    KARYAWAN_DOCK_TABS.map(({ label, icon }) => [label, icon]),
+    PETUGAS_DOCK_TABS.map(({ label, icon }) => [label, icon]),
   );
 });
 
 test("setiap tab dock punya ikon (Material Symbols) dan label", () => {
-  for (const item of [...ADMIN_DOCK_TABS, ...KARYAWAN_DOCK_TABS, ...KARYAWAN_NAV_ITEMS]) {
+  for (const item of [...ADMIN_DOCK_TABS, ...PETUGAS_DOCK_TABS, ...PETUGAS_NAV_ITEMS]) {
     assert.ok(item.icon.length > 0, `${item.href} tanpa ikon`);
     assert.ok(item.label.length > 0, `${item.href} tanpa label`);
     assert.ok(item.href.startsWith("/"), `${item.href} bukan path absolut`);
@@ -132,14 +132,14 @@ test("tidak ada href yang muncul dua kali di dock admin (tabs + Lainnya + extras
   assert.ok(seen.size > 4, "dock harus punya lebih dari 4 tujuan");
 });
 
-test("karyawan: profil & pilih cabang tetap terjangkau, logout ditangani pemanggil", () => {
-  const hrefs = KARYAWAN_DOCK_EXTRAS.map((item) => item.href);
+test("Petugas: profil & pilih cabang tetap terjangkau, logout ditangani pemanggil", () => {
+  const hrefs = PETUGAS_DOCK_EXTRAS.map((item) => item.href);
   assert.ok(hrefs.includes("/profil"));
   assert.ok(hrefs.includes("/pilih-cabang"));
-  // Nav desktop karyawan memuat Profil juga; dock + nav tidak boleh dobel di layar yang sama
+  // Nav desktop Petugas memuat Profil juga; dock + nav tidak boleh dobel di layar yang sama
   // (dock lg:hidden), jadi Profil sengaja ada di nav desktop DAN di Lainnya mobile.
-  assert.ok(KARYAWAN_NAV_ITEMS.some((item) => item.href === "/profil"));
-  assert.ok(KARYAWAN_NAV_ITEMS.some((item) => item.href === "/laporan"));
+  assert.ok(PETUGAS_NAV_ITEMS.some((item) => item.href === "/profil"));
+  assert.ok(PETUGAS_NAV_ITEMS.some((item) => item.href === "/laporan"));
   assert.ok(hrefs.includes("/laporan"), "Laporan tersedia di Lainnya mobile");
-  assert.equal(KARYAWAN_DOCK_TABS.some((item) => item.href === "/profil"), false, "Profil bukan tab dock");
+  assert.equal(PETUGAS_DOCK_TABS.some((item) => item.href === "/profil"), false, "Profil bukan tab dock");
 });

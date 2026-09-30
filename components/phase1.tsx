@@ -10,14 +10,15 @@ import { DataTable, tdClass } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { AdminShell, StatusBadge } from "@/components/shell";
 import { request } from "@/lib/api";
 import { todayInWIB } from "@/lib/domain/date";
 import type { Branch, Employee, Schedule, Shift } from "@/lib/types";
 import { controlClass } from "@/lib/ui";
 import { FilterPanel } from "@/components/ui/filter-panel";
-import { Copy, FolderOpen, Sheet } from "lucide-react";
+import { Copy, FolderOpen, Pencil, Sheet } from "lucide-react";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 function msg(error: unknown): string {
   return error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -254,13 +255,16 @@ export function EmployeesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", username: "", role: "petugas" as EmployeeRole, branchId: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Form create
   const [form, setForm] = useState({
     name: "",
     username: "",
     pin: "",
-    role: "karyawan",
+    role: "petugas",
     branchId: "",
   });
 
@@ -327,6 +331,35 @@ export function EmployeesPage() {
     }
   }
 
+  function startEditing(employee: Employee) {
+    setEditingEmployee(employee);
+    setEditForm({
+      name: employee.nama,
+      username: employee.username,
+      role: employee.role,
+      branchId: employee.cabangAktif,
+    });
+  }
+
+  async function saveEmployee(event: FormEvent) {
+    event.preventDefault();
+    if (!editingEmployee) return;
+    setSavingEdit(true);
+    try {
+      await request(`/api/employees/${editingEmployee.employeeId}`, {
+        method: "PATCH",
+        body: JSON.stringify(editForm),
+      });
+      toast(`Data ${editingEmployee.nama} berhasil diperbarui`, "success");
+      setEditingEmployee(null);
+      load();
+    } catch (e) {
+      toast(msg(e), "error");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   async function handleResetPin(event: FormEvent) {
     event.preventDefault();
     if (!resettingUser || !/^\d{4,8}$/.test(newPin)) {
@@ -361,8 +394,8 @@ export function EmployeesPage() {
 
   return (
     <AdminShell
-      title="Kelola Karyawan"
-      lead="Registrasi staf gerai, pengaturan cabang bertugas, dan reset PIN akses."
+      title="Kelola Petugas"
+      lead="Buat akun, edit nama/username/role/cabang, nonaktifkan akun, dan reset PIN."
     >
       {/* Form Pendaftaran Card */}
       <form
@@ -370,7 +403,7 @@ export function EmployeesPage() {
         className="mb-8 grid max-w-3xl gap-4 rounded-lg border border-border bg-card p-4 shadow-sm sm:grid-cols-2 sm:p-6"
       >
         <h2 className="sm:col-span-2 text-base font-semibold text-foreground">
-          Pendaftaran Karyawan Baru
+          Pendaftaran Akun Baru
         </h2>
 
         <div>
@@ -420,7 +453,7 @@ export function EmployeesPage() {
             onChange={(e) => setForm({ ...form, role: e.target.value })}
             className={controlClass}
           >
-            <option value="karyawan">Karyawan (Staf Outlet)</option>
+            <option value="petugas">Petugas Outlet</option>
             <option value="admin">Admin Pusat</option>
           </Select>
         </div>
@@ -484,6 +517,70 @@ export function EmployeesPage() {
           </Select>
         </div>
       </FilterPanel>
+
+      {editingEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-4 shadow-xl sm:p-6">
+            <h2 className="text-base font-bold text-foreground">Edit Petugas</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{editingEmployee.employeeId}</p>
+            <form onSubmit={saveEmployee} className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="edit-emp-name">Nama Lengkap</Label>
+                <Input
+                  id="edit-emp-name"
+                  value={editForm.name}
+                  onChange={(event) => setEditForm({ ...editForm, name: event.target.value })}
+                  required
+                  className={controlClass}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-emp-username">Username</Label>
+                <Input
+                  id="edit-emp-username"
+                  value={editForm.username}
+                  onChange={(event) => setEditForm({ ...editForm, username: event.target.value })}
+                  autoCapitalize="none"
+                  required
+                  className={controlClass}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-emp-role">Role</Label>
+                <Select
+                  id="edit-emp-role"
+                  value={editForm.role}
+                  onChange={(event) => setEditForm({ ...editForm, role: event.target.value as EmployeeRole })}
+                  className={controlClass}
+                >
+                  <option value="petugas">Petugas</option>
+                  <option value="admin">Admin</option>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-emp-branch">Cabang Aktif</Label>
+                <Select
+                  id="edit-emp-branch"
+                  value={editForm.branchId}
+                  onChange={(event) => setEditForm({ ...editForm, branchId: event.target.value })}
+                  required
+                  className={controlClass}
+                >
+                  {branches.filter((branch) => branch.aktif).map((branch) => (
+                    <option key={branch.branchId} value={branch.branchId}>{branch.nama} ({branch.branchId})</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex gap-2 sm:col-span-2">
+                <Button type="submit" disabled={savingEdit} className="flex-1">
+                  {savingEdit ? "Menyimpan..." : "Simpan Perubahan"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setEditingEmployee(null)}>Batal</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Reset PIN Modal */}
       {resettingUser && (
@@ -564,6 +661,9 @@ export function EmployeesPage() {
               </td>
               <td className={tdClass}>
                 <div className="flex gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => startEditing(item)} aria-label={`Edit ${item.nama}`}>
+                    <Pencil size={14} /> Edit
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -802,7 +902,7 @@ export function ShiftsPage() {
 /**
  * Isi halaman jadwal TANPA shell dipakai dua tempat: `/jadwal` (admin, `mine=false`)
  * lewat `SchedulePage`, dan tab pertama `/jadwal-saya` (petugas) lewat `JadwalSayaPage`.
- * Tanpa dipisah begini, keduanya akan menaruh `KaryawanShell` di dalam `KaryawanShell`
+ * Tanpa dipisah begini, keduanya akan menaruh `PetugasShell` di dalam `PetugasShell`
  * sehingga header dan dock ter-render dua kali.
  */
 export function ScheduleContent({ mine = false }: { mine?: boolean }) {
@@ -1144,7 +1244,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
  * `JadwalSayaPage` (`components/jadwal-saya.tsx`) yang membungkus `ScheduleContent`.
  */
 export function SchedulePage({ mine = false }: { mine?: boolean }) {
-  const Shell = mine ? KaryawanShell : AdminShell;
+  const Shell = mine ? PetugasShell : AdminShell;
   return (
     <Shell
       title={mine ? "Jadwal Saya" : "Kelola Jadwal"}

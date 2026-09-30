@@ -9,12 +9,13 @@ import { DataTable, tdClass } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { AdminShell, StatusBadge } from "@/components/shell";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { controlClass } from "@/lib/ui";
 import { AlertTriangle, Plus } from "lucide-react";
 import { FilterPanel } from "@/components/ui/filter-panel";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 type Incident = {
   incidentId: string;
@@ -30,7 +31,7 @@ type Incident = {
 };
 
 type Session = {
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: { branchId: string; nama: string }[];
 };
@@ -81,7 +82,7 @@ export default function IncidentPage() {
     return true;
   });
 
-  const Shell = session?.role === "karyawan" ? KaryawanShell : AdminShell;
+  const Shell = session?.role === "petugas" ? PetugasShell : AdminShell;
   const categories = [...new Map(items.map((item) => [item.kategoriId, item.kategoriLabel])).entries()];
 
   return (

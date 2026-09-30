@@ -7,7 +7,7 @@ import type { SessionPayload } from "@/lib/session";
 const employeeSession: SessionPayload = {
   employeeId: "EMP-001",
   nama: "Karyawan",
-  role: "karyawan",
+  role: "petugas",
   activeBranchId: "CBG001",
   branches: [
     { branchId: "CBG001", nama: "Cabang aktif" },
@@ -15,7 +15,7 @@ const employeeSession: SessionPayload = {
   ],
 };
 
-test("karyawan hanya melihat laporan cabang aktif, meski terafiliasi dengan cabang lain", () => {
+test("Petugas hanya melihat laporan cabang aktif, meski terafiliasi dengan cabang lain", () => {
   assert.equal(reportBranchId(employeeSession, ""), "CBG001");
   assert.equal(reportBranchId(employeeSession, "CBG001"), "CBG001");
   assert.throws(() => reportBranchId(employeeSession, "CBG002"), (error: unknown) => {

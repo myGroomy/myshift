@@ -11,12 +11,12 @@ import { DataTable, tdClass } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { KaryawanShell } from "@/components/karyawan-shell";
 import { AdminShell, RejectButton, StatusBadge } from "@/components/shell";
 import { request } from "@/lib/api";
 import type { Branch, Category, Izin, Schedule, Swap } from "@/lib/types";
 import { controlClass } from "@/lib/ui";
 import { FilterPanel } from "@/components/ui/filter-panel";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 function msg(error: unknown): string {
   return error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -25,7 +25,7 @@ function msg(error: unknown): string {
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: Branch[];
 };

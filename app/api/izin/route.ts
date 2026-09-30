@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const { records } = await loadIzin(branchId);
     let result = records.map(({ rowNumber: _row, ...izin }) => izin);
     if (status) result = result.filter((izin) => izin.status === status);
-    if (auth.role === "karyawan") {
+    if (auth.role === "petugas") {
       result = result.filter((izin) => izin.employeeId === auth.employeeId);
     }
     return ok(result);

@@ -7,6 +7,7 @@ export type RawScheduleRow = {
   date: string;
   status: string;
   startedAt: string;
+  reportGeneratedAt: string;
 };
 
 export type RawShiftRow = {

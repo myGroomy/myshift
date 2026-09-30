@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { DataTable, tdClass } from "@/components/ui/table";
 import { request } from "@/lib/api";
 import { AdminShell, StatusBadge } from "@/components/shell";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { useToast } from "@/components/ui/toast";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -17,6 +17,7 @@ import { todayInWIB } from "@/lib/domain/date";
 import { BarChart3, Search, Download } from "lucide-react";
 import type { Branch } from "@/lib/types";
 import { FilterPanel } from "@/components/ui/filter-panel";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 type LaporanRow = {
   type: string;
@@ -30,7 +31,7 @@ type LaporanRow = {
 };
 
 type Session = {
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: Branch[];
 };
@@ -58,7 +59,7 @@ export default function LaporanPage() {
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const PageShell = session?.role === "admin" ? AdminShell : KaryawanShell;
+  const PageShell = session?.role === "admin" ? AdminShell : PetugasShell;
 
   useEffect(() => {
     Promise.all([

@@ -34,10 +34,10 @@
 - [ ] CRUD Karyawan (admin) termasuk assign cabang aktif
 - [ ] Buat jadwal mingguan (admin): assign karyawan → shift → tanggal
 - [ ] Deteksi bentrok jadwal → tampilkan warning (tidak block)
-- [ ] Tampilan "jadwal saya" untuk karyawan (hanya cabang sendiri)
+- [ ] Tampilan "jadwal saya" untuk Petugas (hanya cabang sendiri)
 - [ ] Tampilan jadwal mingguan per cabang untuk admin
 
-**Selesai Fase 1 = admin bisa bikin jadwal, karyawan bisa lihat jadwalnya. Ini yang paling penting untuk dipakai duluan di cabang.**
+**Selesai Fase 1 = admin bisa bikin jadwal, Petugas bisa lihat jadwalnya. Ini yang paling penting untuk dipakai duluan di cabang.**
 
 ---
 

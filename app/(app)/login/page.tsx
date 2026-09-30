@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { request } from "@/lib/api";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 import { controlClass } from "@/lib/ui";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -102,7 +103,7 @@ function LoginForm() {
     setLoading(true);
     try {
       const res = await request<{
-        role?: "admin" | "karyawan";
+        role?: EmployeeRole;
         branches?: { branchId: string; nama: string }[];
       }>("/api/auth/login", {
         method: "POST",
@@ -161,7 +162,7 @@ function LoginForm() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username karyawan"
+              placeholder="Username petugas"
               autoComplete="username"
               autoCapitalize="none"
               required

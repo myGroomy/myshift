@@ -18,7 +18,7 @@ const adminSession = {
 const staffSession = {
   employeeId: "EMP-002",
   nama: "Staff",
-  role: "karyawan" as const,
+  role: "petugas" as const,
   branches: [
     { branchId: "CBG001", nama: "Pusat" },
     { branchId: "CBG002", nama: "Cabang 2" },

@@ -15,11 +15,12 @@ import type { Branch, Izin, Swap } from "@/lib/types";
 import { controlClass } from "@/lib/ui";
 import { cn } from "@/lib/utils";
 import { FilterPanel } from "@/components/ui/filter-panel";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: Branch[];
 };

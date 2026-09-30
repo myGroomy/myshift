@@ -1,7 +1,7 @@
 # MYSHIFT UI Plan
 
-> **Versi:** 1.4.0 (Checklist SOP per shift dan laporan shift publik)
-> **Tanggal:** 2026-09-29
+> **Versi:** 1.5.0 (Role kanonis Admin/Petugas)
+> **Tanggal:** 2026-09-30
 > **Turunan dari:** `FULL-PRD.md`, `MVP-plan.md`, `UI_UX_AUDIT_MYSHIFT.md`
 > **Styling & Design Tokens:** lihat `atlassian-DESIGN.md` (di direktori yang sama: `PLANS/atlassian-DESIGN.md`) **adaptasi desain di file ini** untuk semua warna, tipografi, spacing, dan komponen. UI-PLAN.md ini **tidak** mendefinisikan styling; fokusnya adalah struktur halaman, konten, dan fungsi tiap layar.
 
@@ -20,11 +20,11 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 | 1 | Login | `/login` | Semua | MVP |
 | 2 | Pilih Cabang | `/pilih-cabang` | Semua (auto-skip jika cabang aktif = 1) | MVP |
 | 3 | Profil Saya | `/profil` | Semua | Fase 2 |
-| 4 | Jadwal Saya | `/jadwal-saya` | Karyawan | MVP (Unified 4-Tab Hub: Jadwal, Swap, Izin, Riwayat) |
-| 5 | Layar Shift Terpadu | `/shift/[id]` | Karyawan | Fase 2/3 (Hub 3-Tab: Info, Checklist, Handover) |
-| 6 | Shift Picker Checklist | `/checklist` | Karyawan | Nav Restructure (Shift Picker -> `/shift/[id]/checklist`) |
-| 7 | Shift Picker Handover | `/handover` | Karyawan | Nav Restructure (Shift Picker -> `/shift/[id]?tab=handover`) |
-| 8 | Redirect Swap / Izin / Riwayat | `/swap/ajukan`, `/izin/ajukan`, `/riwayat` | Karyawan | Redirect ke `/jadwal-saya?tab=...` |
+| 4 | Jadwal Saya | `/jadwal-saya` | Petugas | MVP (Unified 4-Tab Hub: Jadwal, Swap, Izin, Riwayat) |
+| 5 | Layar Shift Terpadu | `/shift/[id]` | Petugas | Fase 2/3 (Hub 3-Tab: Info, Checklist, Handover) |
+| 6 | Checklist & Riwayat Checklist | `/checklist`, `/checklist/history` | Admin, Petugas | Input checklist langsung untuk jadwal hari ini; riwayat shift/laporan |
+| 7 | Shift Picker Handover | `/handover` | Petugas | Nav Restructure (Shift Picker -> `/shift/[id]?tab=handover`) |
+| 8 | Redirect Swap / Izin / Riwayat | `/swap/ajukan`, `/izin/ajukan`, `/riwayat` | Petugas | Redirect ke `/jadwal-saya?tab=...` |
 | 9 | Dashboard | `/dashboard` | Admin | Fase 4 |
 | 10 | Kelola Jadwal | `/jadwal` | Admin | MVP |
 | 11 | Kelola Karyawan | `/karyawan` | Admin | MVP |
@@ -34,8 +34,8 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 | 15 | Kelola Handover Template | `/handover-template` | Admin | Fase 3 |
 | 16 | Kelola Kategori Izin | `/kategori-izin` | Admin | Fase 2 |
 | 17 | Unified Approval Hub | `/approval` | Admin | Fase 2 (Tab Swap & Izin gabung) |
-| 18 | Laporan | `/laporan` | Admin, Karyawan (cabang aktif) | Fase 4 |
-| 19 | Laporan Shift | `/shift/[id]/laporan` | Admin, Karyawan pemilik jadwal | Checklist Specs |
+| 18 | Laporan | `/laporan` | Admin, Petugas (cabang aktif) | Fase 4 |
+| 19 | Laporan Shift | `/shift/[id]/laporan` | Admin, Petugas pemilik jadwal | Checklist Specs |
 | 20 | Laporan Publik | `/laporan-publik/[token]` | Publik tanpa login | Checklist Specs |
 
 ---
@@ -44,7 +44,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 ### 2.1 Login (`/login`)
 
-**Layout:** Form terpusat, single column, max-width kecil (mobile-first kemungkinan besar dipakai dari HP karyawan di lapangan).
+**Layout:** Form terpusat, single column, max-width kecil (mobile-first kemungkinan besar dipakai dari HP petugas di lapangan).
 
 **Elemen:**
 - Logo/nama app
@@ -53,7 +53,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 - Tombol "Masuk"
 - State error: PIN salah / akun terkunci (tampilkan sisa waktu lock kalau kena rate-limit)
 
-**Fungsi:** POST ke endpoint auth, dapat session cookie, redirect sesuai role (Admin → `/dashboard`, Karyawan → `/jadwal-saya`).
+**Fungsi:** POST ke endpoint auth, dapat session cookie, redirect sesuai role (Admin → `/dashboard`, Petugas → `/jadwal-saya`).
 
 ---
 
@@ -65,11 +65,11 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 - Card per cabang: nama cabang, indikator "cabang saat ini" kalau ada
 - Tap untuk pilih → set konteks cabang aktif di sesi
 
-**Fungsi:** Muncul hanya kalau user (karyawan pindah-pindah, atau admin) punya >1 cabang terafiliasi. Kalau cuma 1 cabang, skip halaman ini otomatis.
+**Fungsi:** Muncul hanya kalau user (petugas pindah-pindah, atau admin) punya >1 cabang terafiliasi. Kalau cuma 1 cabang, skip halaman ini otomatis.
 
 ---
 
-### 2.3 Jadwal Saya (`/jadwal-saya`) home karyawan
+### 2.3 Jadwal Saya (`/jadwal-saya`) home Petugas
 
 **Layout:** Header + strip tanggal horizontal (7 hari) + card shift hari terpilih.
 
@@ -79,7 +79,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 - Shortcut: tombol "Ajukan swap" dan "Ajukan izin"
 - Empty state: kalau tidak ada shift di tanggal terpilih ("Tidak ada shift hari ini")
 
-**Fungsi:** Fetch jadwal minggu berjalan untuk karyawan + cabang aktifnya. Tap tanggal lain di strip → ganti card shift yang ditampilkan.
+**Fungsi:** Fetch jadwal minggu berjalan untuk petugas + cabang aktifnya. Tap tanggal lain di strip → ganti card shift yang ditampilkan.
 
 ---
 
@@ -98,6 +98,13 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
    - Form terstruktur (sesuai `Handover_Template`) dengan penanda visual field wajib
    - Tombol Submit Handover validasi field wajib sebelum submit
 
+### Checklist & Riwayat Checklist (`/checklist`, `/checklist/history`)
+
+- Petugas membuka checklist otomatis untuk jadwal hari ini: prioritaskan shift yang sedang berjalan, lalu jadwal terdekat yang belum dimulai. Jika tidak ada jadwal hari ini, tampilkan jadwal lain yang tersedia dan pintasan ke riwayat.
+- Jika ada beberapa shift hari ini, pilihan jadwal tetap tersedia. Admin tetap menggunakan pemilih shift untuk pemeriksaan/koreksi di cabang aktif.
+- Halaman input menampilkan nama petugas, cabang, tanggal/jam, status shift, progres checklist, dan tautan laporan shift.
+- Riwayat memuat shift yang sudah lewat dan status laporan; tautan "Lihat Laporan" hanya tampil jika `reportGeneratedAt` tersedia.
+
 ---
 
 ### 2.5 Ajukan Swap (`/swap/ajukan`)
@@ -106,7 +113,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 **Elemen:**
 - Pilih shift milik sendiri yang mau ditukar (dropdown/list, dari jadwal mendatang)
-- Pilih partner tukar (filter otomatis: hanya tampilkan karyawan yang punya jadwal valid/memungkinkan di tanggal tersebut)
+- Pilih partner tukar (filter otomatis: hanya tampilkan petugas yang punya jadwal valid/memungkinkan di tanggal tersebut)
 - Textarea alasan (wajib)
 - Tombol submit → masuk status "pending"
 
@@ -166,7 +173,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 **Elemen:**
 - Tabel: nama, role, cabang aktif, status (aktif/nonaktif)
 - Tombol "Tambah karyawan" → form modal/halaman terpisah
-- Aksi per baris: edit, nonaktifkan
+- Aksi per baris: edit nama, username, role, cabang; nonaktifkan/aktifkan (soft-delete); reset PIN sebagai aksi terpisah
 - Search/filter sederhana (nama, cabang)
 
 ---
@@ -268,7 +275,7 @@ Untuk tiap halaman di bawah: bangun struktur & fungsi sesuai deskripsi di sini, 
 
 Satu model navigasi untuk semua role, dengan dua bentuk tergantung ukuran layar:
 
-| Layar | Admin | Karyawan |
+| Layar | Admin | Petugas |
 |---|---|---|
 | `< lg` (mobile) | **Dock 4 tab** + tombol **"Lainnya"** | **Dock 4 tab** + tombol **"Lainnya"** |
 | `lg+` (desktop) | Jadwal, Checklist, Handover, Incident + dropdown **Pengelolaan** | Nav horizontal di header |
@@ -289,7 +296,7 @@ Satu model navigasi untuk semua role, dengan dua bentuk tergantung ukuran layar:
 | Role | 4 tab dock | Masuk sheet "Lainnya" |
 |---|---|---|
 | Admin | Jadwal, Checklist, Handover, Incident | Dashboard, Approval, Laporan, Checklist Template, Handover Template, Cabang, Karyawan, Shift Template, Kategori Izin, Kategori Incident, Pilih Cabang |
-| Karyawan | Jadwal, Checklist, Handover, Incident | Swap, Izin, Riwayat, Laporan, Profil, Pilih Cabang, Keluar dari Akun |
+| Petugas | Jadwal, Checklist, Handover, Incident | Swap, Izin, Riwayat, Laporan, Profil, Pilih Cabang, Keluar dari Akun |
 
 Untuk Admin, tab Jadwal membuka kalender kelola jadwal; tab Checklist dan Handover membuka pemilih shift
 operasional yang sama dan dapat digunakan untuk memeriksa atau mengoreksi catatan. Semua akses Admin
@@ -313,7 +320,7 @@ pernah tampil dua kali. Menukar prioritas 4 tab cukup mengubah `ADMIN_DOCK_TABS`
 
 ### 4.3 Keluar dari akun
 
-`useLogout()` dipakai bersama oleh header admin, header karyawan, dan sheet "Lainnya": POST
+`useLogout()` dipakai bersama oleh header admin, header petugas, dan sheet "Lainnya": POST
 `/api/auth/logout`, toast, lalu pindah ke `/login` (pindah layar tetap dilakukan walau request
 gagal, supaya pengguna tidak terjebak di halaman yang tidak bisa diakses).
 

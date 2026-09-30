@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Share2 } from "lucide-react";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { Button } from "@/components/ui/button";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
@@ -67,12 +67,12 @@ function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> })
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
 
-  if (loading) return <KaryawanShell title="Laporan Shift" lead="Memuat laporan..."><SkeletonCard /></KaryawanShell>;
-  if (!report) return <KaryawanShell title="Laporan Shift"><p className="rounded-lg border border-border bg-card p-4 text-sm sm:p-5">Laporan shift tidak dapat dimuat.</p></KaryawanShell>;
+  if (loading) return <PetugasShell title="Laporan Shift" lead="Memuat laporan..."><SkeletonCard /></PetugasShell>;
+  if (!report) return <PetugasShell title="Laporan Shift"><p className="rounded-lg border border-border bg-card p-4 text-sm sm:p-5">Laporan shift tidak dapat dimuat.</p></PetugasShell>;
   const canGenerate = report.checklist.complete && report.handover.complete;
 
   return (
-    <KaryawanShell title="Laporan Shift" lead={`${report.shiftName} · ${report.date}`}>
+    <PetugasShell title="Laporan Shift" lead={`${report.shiftName} · ${report.date}`}>
       <div className="max-w-3xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button asChild variant="ghost" size="sm"><Link href={`/shift/${id}`}><ArrowLeft size={16} />Kembali ke shift</Link></Button>
@@ -93,7 +93,7 @@ function ShiftReportPageContent({ params }: { params: Promise<{ id: string }> })
         </a>}
         <ShiftReportView report={report} />
       </div>
-    </KaryawanShell>
+    </PetugasShell>
   );
 }
 

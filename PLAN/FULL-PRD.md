@@ -1,7 +1,7 @@
 # MYSHIFT Product Requirements Document (Full / Production)
 
-> **Versi:** 1.3.0
-> **Tanggal:** 2026-09-29
+> **Versi:** 1.4.0
+> **Tanggal:** 2026-09-30
 > **Status:** Draft PRD Awal + Incident Feature
 > **Bagian dari:** Ekosistem MOCHIKIN-APPS (F&B UMKM internal operational apps)
 
@@ -39,11 +39,11 @@ Tujuan utama:
 | Role | Cakupan | Kewenangan |
 |---|---|---|
 | **Admin (Pusat)** | Semua cabang | Membuat/edit jadwal semua cabang, approve swap & izin, kelola master data (cabang, shift, checklist template), kelola karyawan |
-| **Karyawan** | 1 cabang (bisa berpindah) | Lihat jadwal sendiri, ajukan swap/izin, isi checklist opening/closing, isi handover, tandai mulai shift |
+| **Petugas** | 1 cabang (bisa berpindah) | Lihat jadwal sendiri, ajukan swap/izin, isi checklist opening/closing, isi handover, tandai mulai shift |
 
-Role `kepala_cabang` dihapus dan akun lama dimigrasikan menjadi `karyawan`; pengelolaan data dan
-template hanya tersedia bagi Admin. Karyawan bisa ditugaskan ke beberapa cabang dan memilih cabang
-aktif.
+Role yang digunakan hanya `admin` dan `petugas`. Role lama `karyawan` dan `kepala_cabang`
+dinormalisasi menjadi `petugas`; pengelolaan data dan template hanya tersedia bagi Admin. Petugas
+bisa ditugaskan ke beberapa cabang dan memilih cabang aktif.
 
 ---
 
@@ -74,7 +74,7 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 | Sheet | Kolom |
 |---|---|
 | `Daftar_Cabang` | `Cabang_ID`, `Nama_Cabang`, `Spreadsheet_ID`, `Aktif` |
-| `Employees` | `Employee_ID`, `Username`, `PIN_Hash`, `Nama`, `Role` (admin/karyawan), `Cabang_Aktif`, `Aktif` |
+| `Employees` | `Employee_ID`, `Username`, `PIN_Hash`, `Nama`, `Role` (admin/petugas), `Cabang_Aktif`, `Aktif` |
 | `Settings_Global` | `Key`, `Value` |
 
 ### 5.2 Per-Cabang Spreadsheet (1 file per cabang)
@@ -104,7 +104,7 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 ### 6.1 Auth & Employee Management
 - Login: username + PIN (scrypt hash)
 - CRUD karyawan (admin): nama, role, cabang aktif, status aktif
-- Karyawan bisa dipindah cabang oleh admin
+- Petugas bisa dipindah cabang oleh admin
 
 ### 6.2 Master Data
 - CRUD cabang (admin)

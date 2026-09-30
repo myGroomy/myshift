@@ -7,15 +7,16 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { AdminShell } from "@/components/shell";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: { branchId: string; nama: string }[];
 };
@@ -44,7 +45,7 @@ export default function PilihCabangPage() {
 
   async function selectBranch(branchId: string) {
     if (branchId === session?.activeBranchId) {
-      router.push(session.role === "karyawan" ? "/jadwal-saya" : "/dashboard");
+      router.push(session.role === "petugas" ? "/jadwal-saya" : "/dashboard");
       return;
     }
 
@@ -55,14 +56,14 @@ export default function PilihCabangPage() {
         body: JSON.stringify({ branchId }),
       });
       toast("Cabang aktif diperbarui", "success");
-      router.push(session?.role === "karyawan" ? "/jadwal-saya" : "/dashboard");
+      router.push(session?.role === "petugas" ? "/jadwal-saya" : "/dashboard");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal memilih cabang", "error");
       setSwitching(null);
     }
   }
 
-  const Shell = session?.role === "karyawan" ? KaryawanShell : AdminShell;
+  const Shell = session?.role === "petugas" ? PetugasShell : AdminShell;
 
   return (
     <Shell

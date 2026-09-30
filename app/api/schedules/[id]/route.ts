@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, context: Context) {
 
     const values = match.row.values;
     const employeeId = values[1] ?? "";
-    if (auth.role === "karyawan" && employeeId !== auth.employeeId) {
+    if (auth.role === "petugas" && employeeId !== auth.employeeId) {
       return fail("FORBIDDEN", "Hanya pemilik jadwal yang boleh melihat detail ini");
     }
 
@@ -63,6 +63,8 @@ export async function GET(request: NextRequest, context: Context) {
       startedAt: values[5] ?? "",
       branchId: match.branchId,
       reportGeneratedAt: values[7] ?? "",
+      startTime: shift?.values[2] ?? "",
+      endTime: shift?.values[3] ?? "",
     });
   } catch (error) {
     return handleRouteError(error, "Gagal memuat jadwal");

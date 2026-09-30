@@ -1,5 +1,6 @@
 import { headers as getHeaders } from "next/headers";
 import { getEnv } from "@/lib/env";
+import { normalizeEmployeeRole, type EmployeeRole } from "@/lib/domain/employee-role";
 
 const COOKIE_NAME = "myshift_session";
 
@@ -10,7 +11,7 @@ export const SESSION_TTL_SECONDS = 12 * 60 * 60;
 export type SessionPayload = {
   employeeId: string;
   nama: string;
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   branches: { branchId: string; nama: string }[];
   activeBranchId: string;
   iat?: number;
@@ -66,8 +67,9 @@ export async function verifySessionToken(cookieValue?: string): Promise<SessionP
   if (!valid) return null;
 
   try {
-    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(body))) as SessionPayload;
-    return payload.exp && payload.exp >= Math.floor(Date.now() / 1000) ? payload : null;
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(body))) as SessionPayload & { role: string };
+    if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return { ...payload, role: normalizeEmployeeRole(payload.role) };
   } catch {
     return null;
   }

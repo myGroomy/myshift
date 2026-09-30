@@ -24,7 +24,7 @@ const chaptersData = [
   {
     name: "Swap Shift",
     image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80",
-    desc: "Karyawan mengajukan tukar shift sendiri",
+    desc: "Petugas mengajukan tukar shift sendiri",
   },
   {
     name: "Pengajuan Izin",
@@ -320,7 +320,7 @@ export default function LandingPage() {
             </div>
             <div>
               <div className="text-[11px] font-mono tracking-widest uppercase text-white/50">
-                Karyawan
+                Petugas
               </div>
               <div className="text-sm font-medium text-white mt-1">10 - 500+ staf</div>
             </div>

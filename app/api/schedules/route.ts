@@ -25,6 +25,7 @@ async function entries(spreadsheetId: string): Promise<EnrichedSchedule[]> {
     date: values[3] ?? "",
     status: values[4] ?? "scheduled",
     startedAt: values[5] ?? "",
+    reportGeneratedAt: values[7] ?? "",
   }));
 
   const rawShifts = shiftRows.map(({ values }) => ({
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     let result = await entries(spreadsheetId);
     if (startDate) result = result.filter((entry) => entry.date >= startDate);
     if (endDate) result = result.filter((entry) => entry.date <= endDate);
-    if (auth.role === "karyawan") result = result.filter((entry) => entry.employeeId === auth.employeeId);
+    if (auth.role === "petugas") result = result.filter((entry) => entry.employeeId === auth.employeeId);
     return ok(result);
   } catch (error) {
     return handleRouteError(error, "Gagal memuat jadwal");
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     return ok(
-      { scheduleId, employeeId, shiftId, date, status: "scheduled", startedAt: "", conflictWarning },
+      { scheduleId, employeeId, shiftId, date, status: "scheduled", startedAt: "", reportGeneratedAt: "", conflictWarning },
       { status: 201 }
     );
   } catch (error) {

@@ -20,10 +20,10 @@ Semua referensi "Kepala Cabang" di dokumen lain (kewenangan checklist template s
 
 | Istilah                | Arti                                                                                           |
 | ---------------------- | ---------------------------------------------------------------------------------------------- |
-| **Checklist**          | Nama tab/fitur di sisi karyawan                                                                |
+| **Checklist**          | Nama tab/fitur di sisi Petugas                                                                |
 | **Shift**              | Level pengelompokan 1 Opening/Middle/Closing/custom per cabang                               |
 | **SOP** (Kategori SOP) | Level pengelompokan 2 bebas dibuat Admin (misal "Kebersihan", "Keamanan Kas", "Food Safety") |
-| **Checklist Point**    | Baris individual yang harus diselesaikan karyawan                                              |
+| **Checklist Point**    | Baris individual yang harus diselesaikan Petugas                                              |
 
 
 Hierarki: **Checklist → Shift → SOP → Checklist Point**

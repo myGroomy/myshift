@@ -6,14 +6,25 @@ import { AlertCircle, ArrowLeft, Camera, CheckCircle2, Info } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { checklistNumericWarning } from "@/lib/domain/checklist-values";
 import { controlClass } from "@/lib/ui";
 
-type Schedule = { shiftName: string; date: string; branchId: string; reportGeneratedAt: string; status: string };
+type Schedule = {
+  shiftName: string;
+  shiftId: string;
+  date: string;
+  branchId: string;
+  employeeName: string;
+  startTime: string;
+  endTime: string;
+  startedAt: string;
+  reportGeneratedAt: string;
+  status: string;
+};
 type Point = {
   pointId: string;
   categoryId: string;
@@ -68,8 +79,7 @@ async function compressPhoto(file: File): Promise<File> {
   });
 }
 
-function ShiftChecklistContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export function ShiftChecklistEditor({ id }: { id: string }) {
   const { toast } = useToast();
   const [data, setData] = useState<PageData | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -273,8 +283,12 @@ function ShiftChecklistContent({ params }: { params: Promise<{ id: string }> }) 
     return <Textarea rows={3} value={value} onChange={(event) => updateDraft(point, event.target.value)} onBlur={() => scheduleSave(point, drafts[point.pointId] ?? point.value, files[point.pointId], true)} className={controlClass} placeholder="Tulis hasil pemeriksaan..." />;
   }
 
-  if (loading) return <KaryawanShell title="Checklist Shift" lead="Memuat detail shift..."><SkeletonCard /></KaryawanShell>;
-  if (!data) return <KaryawanShell title="Checklist Shift"><div className="rounded-lg border border-destructive-wash bg-destructive-wash p-5 text-sm text-destructive-foreground"><AlertCircle className="mr-2 inline" size={16} />Checklist tidak dapat dimuat.</div></KaryawanShell>;
+  if (loading) {
+    return <PetugasShell title="Checklist Shift" lead="Memuat detail shift..."><SkeletonCard /></PetugasShell>;
+  }
+  if (!data) {
+    return <PetugasShell title="Checklist Shift"><div className="rounded-lg border border-destructive-wash bg-destructive-wash p-5 text-sm text-destructive-foreground"><AlertCircle className="mr-2 inline" size={16} />Checklist tidak dapat dimuat.</div></PetugasShell>;
+  }
 
   const { checklist, schedule } = data;
   const percent = checklist.total ? Math.round(checklist.completed * 100 / checklist.total) : 100;
@@ -284,13 +298,23 @@ function ShiftChecklistContent({ params }: { params: Promise<{ id: string }> }) 
     || saveStatus[point.pointId] === "needs-photo"
   );
   return (
-    <KaryawanShell title={`Checklist – ${schedule.shiftName}`} lead={`${schedule.date} · ${schedule.branchId}`}>
+    <PetugasShell title={`Checklist – ${schedule.shiftName}`} lead={`${schedule.date} · ${schedule.branchId}`}>
       <div className="max-w-3xl space-y-5">
         <div className="flex items-center justify-between">
           <Button asChild variant="ghost" size="sm"><Link href={`/shift/${id}`}><ArrowLeft size={16} /> Kembali ke shift</Link></Button>
           <Button asChild variant="outline" size="sm"><Link href={`/shift/${id}/laporan`}>Laporan Shift</Link></Button>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="ghost" size="sm"><Link href="/checklist?choose=1">Ganti Jadwal</Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link href="/checklist/history">Riwayat Checklist</Link></Button>
+        </div>
         {schedule.reportGeneratedAt && <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-accent/20 p-3 text-sm"><Info size={16} className="mt-0.5 shrink-0" />Laporan sudah dibuat. Perubahan selanjutnya tetap bisa disimpan dan akan muncul di riwayat perubahan laporan.</div>}
+        <div className="grid gap-3 rounded-lg border border-border bg-card p-4 text-sm sm:grid-cols-2">
+          <div><span className="text-xs text-muted-foreground">Petugas</span><p className="font-medium">{schedule.employeeName || "—"}</p></div>
+          <div><span className="text-xs text-muted-foreground">Jadwal</span><p className="font-medium">{schedule.date} · {schedule.startTime || "--:--"}–{schedule.endTime || "--:--"}</p></div>
+          <div><span className="text-xs text-muted-foreground">Cabang</span><p className="font-medium">{schedule.branchId}</p></div>
+          <div><span className="text-xs text-muted-foreground">Status shift</span><p className="font-medium capitalize">{schedule.status === "started" ? "Sedang berjalan" : schedule.status === "completed" ? "Selesai" : "Belum dimulai"}</p></div>
+        </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="mb-2 flex justify-between text-sm"><span>Progress Checklist</span><strong>{checklist.completed}/{checklist.total} ({percent}%)</strong></div>
           <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} /></div>
@@ -333,10 +357,11 @@ function ShiftChecklistContent({ params }: { params: Promise<{ id: string }> }) 
           </div>
         )}
       </div>
-    </KaryawanShell>
+    </PetugasShell>
   );
 }
 
 export default function ShiftChecklistPage({ params }: { params: Promise<{ id: string }> }) {
-  return <ShiftChecklistContent params={params} />;
+  const { id } = use(params);
+  return <ShiftChecklistEditor id={id} />;
 }

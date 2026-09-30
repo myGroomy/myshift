@@ -1,8 +1,14 @@
 import { nextScheduleId, nextSequentialId } from "../lib/ids";
+import { normalizeEmployeeRole } from "../lib/domain/employee-role";
 
 export const DUMMY_SEED_MARKER = "myshift-dummy-seed-v1";
 export const DUMMY_TEXT_MARKER = "[DUMMY-SEED]";
 export const DUMMY_SEED_DAYS = 90;
+export const DUMMY_SEED_FUTURE_DAYS = 7;
+
+export function isSchedulableEmployeeRole(role: string): boolean {
+  return normalizeEmployeeRole(role) === "petugas";
+}
 
 export type DummyEmployee = { employeeId: string; name: string };
 export type DummyShift = { shiftId: string; name: string; startTime: string; endTime: string };
@@ -93,6 +99,29 @@ function checklistValue(point: DummyChecklistPoint): string {
   }
 }
 
+function scheduleStatus(date: string, shift: DummyShift, currentDate: string, currentTime: string) {
+  if (date < currentDate) return "completed";
+  if (date > currentDate || currentTime < shift.startTime) return "scheduled";
+  if (shift.endTime > shift.startTime && currentTime >= shift.endTime) return "completed";
+  return "started";
+}
+
+function handoverTimestamp(date: string, shift: DummyShift): string {
+  const [hours, minutes] = shift.endTime.split(":").map(Number);
+  let endMinutes = hours * 60 + minutes;
+  if (shift.endTime <= shift.startTime) endMinutes += 24 * 60;
+  const handoverMinutes = endMinutes - 15;
+  const crossesMidnight = handoverMinutes >= 24 * 60;
+  const handoverDate = crossesMidnight
+    ? new Date(Date.parse(`${date}T00:00:00.000Z`) + 86_400_000).toISOString().slice(0, 10)
+    : date;
+  const time = handoverMinutes % (24 * 60);
+  return localTimestamp(
+    handoverDate,
+    `${String(Math.floor(time / 60)).padStart(2, "0")}:${String(time % 60).padStart(2, "0")}`,
+  );
+}
+
 function allocateId(ids: string[], prefix: string): string {
   const id = nextSequentialId(ids, prefix);
   ids.push(id);
@@ -100,9 +129,7 @@ function allocateId(ids: string[], prefix: string): string {
 }
 
 export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
-  if (input.employees.length < Math.min(3, input.shifts.length)) {
-    throw new Error("Seed memerlukan minimal satu karyawan untuk setiap shift");
-  }
+  if (input.employees.length === 0) throw new Error("Seed memerlukan minimal satu petugas aktif di cabang");
   if (input.shifts.length === 0) throw new Error("Cabang belum memiliki shift template");
 
   const dates = dateRange(input.startDate, input.endDate);
@@ -118,8 +145,14 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
   const usedIncidentIds = input.existingIncidents.map((row) => row[0] ?? "").filter(Boolean);
 
   const seedScheduleByKey = new Map<string, string[]>();
+  const seedScheduleByEmployeeDate = new Map<string, string[]>();
+  const realScheduleDatesByEmployee = new Set<string>();
   for (const row of input.existingSchedules.filter(isSeedSchedule)) {
     seedScheduleByKey.set(`${row[3]}|${row[1]}|${row[2]}`, row);
+    seedScheduleByEmployeeDate.set(`${row[3]}|${row[1]}`, row);
+  }
+  for (const row of input.existingSchedules.filter((schedule) => !isSeedSchedule(schedule))) {
+    realScheduleDatesByEmployee.add(`${row[3]}|${row[1]}`);
   }
 
   const schedules: string[][] = [];
@@ -129,24 +162,27 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
   for (const [dayIndex, date] of dates.entries()) {
     const shiftsForDay: string[][] = [];
     const dateScheduleIds = usedScheduleIds.filter((id) => id.startsWith(`SCH-${date.replace(/-/g, "")}-`));
-    for (const [shiftIndex, shift] of shifts.entries()) {
-      const employee = input.employees[(dayIndex + shiftIndex) % input.employees.length];
+    for (const [employeeIndex, employee] of input.employees.entries()) {
+      const employeeDateKey = `${date}|${employee.employeeId}`;
+      if (realScheduleDatesByEmployee.has(employeeDateKey)) continue;
+      const oldSeedSchedule = seedScheduleByEmployeeDate.get(employeeDateKey);
+      const shiftIndex = (employeeIndex - dayIndex % shifts.length + shifts.length) % shifts.length;
+      const shift = oldSeedSchedule
+        ? shifts.find((entry) => entry.shiftId === oldSeedSchedule[2])
+        : shifts[shiftIndex];
+      if (!shift) continue;
       const naturalKey = `${date}|${employee.employeeId}|${shift.shiftId}`;
-      let row = seedScheduleByKey.get(naturalKey);
+      let row = oldSeedSchedule ?? seedScheduleByKey.get(naturalKey);
       if (!row) {
         const scheduleId = nextScheduleId(dateScheduleIds, date);
         dateScheduleIds.push(scheduleId);
         usedScheduleIds.push(scheduleId);
-        const status =
-          date < input.currentDate
-            ? "completed"
-            : date === input.currentDate && shift.startTime <= input.currentTime
-              ? "started"
-              : "scheduled";
+        const status = scheduleStatus(date, shift, input.currentDate, input.currentTime);
         const startedAt = status === "scheduled" ? "" : localTimestamp(date, shift.startTime);
         row = [scheduleId, employee.employeeId, shift.shiftId, date, status, startedAt, DUMMY_SEED_MARKER, "", ""];
         schedules.push(row);
         seedScheduleByKey.set(naturalKey, row);
+        seedScheduleByEmployeeDate.set(employeeDateKey, row);
       }
       allSeedSchedules.push(row);
       shiftsForDay.push(row);
@@ -154,8 +190,8 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
 
     const dateIsHistorical = date < input.currentDate;
     const dayIsToday = date === input.currentDate;
-    const requestDue = dayIndex % 14 === 5;
-    if (requestDue && shiftsForDay.length > 1 && activeIzinCategories.length > 0) {
+    const requestDue = dayIndex % 14 === 5 || dayIsToday;
+    if (date <= input.currentDate && requestDue && shiftsForDay.length > 1 && activeIzinCategories.length > 0) {
       const schedule = shiftsForDay[0];
       const partner = shiftsForDay.find((row) => row[1] !== schedule[1]);
       const status = dateIsHistorical ? "rejected" : dayIsToday ? "pending" : "rejected";
@@ -167,7 +203,7 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
       }
     }
 
-    if (dayIndex % 18 === 8 && activeIzinCategories.length > 0) {
+    if (date <= input.currentDate && (dayIndex % 18 === 8 || dayIsToday) && activeIzinCategories.length > 0 && shiftsForDay.length > 0) {
       const schedule = shiftsForDay[1 % shiftsForDay.length];
       const category = activeIzinCategories[dayIndex % activeIzinCategories.length];
       const note = `${DUMMY_TEXT_MARKER} Pengajuan izin simulasi untuk keperluan keluarga.`;
@@ -210,6 +246,8 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
   const handoverLogs: string[][] = [];
   const seenHandover = new Set(input.existingHandoverLogs.map((row) => `${row[1]}|${row[2]}`));
   for (const schedule of allSeedSchedules.filter((row) => row[4] === "completed")) {
+    const shift = shifts.find((item) => item.shiftId === schedule[2]);
+    if (!shift) continue;
     for (const field of input.handoverFields) {
       if (seenHandover.has(`${schedule[0]}|${field.fieldId}`)) continue;
       const logId = allocateId(usedHandoverLogIds, "HLG-");
@@ -219,7 +257,7 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
         field.fieldId,
         `${DUMMY_TEXT_MARKER} ${field.label}: kondisi normal, stok tercatat, dan area sudah dirapikan.`,
         schedule[1],
-        localTimestamp(schedule[3], "21:45"),
+        handoverTimestamp(schedule[3], shift),
       ]);
       seenHandover.add(`${schedule[0]}|${field.fieldId}`);
     }
@@ -233,13 +271,20 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
         .filter((row) => row[2]?.startsWith(DUMMY_TEXT_MARKER))
         .map((row) => `${row[1]}|${row[9]?.slice(0, 10)}`),
     );
+    const existingDummyIncidentDates = new Set(
+      input.existingIncidents
+        .filter((row) => row[2]?.startsWith(DUMMY_TEXT_MARKER))
+        .map((row) => row[9]?.slice(0, 10))
+        .filter(Boolean),
+    );
     for (const [dayIndex, date] of dates.entries()) {
-      if (dayIndex % 8 !== 3) continue;
+      if (date > input.currentDate || (dayIndex % 8 !== 3 && date !== input.currentDate)) continue;
       const category = activeIncidentCategories[dayIndex % activeIncidentCategories.length];
+      if (date === input.currentDate && existingDummyIncidentDates.has(date)) continue;
       if (existingDummyIncidentKeys.has(`${category.id}|${date}`)) continue;
       const schedule = allSeedSchedules.find((row) => row[3] === date);
       if (!schedule) continue;
-      const resolved = Boolean(input.adminEmployeeId) && dayIndex % 4 !== 0;
+      const resolved = date < input.currentDate && Boolean(input.adminEmployeeId) && dayIndex % 4 !== 0;
       const incidentId = allocateId(usedIncidentIds, "INC-");
       incidents.push([
         incidentId,
@@ -262,8 +307,9 @@ export function buildDummySeedPlan(input: DummySeedInput): DummySeedPlan {
 export function defaultSeedRange(asOf: string): { startDate: string; endDate: string } {
   const end = Date.parse(`${asOf}T00:00:00.000Z`);
   if (!Number.isFinite(end)) throw new Error("Tanggal akhir seed tidak valid");
+  const futureEnd = end + DUMMY_SEED_FUTURE_DAYS * 86_400_000;
   return {
     startDate: new Date(end - (DUMMY_SEED_DAYS - 1) * 86_400_000).toISOString().slice(0, 10),
-    endDate: asOf,
+    endDate: new Date(futureEnd).toISOString().slice(0, 10),
   };
 }

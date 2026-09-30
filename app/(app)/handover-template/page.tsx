@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { controlClass } from "@/lib/ui";
 import type { Branch } from "@/lib/types";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 type HandoverField = {
   fieldId: string;
@@ -21,7 +22,7 @@ type HandoverField = {
 };
 
 type Session = {
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: Branch[];
 };

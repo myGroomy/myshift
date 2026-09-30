@@ -1,13 +1,14 @@
 import { readRows, type SheetRow } from "@/lib/google/sheets-data";
 import { REGISTRY_SHEETS, registrySheetRange } from "@/lib/google/sheet-schema";
 import { parseAttempts } from "@/lib/domain/login-lockout";
+import { EMPLOYEE_ROLE_VALUES, normalizeEmployeeRole, type EmployeeRole } from "@/lib/domain/employee-role";
 
 export interface Employee {
   employeeId: string;
   username: string;
   pinHash: string;
   nama: string;
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   cabangAktif: string;
   cabangTerafiliasi: string[];
   aktif: boolean;
@@ -38,11 +39,10 @@ export function parseProvisionStatus(value: string | undefined): ProvisionStatus
 
 export type EmployeeRow = SheetRow & { employee: Employee; attempts: number; lockedUntil: string };
 
-export const EMPLOYEE_ROLE_VALUES = ["admin", "karyawan"] as const;
+export { EMPLOYEE_ROLE_VALUES };
 
 export function parseRole(value: string): Employee["role"] {
-  const normalized = (value ?? "").trim();
-  return normalized === "admin" ? "admin" : "karyawan";
+  return normalizeEmployeeRole(value ?? "");
 }
 
 export function parseAktif(value: string): boolean {

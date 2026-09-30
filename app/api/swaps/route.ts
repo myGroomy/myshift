@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const { records } = await loadSwaps(branchId);
     let result = records.map(({ rowNumber: _row, ...swap }) => swap);
     if (status) result = result.filter((swap) => swap.status === status);
-    if (auth.role === "karyawan") {
+    if (auth.role === "petugas") {
       result = result.filter(
         (swap) => swap.requestedBy === auth.employeeId || swap.requestedWith === auth.employeeId
       );

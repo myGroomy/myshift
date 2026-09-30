@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { request } from "@/lib/api";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { useToast } from "@/components/ui/toast";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shell";
@@ -332,7 +332,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
   const allHandoverRequiredFilled = handoverFields.every((f) => !f.isRequired || f.value.trim().length > 0);
 
   return (
-    <KaryawanShell
+    <PetugasShell
       title="Layar Shift Terpadu"
       lead={detail ? `${detail.shiftName || detail.shiftId} · ${detail.date}` : "Memuat data shift..."}
     >
@@ -827,7 +827,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
           </motion.div>
         </div>
       )}
-    </KaryawanShell>
+    </PetugasShell>
   );
 }
 

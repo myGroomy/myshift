@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { ScheduleContent } from "@/components/phase1";
 import { SwapAjukanContent, IzinAjukanContent, RiwayatContent } from "@/components/phase2";
 import { Calendar, RefreshCw, FileText, History } from "lucide-react";
@@ -27,7 +27,7 @@ function JadwalSayaInner() {
   }
 
   return (
-    <KaryawanShell
+    <PetugasShell
       title="Jadwal & Permohonan Saya"
       lead="Lihat jadwal shift, ajukan tukar shift atau izin, dan cek riwayat permohonan."
     >
@@ -60,7 +60,7 @@ function JadwalSayaInner() {
         {activeTab === "izin" && <IzinAjukanContent />}
         {activeTab === "riwayat" && <RiwayatContent />}
       </div>
-    </KaryawanShell>
+    </PetugasShell>
   );
 }
 

@@ -37,7 +37,7 @@ Fitur untuk mencatat kejadian abnormal selama operasi yang tidak cocok masuk che
 
 | # | Task | File | Status |
 |---|---|---|---|
-| 3.1 | `GET /api/incidents?branchId=` list incident (admin: semua cabang, karyawan: cabang sendiri) | `app/api/incidents/route.ts` | ✅ |
+| 3.1 | `GET /api/incidents?branchId=` list incident (admin: semua cabang, Petugas: cabang sendiri) | `app/api/incidents/route.ts` | ✅ |
 | 3.2 | `POST /api/incidents` buat incident baru | `app/api/incidents/route.ts` | ✅ |
 | 3.3 | `GET /api/incidents/[id]` detail incident | `app/api/incidents/[id]/route.ts` | ✅ |
 | 3.4 | `PATCH /api/incidents/[id]` resolve incident (admin only) | `app/api/incidents/[id]/route.ts` | ✅ |
@@ -51,7 +51,7 @@ Fitur untuk mencatat kejadian abnormal selama operasi yang tidak cocok masuk che
 
 | # | Task | File | Status |
 |---|---|---|---|
-| 4.1 | Halaman list incident (admin: semua cabang, karyawan: cabang sendiri) | `app/(app)/incident/page.tsx` | ✅ |
+| 4.1 | Halaman list incident (admin: semua cabang, Petugas: cabang sendiri) | `app/(app)/incident/page.tsx` | ✅ |
 | 4.2 | Form buat incident baru | `app/(app)/incident/ajukan/page.tsx` | ✅ |
 | 4.3 | Detail incident + resolve action (admin) | `app/(app)/incident/[id]/page.tsx` | ✅ |
 | 4.4 | Kelola kategori incident (admin) | `app/(app)/kategori-incident/page.tsx` | ✅ |

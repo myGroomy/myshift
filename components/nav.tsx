@@ -20,8 +20,9 @@ import {
   itemsForRole,
 } from "@/components/nav-config";
 import { cn } from "@/lib/utils";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
-type NavRole = "admin" | "karyawan";
+type NavRole = EmployeeRole;
 
 type SessionInfo = {
   employeeId: string;
@@ -36,7 +37,7 @@ type SessionInfo = {
  *
  * Desktop (`lg+`): nav horizontal di header ruangnya cukup, jadi semua menu tampil datar.
  * Mobile: tidak ada hamburger lagi; navigasi pindah ke dock 4 tab + "Lainnya" (`<Dock />`), satu
- * model navigasi yang sama dengan karyawan.
+ * model navigasi yang sama dengan Petugas.
  */
 export function Nav() {
   const pathname = usePathname();

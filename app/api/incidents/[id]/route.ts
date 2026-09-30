@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, context: Context) {
   }
 }
 
-// Resolve: admin-only. Karyawan can create but only admin can mark resolved.
+// Resolve: admin-only. Petugas can create but only admin can mark resolved.
 export async function PATCH(request: NextRequest, context: Context) {
   const auth = await adminSession(request);
   if (isResponse(auth)) return auth;

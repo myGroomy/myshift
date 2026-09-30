@@ -7,8 +7,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 import { AdminShell } from "@/components/shell";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shell";
 import { LogOut, User, Store } from "lucide-react";
@@ -16,7 +17,7 @@ import { LogOut, User, Store } from "lucide-react";
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: { branchId: string; nama: string }[];
 };
@@ -49,7 +50,7 @@ export default function ProfilPage() {
     }
   }
 
-  const Shell = session?.role === "karyawan" ? KaryawanShell : AdminShell;
+  const Shell = session?.role === "petugas" ? PetugasShell : AdminShell;
   const activeBranch = session?.branches.find((b) => b.branchId === session.activeBranchId);
 
   return (
@@ -74,7 +75,7 @@ export default function ProfilPage() {
                 </p>
                 <h2 className="mt-1 text-xl font-bold text-foreground">{session?.nama}</h2>
                 <div className="mt-2">
-                  <StatusBadge status={session?.role ?? "karyawan"} />
+                  <StatusBadge status={session?.role ?? "petugas"} />
                 </div>
               </div>
               <div className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">

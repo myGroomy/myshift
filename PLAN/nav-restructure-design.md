@@ -4,8 +4,8 @@ Status: implementasi awal 2026-09-29; disempurnakan sesuai keputusan user (2026-
 
 ## 1. Masalah
 
-Dock petugas (karyawan) saat ini: **Dashboard · Jadwal · Approval · Incident** memakai
-menu admin. Padahal petugas (karyawan) bukan pengelola: dashboard, approval, dan kelola
+Dock Petugas saat ini: **Dashboard · Jadwal · Approval · Incident** memakai menu admin.
+Padahal Petugas bukan pengelola: dashboard, approval, dan kelola
 jadwal bukan kerjaannya. Petugas punya 4 pekerjaan nyata:
 
 1. Lihat jadwal & urus swap/izin
@@ -17,7 +17,7 @@ Selain itu, `icon="report"` dipakai oleh `/incident` tapi **tidak ada di `ICON_M
 (`components/dock.tsx`) jadi ikonnya jatuh ke fallback `LayoutDashboard`.
 
 Ada cela terkait: `GET /api/shifts` bersifat admin-only (`app/api/shifts/route.ts:11`) dan
-`SchedulePage` versi karyawan sengaja tidak memanggilnya (`components/phase1.tsx:825`).
+`SchedulePage` versi Petugas sengaja tidak memanggilnya (`components/phase1.tsx:825`).
 Akibatnya tab Jadwal Saya menampilkan ID shift mentah ("SFT001"), bukan nama shift.
 
 ## 2. Keputusan desain
@@ -33,11 +33,11 @@ Akibatnya tab Jadwal Saya menampilkan ID shift mentah ("SFT001"), bukan nama shi
 | `/handover` | Handover | `swap_calls` |
 | `/incident` | Incident | `report` |
 
-- `KARYAWAN_DOCK_TABS` = `KARYAWAN_ITEMS` (tepat 4)
+- `PETUGAS_DOCK_TABS` = `PETUGAS_ITEMS` (tepat 4)
 - `ADMIN_DOCK_TABS` memakai label dan fungsi yang sama: Jadwal (`/jadwal` untuk kelola kalender),
   Checklist (`/checklist`), Handover (`/handover`), dan Incident (`/incident`)
-- `KARYAWAN_NAV_ITEMS` = items + `/profil` (desktop)
-- `KARYAWAN_DOCK_EXTRAS` tidak berubah
+- `PETUGAS_NAV_ITEMS` = items + `/profil` (desktop)
+- `PETUGAS_DOCK_EXTRAS` tidak berubah
 - Dashboard, Approval, Laporan, template, dan master data Admin tidak mengambil slot tab utama;
   semuanya dikelompokkan pada menu **Pengelolaan** desktop dan **Lainnya** mobile
 - Admin dapat memakai shift picker Checklist/Handover untuk memeriksa atau mengoreksi catatan pada
@@ -68,7 +68,7 @@ Redirect (hanya `page.tsx` diganti, komponen tetap):
 Komponen bersama `ShiftPicker({ mode })` di `components/shift-picker.tsx`.
 
 - Ambil `/api/schedules?startDate=…&endDate=…` API sudah otomatis menyaring ke jadwal
-  sendiri untuk karyawan (`app/api/schedules/route.ts:71`), sementara Admin melihat jadwal cabang
+  sendiri untuk Petugas (`app/api/schedules/route.ts:71`), sementara Admin melihat jadwal cabang
   aktif; API mendukung rentang tanggal
 - Kelompok: **Hari ini** → **Mendatang** → **Selesai (7 hari terakhir)**
 - Tiap baris: tanggal, nama shift + jam, `StatusBadge`, progres checklist
@@ -87,7 +87,7 @@ Proyeksi ditarik ke fungsi murni `lib/google/schedules-data.ts` (meniru pola
 `ops-data.ts`) supaya bisa diuji tanpa Sheets. `API-CONTRACT.md` §5 di-update commit sama.
 
 Ditolak: opsi B (longgarkan `GET /api/shifts` ke `staffSession`) perubahan otorisasi
-endpoint, dan karyawan jadi bisa baca semua shift template cabang.
+endpoint, dan Petugas jadi bisa baca semua shift template cabang.
 
 ### 2.5 Guard arah (`middleware.ts` + `lib/nav-guard.ts`)
 
@@ -106,7 +106,7 @@ ADMIN_ONLY  /dashboard  /jadwal  /approval  /cabang  /karyawan
 STAFF_ONLY  /jadwal-saya
 ```
 
-- karyawan masuk `ADMIN_ONLY` → `/jadwal-saya`
+- Petugas masuk `ADMIN_ONLY` → `/jadwal-saya`
 - checklist, handover, incident, laporan, dan halaman shift dapat diakses kedua role
 
 Simetris dengan redirect login yang sudah ada (`middleware.ts:37-41`).
@@ -138,13 +138,13 @@ dst).
 
 **Diupdate**
 
-- `test/nav-config.test.ts` href `KARYAWAN_DOCK_TABS` = `jadwal-saya · checklist ·
+- `test/nav-config.test.ts` href `PETUGAS_DOCK_TABS` = `jadwal-saya · checklist ·
   handover · incident` (panjang 4), assert `/swap`, `/izin`, `/riwayat` keluar dari nav
-  karyawan
+  Petugas
 
 ## 4. Dokumen (commit yang sama AGENTS.md §6 poin 3–4)
 
-- `PLAN/UI-PLAN.md` §4.1 dock karyawan; §2.3 Jadwal Saya jadi 4 tab; redirect lama;
+- `PLAN/UI-PLAN.md` §4.1 dock Petugas; §2.3 Jadwal Saya jadi 4 tab; redirect lama;
   dua layar baru `/checklist` & `/handover`
 - `PLAN/API-CONTRACT.md` §5 `GET /api/schedules` menambah `shiftName`, `startTime`,
   `endTime`
@@ -152,7 +152,8 @@ dst).
 
 ## 5. Di luar lingkup
 
-- Role `kepala_cabang` sudah dihapus dan dipetakan ke `karyawan`; seluruh konfigurasi/template kini dikelola Admin.
+- Role kanonis adalah `admin` dan `petugas`; role lama `karyawan`/`kepala_cabang` dinormalisasi
+  menjadi `petugas`. Seluruh konfigurasi/template dikelola Admin.
 - Test Fase 5 incident
 - Provisioning cabang `CBG01BDG` / `CBG02CMH`
 

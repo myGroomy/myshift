@@ -1,6 +1,6 @@
 # MYSHIFT API Contract
 
-> **Versi:** 1.6.0
+> **Versi:** 1.7.0
 > **Tanggal:** 2026-09-30
 > **Turunan dari:** `FULL-PRD.md`
 > **Base URL:** `/api`
@@ -40,21 +40,25 @@
 > `502 PROVISION_FAILED`; cabang `pending`/`failed` tetap tidak bisa dipakai sampai `retry-provision`
 > sukses. Verifikasi end-to-end: `pnpm check:bridge`.
 >
-> **Perubahan v1.5.0** (simplifikasi role + laporan karyawan): role yang didukung tinggal
-> `admin` dan `karyawan`; template checklist dan dashboard hanya untuk Admin. Laporan tersedia
-> untuk Karyawan, mencakup progres checklist/handover, dan dibatasi ke cabang aktif.
+> **Perubahan v1.5.0** (simplifikasi role + laporan petugas): role yang didukung tinggal
+> `admin` dan `petugas`; template checklist dan dashboard hanya untuk Admin. Laporan tersedia
+> untuk Petugas, mencakup progres checklist/handover, dan dibatasi ke cabang aktif.
 >
 > **Perubahan v1.6.0** (jenis laporan): `/api/laporan` menerima filter `reportType` agar JSON dan CSV
 > dapat menampilkan satu jenis laporan. Rekap Checklist sekarang menyertakan progres SOP dan point
 > yang belum selesai pada setiap shift.
+>
+> **Perubahan v1.7.0** (role kanonis): enum role aplikasi dan Registry adalah `admin` dan `petugas`.
+> Nilai legacy `karyawan`/`kepala_cabang` dibaca sebagai `petugas` selama migrasi; role baru selain
+> dua nilai kanonis ditolak.
 
 ---
 
 ## 0. Aturan umum
 
-- **Branch scope.** Semua endpoint per-cabang menerima `?branchId=` (opsional). Untuk `karyawan`, `branchId` harus salah satu cabang di sesi mereka kalau tidak → `403 FORBIDDEN`. Untuk `admin`, `branchId` boleh cabang mana pun; kalau tidak dikirim, dipakai `activeBranchId` dari sesi admin. Laporan Karyawan dibatasi ke `activeBranchId`.
+- **Branch scope.** Semua endpoint per-cabang menerima `?branchId=` (opsional). Untuk `petugas`, `branchId` harus salah satu cabang di sesi mereka kalau tidak → `403 FORBIDDEN`. Untuk `admin`, `branchId` boleh cabang mana pun; kalau tidak dikirim, dipakai `activeBranchId` dari sesi admin. Laporan Petugas dibatasi ke `activeBranchId`.
 - **Cabang harus siap pakai.** `getBranch()` (`lib/google/branch-data.ts`) adalah satu-satunya cara kode menemukan spreadsheet/folder cabang. Cabang nonaktif → `404 NOT_FOUND`; cabang dengan `Provision_Status` bukan `ready` → `503 SHEETS_SETUP_REQUIRED` (pesannya menyebut status dan `retry-provision`). Tidak ada ID cabang yang di-hardcode atau dibaca dari env per cabang.
-- **Revalidasi sesi.** Token HMAC berlaku 12 jam, tapi tiap request dicek ulang ke registry: karyawan nonaktif atau role yang berubah langsung kehilangan akses (401), tanpa menunggu expiry.
+- **Revalidasi sesi.** Token HMAC berlaku 12 jam, tapi tiap request dicek ulang ke Registry: akun petugas nonaktif atau role yang berubah langsung kehilangan akses (401), tanpa menunggu expiry.
 - **Idempotensi (§12).** POST yang menulis baris baru menolak duplikat (`409 DUPLICATE_SUBMIT`), dan POST log checklist/handover bersifat upsert (bukan append kedua).
 
 ---
@@ -63,7 +67,7 @@
 
 ### `POST /api/auth/login`
 Body: `{ "username": string, "pin": string }`
-Response 200: `{ "success": true, "data": { "employeeId": string, "nama": string, "role": "admin"|"karyawan", "branches": [{ "branchId", "nama" }] } }`
+Response 200: `{ "success": true, "data": { "employeeId": string, "nama": string, "role": "admin"|"petugas", "branches": [{ "branchId", "nama" }] } }`
 Response 400: `error.code = "VALIDATION_ERROR"` (username/PIN kosong atau PIN bukan 4-8 digit)
 Response 401: `error.code = "INVALID_CREDENTIALS"`
 Response 423: `error.code = "ACCOUNT_LOCKED"` + `error.data.lockedUntil` (ISO 8601)
@@ -80,7 +84,7 @@ Response 400: `error.code = "VALIDATION_ERROR"` kalau cabang bukan milik user.
 
 ### `GET /api/auth/session`
 Response 200: `{ "data": { "employeeId", "nama", "role", "branches", "activeBranchId" } }`
-Response 401: `error.code = "UNAUTHORIZED"` (cookie tidak ada, tidak valid, expired, atau karyawan sudah nonaktif/berubah role).
+Response 401: `error.code = "UNAUTHORIZED"` (cookie tidak ada, tidak valid, expired, atau akun petugas sudah nonaktif/berubah role).
 
 ---
 
@@ -97,9 +101,11 @@ Response 201: `{ "data": { employeeId, username, name, role, branchId, isActive 
 Response 400: `error.code = "VALIDATION_ERROR"` (role/PIN/branch tidak valid, username sudah dipakai) detail di `error.data.fields`.
 
 ### `PATCH /api/employees/:id`
-Body: partial `{ "name"?, "role"?, "branchId"?, "isActive"? }`
-- `role` divalidasi terhadap enum (typo ditolak, tidak lagi diam-diam jadi `karyawan`).
+Body: partial `{ "name"?, "username"?, "role"?, "branchId"?, "isActive"? }`
+- `role` divalidasi terhadap enum `admin`/`petugas` (typo ditolak).
+- `username` dinormalisasi menjadi huruf kecil dan harus unik; PIN tidak diubah dari endpoint ini.
 - `branchId` wajib cabang yang ada dan aktif; `Cabang_Terafiliasi` **digabung** (tidak menimpa afiliasi lain), `Cabang_Aktif` ikut berubah.
+- Penghapusan akun menggunakan `isActive: false` (soft-delete) agar relasi jadwal dan riwayat tetap utuh.
 
 ### `POST /api/employees/:id/reset-pin`
 Body: `{ "pin": string }` sekaligus mereset `Failed_Login_Attempts`/`Locked_Until`.
@@ -189,11 +195,11 @@ oleh endpoint ini hanya cabang yang masih `pending`/`failed` yang diterima.
 ## 5. Schedules
 
 ### `GET /api/schedules?branchId=&startDate=&endDate=`
-Response 200: `{ "data": ScheduleEntry[] }`; `karyawan` difilter ke `employeeId` sendiri. Setiap `ScheduleEntry` diperkaya dengan `{ scheduleId, employeeId, shiftId, shiftName, startTime, endTime, date, status, startedAt, conflictWarning }`.
+Response 200: `{ "data": ScheduleEntry[] }`; `petugas` difilter ke `employeeId` sendiri. Setiap `ScheduleEntry` diperkaya dengan `{ scheduleId, employeeId, shiftId, shiftName, startTime, endTime, date, status, startedAt, reportGeneratedAt, conflictWarning }`. `reportGeneratedAt` kosong jika laporan shift belum dibuat.
 
 ### `GET /api/schedules/:id?branchId=`
-Response 200: `{ "data": { scheduleId, employeeId, employeeName, shiftId, shiftName, date, status, startedAt, branchId } }`
-Response 403 untuk `karyawan` yang bukan pemilik jadwal. Tanpa `branchId`, admin dicari lintas cabang aktif.
+Response 200: `{ "data": { scheduleId, employeeId, employeeName, shiftId, shiftName, startTime, endTime, date, status, startedAt, reportGeneratedAt, branchId } }`
+Response 403 untuk `petugas` yang bukan pemilik jadwal. Tanpa `branchId`, admin dicari lintas cabang aktif.
 
 ### `POST /api/schedules` (Admin)
 Body: `{ "employeeId", "shiftId", "date", "branchId" }`
@@ -217,7 +223,7 @@ Hanya dari status `scheduled` kalau sudah `started`/`completed` → 400 `VALIDAT
 ### `GET /api/swaps?status=&branchId=`
 ### `GET /api/swaps/eligible-partners?scheduleId=&branchId=`
 Response 200: daftar karyawan yang jadwalnya cocok untuk ditukar (filter di backend).
-### `POST /api/swaps` (Karyawan) Body `{ "scheduleId", "requestedWithEmployeeId", "reason" }` → 201, status `pending`
+### `POST /api/swaps` (Petugas) Body `{ "scheduleId", "requestedWithEmployeeId", "reason" }` → 201, status `pending`
 Response 409 `DUPLICATE_SUBMIT` kalau sudah ada pengajuan pending untuk jadwal itu.
 ### `POST /api/swaps/:id/approve` (Admin) menukar `Employee_ID` dua jadwal; kalau tulisan kedua gagal, yang pertama di-rollback.
 ### `POST /api/swaps/:id/reject` (Admin) Body `{ "reason"? }`
@@ -227,7 +233,7 @@ Response 409 `DUPLICATE_SUBMIT` kalau sudah ada pengajuan pending untuk jadwal i
 ## 7. Izin
 
 ### `GET /api/izin?status=&branchId=`
-### `POST /api/izin` (Karyawan) Body `{ "scheduleId", "categoryId", "note" }` → 201
+### `POST /api/izin` (Petugas) Body `{ "scheduleId", "categoryId", "note" }` → 201
 Validasi: pemilik jadwal, status jadwal masih `scheduled`, kategori ada & aktif, tidak ada pengajuan pending ganda.
 ### `POST /api/izin/:id/approve` (Admin)
 ### `POST /api/izin/:id/reject` (Admin) Body `{ "reason"? }`
@@ -268,7 +274,7 @@ schedule, so progress is available after signing in to the same account on anoth
 ### `POST /api/schedules/:scheduleId/checklist/photo` (Karyawan pemilik jadwal)
 `multipart/form-data`, satu field `file`. Upload foto bukti sebelum dicentang di endpoint di atas.
 Query: `?itemId=<Item_ID>` (wajib, item checklist yang difoto bukan field form) dan `branchId` opsional
-untuk karyawan multi-cabang, sama seperti endpoint jadwal lain.
+untuk petugas multi-cabang, sama seperti endpoint jadwal lain.
 
 > `itemId` sengaja di query param, bukan field form: body tetap "satu field `file>" sesuai bentuk di
 > atas, dan validasi item (404 kalau tidak ada / non-aktif) terjadi sebelum body dibaca.
@@ -384,7 +390,7 @@ Response 200: `{ "data": DashboardBranch[] }` dengan
 - Cabang yang spreadsheetnya bermasalah di-skip (dicatat di log server) supaya tidak mematikan seluruh dashboard.
 - Cabang yang belum `ready` (atau nonaktif) juga di-skip oleh `usableBranches()`, dengan alasan tertulis di log server.
 
-### `GET /api/laporan?branchId=&startDate=&endDate=&reportType=&format=json|csv` (Admin, Karyawan)
+### `GET /api/laporan?branchId=&startDate=&endDate=&reportType=&format=json|csv` (Admin, Petugas)
 ### `POST /api/laporan?branchId=&startDate=&endDate=&reportType=` Body `{ "format": "json"|"csv" }`
 Response 200 `format=json` (default): `{ "data": LaporanRow[] }` dengan
 `LaporanRow = { type, id, date, branchName, employeeId, employeeName, details, status }` (rekap jadwal, swap,
@@ -392,7 +398,7 @@ izin, progres checklist, handover, dan incident). `reportType` opsional: `semua`
 `jadwal`, `checklist`, `handover`, `pengajuan` (swap dan izin), atau `incident`; nilai lain ditolak
 dengan `VALIDATION_ERROR`. Detail checklist berisi shift, progres per SOP, dan nama point yang belum
 selesai. Admin dapat meminta semua cabang atau satu cabang;
-Karyawan selalu dibatasi ke cabang aktif dan dapat melihat ringkasan operasional seluruh karyawan
+Petugas selalu dibatasi ke cabang aktif dan dapat melihat ringkasan operasional seluruh petugas
 di cabang tersebut. Meminta cabang lain sebagai Karyawan → `403 FORBIDDEN`.
 Detail Swap memuat nama rekan, tanggal dan nama/jam shift yang diminta, serta alasan. `branchName`
 menyebut cabang sumber aktivitas. Response 200 `format=csv`: file CSV (`text/csv`, CRLF, kutip sesuai

@@ -47,8 +47,8 @@ function matches(path: string, entries: readonly string[]): boolean {
  * Tujuan redirect untuk sebuah halaman, atau `null` bila boleh dilanjutkan.
  *
  * `role` kosong mengembalikan `null` "belum login" sudah ditangani terpisah di
- * middleware. Role selain `admin` diperlakukan sebagai karyawan, jadi nilai tak dikenal
- * gagal ke arah yang tertutup, bukan ke arah yang terbuka.
+ * middleware. Hanya `admin` memakai area admin; sesi memvalidasi dan menormalkan role
+ * sebelum halaman dilindungi.
  */
 export function redirectForPage(pathname: string, role: string | null | undefined): string | null {
   if (!role) return null;

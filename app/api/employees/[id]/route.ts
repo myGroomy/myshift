@@ -1,5 +1,5 @@
 import { fail, handleRouteError, ok } from "@/lib/api-response";
-import { mergeBranchAffiliation, optionalBoolean, optionalText, optionalBranchIdList, validRole } from "@/lib/domain/master-validation";
+import { mergeBranchAffiliation, optionalBoolean, optionalText, optionalBranchIdList, validRole, validUsername } from "@/lib/domain/master-validation";
 import { adminSession, isResponse } from "@/lib/route-auth";
 import { EMPLOYEE_ROLE_VALUES, getBranchRows, getEmployeeRows } from "@/lib/google/registry";
 import { replaceRowById } from "@/lib/google/sheets-data";
@@ -21,11 +21,20 @@ export async function PATCH(request: NextRequest, context: Context) {
 
     const values = padRow(row.values, EMPLOYEE_ROW_WIDTH);
     const currentName = (values[3] ?? "").trim();
-    const currentRole = (values[4] ?? "").trim();
+    const currentRole = row.employee.role;
     const currentAffiliation = optionalBranchIdList(values[6]);
     const currentActive = (values[7] ?? "").trim().toUpperCase() === "TRUE";
 
     values[3] = optionalText(body.name, "name", currentName);
+    if (body.username !== undefined) {
+      const username = validUsername(body.username, values[1] ?? "");
+      if (rows.some((entry) => entry.employee.employeeId !== id && entry.employee.username.toLowerCase() === username)) {
+        throw new DomainError("VALIDATION_ERROR", "Username sudah digunakan", {
+          data: { fields: ["username"] },
+        });
+      }
+      values[1] = username;
+    }
     values[4] = validRole(body.role === undefined ? currentRole : body.role, EMPLOYEE_ROLE_VALUES);
 
     if (body.branchId !== undefined) {

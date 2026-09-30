@@ -9,7 +9,7 @@ import { createSessionToken, verifySessionToken, sessionCookieHeader, COOKIE_NAM
 const payload = {
   employeeId: "EMP-001",
   nama: "Test User",
-  role: "karyawan" as const,
+  role: "petugas" as const,
   branches: [{ branchId: "CBG001", nama: "Test Branch" }],
   activeBranchId: "CBG001",
 };
@@ -19,7 +19,7 @@ test("createSessionToken produces a signed token that verifySessionToken accepts
   const session = await verifySessionToken(token);
   assert.ok(session);
   assert.equal(session.employeeId, "EMP-001");
-  assert.equal(session.role, "karyawan");
+  assert.equal(session.role, "petugas");
   assert.equal(session.activeBranchId, "CBG001");
 });
 
@@ -48,6 +48,16 @@ test("verifySessionToken rejects an expired token", async () => {
   const token = `${body}.${signature}`;
   const session = await verifySessionToken(token);
   assert.equal(session, null);
+});
+
+test("verifySessionToken normalizes a valid legacy karyawan session to petugas", async () => {
+  const legacyPayload = { ...payload, role: "karyawan", iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600 };
+  const body = Buffer.from(JSON.stringify(legacyPayload)).toString("base64url");
+  const signature = createHmac("sha256", process.env.MYSHIFT_API_KEY!)
+    .update(body)
+    .digest("base64url");
+  const session = await verifySessionToken(`${body}.${signature}`);
+  assert.equal(session?.role, "petugas");
 });
 
 test("verifySessionToken returns null for empty input", async () => {

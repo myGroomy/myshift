@@ -11,6 +11,7 @@ test("projectSchedules memperkaya nama shift, jam mulai, dan jam selesai", () =>
       date: "2026-09-30",
       status: "scheduled",
       startedAt: "",
+      reportGeneratedAt: "2026-09-30T12:00:00+07:00",
     },
   ];
 
@@ -29,6 +30,7 @@ test("projectSchedules memperkaya nama shift, jam mulai, dan jam selesai", () =>
   assert.equal(result[0].startTime, "07:00");
   assert.equal(result[0].endTime, "15:00");
   assert.equal(result[0].conflictWarning, false);
+  assert.equal(result[0].reportGeneratedAt, "2026-09-30T12:00:00+07:00");
 });
 
 test("projectSchedules menggunakan shiftId sebagai fallback bila shift template tidak ditemukan", () => {
@@ -40,6 +42,7 @@ test("projectSchedules menggunakan shiftId sebagai fallback bila shift template 
       date: "2026-09-30",
       status: "scheduled",
       startedAt: "",
+      reportGeneratedAt: "",
     },
   ];
 
@@ -59,6 +62,7 @@ test("projectSchedules menandai conflictWarning bila jadwal karyawan pada hari y
       date: "2026-09-30",
       status: "scheduled",
       startedAt: "",
+      reportGeneratedAt: "",
     },
     {
       scheduleId: "SCH-002",
@@ -67,6 +71,7 @@ test("projectSchedules menandai conflictWarning bila jadwal karyawan pada hari y
       date: "2026-09-30",
       status: "scheduled",
       startedAt: "",
+      reportGeneratedAt: "",
     },
   ];
 

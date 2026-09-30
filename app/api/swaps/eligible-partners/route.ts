@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
     if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
-    if (auth.role === "karyawan" && schedule.employeeId !== auth.employeeId) {
+    if (auth.role === "petugas" && schedule.employeeId !== auth.employeeId) {
       return fail("FORBIDDEN", "Hanya pemilik jadwal yang boleh melihat partner tukar");
     }
 

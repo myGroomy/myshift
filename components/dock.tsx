@@ -57,7 +57,7 @@ function NavIcon({ name, size = 20 }: { name: string; size?: number }) {
 
 /**
  * Dock untuk layar kecil: 4 tab esensial + tombol "Lainnya" yang membuka sheet berisi sisa menu.
- * Menggantikan hamburger (admin) dan bar bawah 5 tab (karyawan) supaya kedua shell punya satu
+ * Menggantikan hamburger (admin) dan bar bawah 5 tab (petugas) supaya kedua shell punya satu
  * model navigasi yang sama.
  *
  * Styling memakai token yang sudah dipakai halaman lain: `rounded-xl` (24px), `bg-card`,
@@ -215,4 +215,3 @@ export function Dock({
     </>
   );
 }
-

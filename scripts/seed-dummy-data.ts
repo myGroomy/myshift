@@ -1,6 +1,4 @@
 import { config } from "dotenv";
-import { hashPin } from "../lib/domain/pin";
-import { isValidPin } from "../lib/domain/pin";
 import { sheets } from "../lib/google/client";
 import { ensureChecklistPhotoFolder, uploadChecklistPhoto } from "../lib/google/photo-upload";
 import {
@@ -10,13 +8,18 @@ import {
   branchSheetRange,
   registrySheetRange,
 } from "../lib/google/sheet-schema";
-import { nextSequentialId } from "../lib/ids";
-import { buildDummySeedPlan, defaultSeedRange, type DummySeedInput } from "./dummy-seed-data";
+import {
+  buildDummySeedPlan,
+  defaultSeedRange,
+  DUMMY_SEED_DAYS,
+  DUMMY_SEED_FUTURE_DAYS,
+  isSchedulableEmployeeRole,
+  type DummySeedInput,
+} from "./dummy-seed-data";
 
 config({ path: ".env.local" });
 
 const REGISTRY_ID = process.env.REGISTRY_SPREADSHEET_ID;
-const PIN = process.env.MYSHIFT_SEED_PIN;
 const PHOTO_NAME = "MYSHIFT-DUMMY-SEED.png";
 const PHOTO_MIME = "image/png";
 const PHOTO_PLACEHOLDER = "dry-run-photo-placeholder";
@@ -43,7 +46,6 @@ type RegistryEmployee = {
 type BranchSnapshot = {
   branch: RegistryBranch;
   employees: RegistryEmployee[];
-  newEmployeeRows: string[][];
   input: DummySeedInput;
 };
 
@@ -77,7 +79,7 @@ function parseArgs(args: string[]) {
       asOf = arg.slice("--as-of=".length);
     } else if (arg === "--help" || arg === "-h") {
       console.log("Usage: pnpm seed:dummy [--as-of=YYYY-MM-DD] [--apply]");
-      console.log("Default is preview-only; --apply appends data to active, ready branches.");
+      console.log("Default is preview-only; --apply appends data for active branch staff.");
       process.exit(0);
     } else {
       throw new Error(`Argumen tidak dikenal: ${arg}`);
@@ -162,56 +164,28 @@ async function appendRows(spreadsheetId: string, range: string, rows: string[][]
 }
 
 function employeeForBranch(employee: RegistryEmployee, branchId: string): boolean {
-  return employee.active && employee.role === "karyawan" &&
+  return employee.active && isSchedulableEmployeeRole(employee.role) &&
     (employee.branchId === branchId || employee.branches.includes(branchId));
 }
 
-function dummyEmployees(
-  branch: RegistryBranch,
-  employees: RegistryEmployee[],
-  allEmployeeIds: string[],
-  allUsernames: Set<string>,
-): { employees: RegistryEmployee[]; rows: string[][] } {
-  const assigned = employees.filter((employee) => employeeForBranch(employee, branch.branchId));
-  const rows: string[][] = [];
-  let serial = 1;
-  while (assigned.length < 3) {
-    const username = `demo_${branch.branchId.toLowerCase()}_${String(serial).padStart(2, "0")}`;
-    serial += 1;
-    if (allUsernames.has(username)) continue;
-    if (!isValidPin(PIN)) {
-      throw new Error("MYSHIFT_SEED_PIN (4-8 digit) wajib diisi untuk membuat akun demo");
-    }
-    const id = nextSequentialId(allEmployeeIds, "EMP-");
-    allEmployeeIds.push(id);
-    const name = `Karyawan Demo ${String(assigned.length + 1).padStart(2, "0")} - ${branch.name}`;
-    const employee: RegistryEmployee = {
-      id,
-      username,
-      name,
-      role: "karyawan",
-      branchId: branch.branchId,
-      branches: [branch.branchId],
-      active: true,
-    };
-    rows.push([id, username, hashPin(PIN), name, "karyawan", branch.branchId, branch.branchId, "TRUE", "0", ""]);
-    assigned.push(employee);
-    allUsernames.add(username);
-  }
-  return { employees: assigned, rows };
+function employeesForBranch(employees: RegistryEmployee[], branchId: string): RegistryEmployee[] {
+  return employees
+    .filter((employee) => employeeForBranch(employee, branchId))
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 
 async function loadBranchSnapshot(
   branch: RegistryBranch,
   employees: RegistryEmployee[],
-  allEmployeeIds: string[],
-  allUsernames: Set<string>,
   dates: { startDate: string; endDate: string },
   currentDate: string,
   currentTime: string,
   adminEmployeeId: string,
 ): Promise<BranchSnapshot> {
-  const assigned = dummyEmployees(branch, employees, allEmployeeIds, allUsernames);
+  const assigned = employeesForBranch(employees, branch.branchId);
+  if (assigned.length === 0) {
+    throw new Error(`Tidak ada akun petugas aktif di ${branch.branchId}; seed dihentikan tanpa menulis data`);
+  }
   const rawSheetData = await readMultiple(
     branch.spreadsheetId,
     BRANCH_SHEET_NAMES.map((sheetName) => branchSheetRange(sheetName)),
@@ -257,7 +231,7 @@ async function loadBranchSnapshot(
     ...dates,
     currentDate,
     currentTime,
-    employees: assigned.employees.map((employee) => ({ employeeId: employee.id, name: employee.name })),
+    employees: assigned.map((employee) => ({ employeeId: employee.id, name: employee.name })),
     shifts,
     checklistPoints,
     handoverFields,
@@ -272,7 +246,7 @@ async function loadBranchSnapshot(
     existingIzin,
     existingIncidents,
   };
-  return { branch, employees: assigned.employees, newEmployeeRows: assigned.rows, input };
+  return { branch, employees: assigned, input };
 }
 
 async function getPhotoUrl(branch: RegistryBranch): Promise<string> {
@@ -326,8 +300,6 @@ async function main() {
     branches: (row[6] ?? "").split(",").map((value) => value.trim()).filter(Boolean),
     active: truthy(row[7]),
   }));
-  const allEmployeeIds = employees.map((employee) => employee.id);
-  const allUsernames = new Set(employees.map((employee) => employee.username));
   const adminEmployeeId = employees.find((employee) => employee.role === "admin" && employee.active)?.id ?? "";
   const today = localDateNow();
   const nowTime = asOf === today ? localTimeNow() : "23:59";
@@ -338,8 +310,6 @@ async function main() {
       await loadBranchSnapshot(
         branch,
         employees,
-        allEmployeeIds,
-        allUsernames,
         range,
         asOf,
         nowTime,
@@ -354,7 +324,7 @@ async function main() {
   }));
   const counts = plans.reduce(
     (total, { snapshot, plan }) => ({
-      employees: total.employees + snapshot.newEmployeeRows.length,
+      staffUsers: total.staffUsers + snapshot.employees.length,
       schedules: total.schedules + plan.schedules.length,
       checklistLogs: total.checklistLogs + plan.checklistLogs.length,
       handoverLogs: total.handoverLogs + plan.handoverLogs.length,
@@ -362,16 +332,19 @@ async function main() {
       izin: total.izin + plan.izin.length,
       incidents: total.incidents + plan.incidents.length,
     }),
-    { employees: 0, schedules: 0, checklistLogs: 0, handoverLogs: 0, swaps: 0, izin: 0, incidents: 0 },
+    { staffUsers: 0, schedules: 0, checklistLogs: 0, handoverLogs: 0, swaps: 0, izin: 0, incidents: 0 },
   );
 
   console.log(`${apply ? "APPLY" : "PREVIEW"} dummy data MYSHIFT`);
-  console.log(`Periode: ${range.startDate} s.d. ${range.endDate} (${90} hari)`);
+  console.log(
+    `Periode: ${range.startDate} s.d. ${range.endDate} ` +
+    `(${DUMMY_SEED_DAYS} hari riwayat + hari ini + ${DUMMY_SEED_FUTURE_DAYS} hari mendatang)`,
+  );
   console.log(`Cabang aktif & ready: ${snapshots.length}`);
   for (const { snapshot, plan } of plans) {
     console.log(
       `  ${snapshot.branch.branchId}: ${snapshot.branch.name} — ` +
-      `akun baru ${snapshot.newEmployeeRows.length}, jadwal ${plan.schedules.length}, ` +
+      `akun petugas aktif ${snapshot.employees.length}, jadwal baru ${plan.schedules.length}, ` +
       `checklist ${plan.checklistLogs.length}, handover ${plan.handoverLogs.length}, ` +
       `swap ${plan.swaps.length}, izin ${plan.izin.length}, incident ${plan.incidents.length}`,
     );
@@ -380,12 +353,6 @@ async function main() {
   if (!apply) {
     console.log("Preview only; tidak ada data yang ditulis. Jalankan dengan --apply untuk menyimpan.");
     return;
-  }
-
-  const newEmployeeRows = snapshots.flatMap((snapshot) => snapshot.newEmployeeRows);
-  if (newEmployeeRows.length > 0) {
-    if (!REGISTRY_ID) throw new Error("REGISTRY_SPREADSHEET_ID belum dikonfigurasi");
-    await appendRows(REGISTRY_ID, registrySheetRange("Employees"), newEmployeeRows);
   }
 
   for (const { snapshot } of plans) {
@@ -401,7 +368,7 @@ async function main() {
     await appendRows(snapshot.branch.spreadsheetId, branchSheetRange("Incidents"), plan.incidents);
   }
   console.log("Seed tersimpan. Baris yang sudah ada tidak diubah atau dihapus.");
-  console.log(`PIN akun demo baru sama dengan MYSHIFT_SEED_PIN; PIN tidak ditampilkan.`);
+  console.log("Tidak ada akun atau PIN baru yang ditambahkan ke Registry.");
 }
 
 main().catch((error) => {

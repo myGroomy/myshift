@@ -50,14 +50,16 @@ pnpm run check:provisioning    # acceptance provisioning end-to-end (bersihkan s
 pnpm run spike:drive           # cek jalur service account: folder OK, file ditolak (kuota)
 pnpm run provision:branch -- --list          # status provisioning tiap cabang
 pnpm run provision:branch -- --id=CBG001     # provision/retry cabang tanpa lewat HTTP
-MYSHIFT_SEED_PIN=123456 npx tsx scripts/seed-dummy-data.ts
 ```
 
-`seed:dummy` memakai rentang 90 hari sampai hari ini dan hanya cabang aktif berstatus `ready`.
-Perintahnya default **preview-only** dan tidak mengubah data. Jalankan `pnpm seed:dummy -- --apply`
-untuk append data simulasi yang ditandai `[DUMMY-SEED]`; data lama tidak diubah/dihapus, dan rerun
-tidak menggandakan baris. Akun demo baru memakai `MYSHIFT_SEED_PIN` (4–8 digit); seed tidak membuat
-cabang atau spreadsheet baru.
+`seed:dummy` memakai 90 hari riwayat, hari ini, dan 7 hari mendatang pada cabang aktif berstatus
+`ready`, untuk semua akun petugas aktif yang terhubung ke cabang. Role kanonis aplikasi adalah
+`admin` dan `petugas`; role Registry lama dinormalisasi melalui `pnpm migrate:employee-roles`.
+Perintahnya default
+**preview-only** dan tidak mengubah data. Jalankan `pnpm seed:dummy -- --apply` untuk append data
+simulasi yang ditandai `[DUMMY-SEED]`; data lama tidak diubah/dihapus, dan rerun tidak menggandakan
+baris. Seed tidak membuat atau mengubah akun maupun PIN di Registry, dan tidak membuat cabang atau
+spreadsheet baru.
 
 `setup:sheets` menyiapkan Registry Spreadsheet. `template:import` meng-import template dan menulis
 header 11 sheet dari `lib/google/sheet-schema.ts`; ID hasil import ditulis ke
@@ -91,7 +93,7 @@ pnpm test        # node --test (lib/domain, skema sheet, error contract)
 
 - PIN di-hash scrypt (N=16384) dan **tidak pernah** dikembalikan API (baik plaintext maupun hash).
 - Login terkunci 15 menit setelah 5 percobaan gagal (`Employees.Failed_Login_Attempts` / `Locked_Until`), dengan delay tetap pada setiap kegagalan.
-- Sesi = cookie HMAC `httpOnly` + `SameSite=Lax` + `Secure` (production), berlaku 12 jam, dan role/status karyawan dicek ulang ke registry pada setiap request.
+- Sesi = cookie HMAC `httpOnly` + `SameSite=Lax` + `Secure` (production), berlaku 12 jam, dan role/status petugas dicek ulang ke Registry pada setiap request.
 
 ## Production
 

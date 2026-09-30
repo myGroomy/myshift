@@ -29,12 +29,14 @@ test("toPublicEmployee drops pinHash from the API projection", () => {
   assert.ok(!JSON.stringify(projection).includes("c0ffee"));
 });
 
-test("parseRole maps only admin to admin and migrates every other stored role to karyawan", () => {
+test("parseRole normalizes the canonical Admin/Petugas roles and supports legacy aliases", () => {
   assert.equal(parseRole("admin"), "admin");
-  assert.equal(parseRole("karyawan"), "karyawan");
-  assert.equal(parseRole(" kepala_cabang "), "karyawan");
-  assert.equal(parseRole("kepala-cabang"), "karyawan");
-  assert.equal(parseRole(""), "karyawan");
+  assert.equal(parseRole("petugas"), "petugas");
+  assert.equal(parseRole("karyawan"), "petugas");
+  assert.equal(parseRole(" kepala_cabang "), "petugas");
+  assert.equal(parseRole("kepala-cabang"), "petugas");
+  assert.throws(() => parseRole(""), /Role tidak dikenal/);
+  assert.throws(() => parseRole("manager"), /Role tidak dikenal/);
 });
 
 test("parseAktif only accepts TRUE", () => {

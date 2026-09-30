@@ -10,16 +10,17 @@ import { useLogout } from "@/components/use-logout";
 import { LogOut, Store } from "lucide-react";
 import { Nav } from "@/components/nav";
 import {
-  KARYAWAN_DOCK_EXTRAS,
-  KARYAWAN_DOCK_TABS,
-  KARYAWAN_NAV_ITEMS,
+  PETUGAS_DOCK_EXTRAS,
+  PETUGAS_DOCK_TABS,
+  PETUGAS_NAV_ITEMS,
 } from "@/components/nav-config";
 import { cn } from "@/lib/utils";
 import { request } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 /** Shell untuk layar kerja petugas; saat dipakai Admin, shell menampilkan navigasi Admin penuh. */
-export function KaryawanShell({
+export function PetugasShell({
   title,
   lead,
   actions,
@@ -33,11 +34,11 @@ export function KaryawanShell({
   const pathname = usePathname();
   const logout = useLogout();
   const { toast } = useToast();
-  const [role, setRole] = useState<"admin" | "karyawan" | null>(null);
+  const [role, setRole] = useState<EmployeeRole | null>(null);
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   useEffect(() => {
-    request<{ role: "admin" | "karyawan" }>("/api/auth/session")
+    request<{ role: EmployeeRole }>("/api/auth/session")
       .then((session) => setRole(session.role))
       .catch((error: unknown) => {
         toast(error instanceof Error ? error.message : "Gagal memuat navigasi akun", "error");
@@ -58,9 +59,9 @@ export function KaryawanShell({
               MYSHIFT
             </Link>
 
-            {role === "karyawan" && (
-              <nav aria-label="Navigasi karyawan" className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto lg:flex">
-                {KARYAWAN_NAV_ITEMS.map((item) => (
+            {role === "petugas" && (
+              <nav aria-label="Navigasi petugas" className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto lg:flex">
+                {PETUGAS_NAV_ITEMS.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -78,7 +79,7 @@ export function KaryawanShell({
               </nav>
             )}
 
-            {role === "karyawan" && (
+            {role === "petugas" && (
               <div className="ml-auto flex items-center gap-1.5">
                 <Button asChild variant="ghost" size="icon" className="size-8" title="Pilih cabang">
                   <Link href="/pilih-cabang" aria-label="Pilih cabang">
@@ -113,13 +114,13 @@ export function KaryawanShell({
         {children}
       </main>
 
-      {role === "karyawan" && (
+      {role === "petugas" && (
         <Dock
-          tabs={KARYAWAN_DOCK_TABS}
+          tabs={PETUGAS_DOCK_TABS}
           groups={[]}
-          extras={KARYAWAN_DOCK_EXTRAS}
+          extras={PETUGAS_DOCK_EXTRAS}
           onLogout={logout}
-          ariaLabel="Navigasi karyawan (mobile)"
+          ariaLabel="Navigasi petugas (mobile)"
         />
       )}
     </div>

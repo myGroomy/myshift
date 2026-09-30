@@ -1,7 +1,7 @@
 # MYSHIFT Sheets Schema (Source of Truth)
 
-> **Versi:** 1.3.0
-> **Tanggal:** 2026-09-29
+> **Versi:** 1.4.0
+> **Tanggal:** 2026-09-30
 > **Turunan dari:** `FULL-PRD.md`
 > **Tujuan:** Karena admin bisa edit data langsung lewat spreadsheet, dokumen ini adalah kontrak PASTI struktur tiap sheet nama, urutan kolom, tipe data, dan mana yang boleh diedit manual vs auto-generate oleh sistem. **Jangan ubah struktur di spreadsheet tanpa update dokumen ini juga.**
 
@@ -50,7 +50,7 @@ Tepat **satu baris data** (baris 2). Nilai kosong di salah satu kolom → provis
 | `Username` | string, unique | ✏️ Manual OK | |
 | `PIN_Hash` | string (scrypt hash) | 🔒 Auto | **Jangan pernah isi manual dalam bentuk plaintext** |
 | `Nama` | string | ✏️ Manual OK | |
-| `Role` | enum: `admin` \| `karyawan` | ⚠️ Manual hati-hati | Salah ketik = user kehilangan akses fitur |
+| `Role` | enum: `admin` \| `petugas` | ⚠️ Manual hati-hati | Salah ketik = user kehilangan akses fitur |
 | `Cabang_Aktif` | string, referensi `Cabang_ID` | ⚠️ Manual hati-hati | Harus cocok dengan ID valid di `Daftar_Cabang` |
 | `Cabang_Terafiliasi` | string, comma-separated `Cabang_ID` | ⚠️ Manual hati-hati | Untuk karyawan yang bisa pindah-pindah cabang |
 | `Aktif` | boolean | ✏️ Manual OK | |
@@ -318,12 +318,13 @@ Karena data awal (karyawan, cabang, shift) rencananya diinput langsung ke spread
 3. **Baru isi per-cabang spreadsheet**: `Shifts` dulu, baru `Schedules` kalau mau migrasi jadwal existing
 4. Sheet yang murni log/auto (`Checklist_Log`, `Handover_Log`) **tidak perlu** diisi manual biarkan kosong, terisi otomatis begitu aplikasi jalan
 
-### Migrasi role `kepala_cabang`
+### Migrasi role ke enum kanonis `admin` / `petugas`
 
-Role yang didukung aplikasi adalah `admin` dan `karyawan`. Untuk mengubah seluruh akun lama
-`kepala_cabang` menjadi `karyawan`, jalankan `pnpm migrate:employee-roles` untuk pratinjau jumlah
-baris yang terdampak, lalu `pnpm migrate:employee-roles -- --apply` untuk menulis perubahan ke
-Registry. Script hanya mengganti kolom `Role`; ID, PIN hash, cabang, dan status akun dipertahankan.
+Role yang didukung aplikasi dan disimpan di Registry adalah `admin` dan `petugas`. Nilai lama
+`karyawan` dan `kepala_cabang` dipetakan menjadi `petugas`. Jalankan
+`pnpm migrate:employee-roles` untuk pratinjau, lalu `pnpm migrate:employee-roles -- --apply` untuk
+menulis nilai kanonis ke Registry. Script hanya mengganti kolom `Role`; ID, PIN hash, cabang, dan
+status akun dipertahankan.
 
 ---
 

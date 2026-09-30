@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, context: Context) {
     const { records: schedules } = await loadSchedules(branchId);
     const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
     if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
-    if (auth.role === "karyawan") assertScheduleOwner(schedule.employeeId, auth.employeeId);
+    if (auth.role === "petugas") assertScheduleOwner(schedule.employeeId, auth.employeeId);
 
     const previous = schedules
       .filter(

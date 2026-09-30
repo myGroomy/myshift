@@ -19,6 +19,14 @@ export function optionalText(value: unknown, field: string, fallback: string, ma
   return text;
 }
 
+export function validUsername(value: unknown, fallback = ""): string {
+  const username = optionalText(value, "username", fallback, 64).toLowerCase();
+  if (!/^[a-z0-9._-]+$/.test(username)) {
+    invalid("Username hanya boleh memakai huruf kecil, angka, titik, garis bawah, dan tanda hubung", ["username"]);
+  }
+  return username;
+}
+
 export function validTime(value: unknown, field: string): string {
   const text = requiredText(value, field);
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(text)) invalid(`${field} harus berformat HH:mm`, [field]);

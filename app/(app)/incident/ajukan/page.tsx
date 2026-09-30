@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { controlClass } from "@/lib/ui";
@@ -55,7 +55,7 @@ export default function IncidentAjukanPage() {
   }
 
   return (
-    <KaryawanShell
+    <PetugasShell
       title="Buat Incident Baru"
       lead="Laporkan kejadian abnormal: mesin rusak, komplain, stok habis, dll."
     >
@@ -162,6 +162,6 @@ export default function IncidentAjukanPage() {
           </Button>
         </div>
       </form>
-    </KaryawanShell>
+    </PetugasShell>
   );
 }

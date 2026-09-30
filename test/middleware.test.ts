@@ -14,7 +14,7 @@ function makeRequest(path: string, cookie?: string): NextRequest {
   return req;
 }
 
-async function makeSessionCookie(role: "admin" | "karyawan" = "karyawan") {
+async function makeSessionCookie(role: "admin" | "petugas" = "petugas") {
   const token = await createSessionToken({
     employeeId: "EMP-001",
     nama: "Test",
@@ -112,7 +112,7 @@ test("middleware: allows protected page with valid session", async () => {
   const cookie = await makeSessionCookie();
   const req = makeRequest("/dashboard", cookie);
   const res = await middleware(req);
-  // /dashboard is admin-only, so karyawan gets redirected to /jadwal-saya
+  // /dashboard is admin-only, so Petugas gets redirected to /jadwal-saya
   assert.equal(res.status, 307);
   assert.ok(res.headers.get("location")?.includes("/jadwal-saya"));
 });
@@ -128,16 +128,16 @@ test("middleware: redirects admin from /login to /dashboard", async () => {
   assert.ok(res.headers.get("location")?.includes("/dashboard"));
 });
 
-test("middleware: redirects karyawan from /login to /jadwal-saya", async () => {
-  const cookie = await makeSessionCookie("karyawan");
+test("middleware: redirects Petugas from /login to /jadwal-saya", async () => {
+  const cookie = await makeSessionCookie("petugas");
   const req = makeRequest("/login", cookie);
   const res = await middleware(req);
   assert.equal(res.status, 307);
   assert.ok(res.headers.get("location")?.includes("/jadwal-saya"));
 });
 
-test("middleware: redirects karyawan from /dashboard to /jadwal-saya", async () => {
-  const cookie = await makeSessionCookie("karyawan");
+test("middleware: redirects Petugas from /dashboard to /jadwal-saya", async () => {
+  const cookie = await makeSessionCookie("petugas");
   const req = makeRequest("/dashboard", cookie);
   const res = await middleware(req);
   assert.equal(res.status, 307);
@@ -152,8 +152,8 @@ test("middleware: redirects admin from /jadwal-saya to /dashboard", async () => 
   assert.ok(res.headers.get("location")?.includes("/dashboard"));
 });
 
-test("middleware: allows karyawan to access /jadwal-saya", async () => {
-  const cookie = await makeSessionCookie("karyawan");
+test("middleware: allows Petugas to access /jadwal-saya", async () => {
+  const cookie = await makeSessionCookie("petugas");
   const req = makeRequest("/jadwal-saya", cookie);
   const res = await middleware(req);
   assert.equal(res.status, 200);

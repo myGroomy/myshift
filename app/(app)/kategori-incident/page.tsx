@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { controlClass } from "@/lib/ui";
 import { Tag } from "lucide-react";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 type Category = {
   id: string;
@@ -20,7 +21,7 @@ type Category = {
 };
 
 type Session = {
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   activeBranchId: string;
   branches: { branchId: string; nama: string }[];
 };

@@ -5,10 +5,11 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AdminShell, StatusBadge } from "@/components/shell";
-import { KaryawanShell } from "@/components/karyawan-shell";
+import { PetugasShell } from "@/components/petugas-shell";
 import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { ArrowLeft, CheckCircle, Clock, User } from "lucide-react";
+import type { EmployeeRole } from "@/lib/domain/employee-role";
 
 type IncidentDetail = {
   incidentId: string;
@@ -25,7 +26,7 @@ type IncidentDetail = {
 };
 
 type Session = {
-  role: "admin" | "karyawan";
+  role: EmployeeRole;
   employeeId: string;
   activeBranchId: string;
 };
@@ -83,7 +84,7 @@ export default function IncidentDetailPage() {
     }
   }
 
-  const Shell = session?.role === "karyawan" ? KaryawanShell : AdminShell;
+  const Shell = session?.role === "petugas" ? PetugasShell : AdminShell;
 
   if (loading) {
     return (

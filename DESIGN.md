@@ -243,7 +243,7 @@ Primitives used two or more times. Class maps live in `lib/ui.ts`; components in
 - **Spacing**: `mb-6`; actions in a `cluster`
 - **Motion**: opacity/translate entrance only, 400ms
 
-### `AppShell` (admin) and `KaryawanShell` (employee)
+### `AppShell` (admin) and `PetugasShell` (employee)
 - **Structure**: scroll-body-shell header, main, and either a console rail or a bottom
   nav
 - **Variants**: admin, employee
