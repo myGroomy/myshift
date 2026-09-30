@@ -13,6 +13,8 @@ export type ScheduleRecord = {
   status: string;
   startedAt: string;
   updatedVia: string;
+  reportGeneratedAt: string;
+  reportToken: string;
 };
 
 export type SwapRecord = {
@@ -46,12 +48,26 @@ export type CategoryRecord = {
   aktif: boolean;
 };
 
-export type ChecklistTemplateRecord = {
+export type SopCategoryRecord = {
   rowNumber: number;
-  itemId: string;
-  type: string;
+  categoryId: string;
+  name: string;
+  order: number;
+  active: boolean;
+};
+
+export type ChecklistPointRecord = {
+  rowNumber: number;
+  pointId: string;
+  categoryId: string;
   description: string;
-  requiresPhoto: boolean;
+  completionType: "centang" | "centang_foto" | "angka" | "teks" | "pilihan";
+  unit: string;
+  min: string;
+  max: string;
+  options: string[];
+  appliesAllShifts: boolean;
+  shiftIds: string[];
   order: number;
   active: boolean;
 };
@@ -60,10 +76,24 @@ export type ChecklistLogRecord = {
   rowNumber: number;
   logId: string;
   scheduleId: string;
-  itemId: string;
+  pointId: string;
+  value: string;
+  photoUrl: string;
   checkedBy: string;
   checkedAt: string;
-  photoUrl: string;
+};
+
+export type ShiftReportAuditRecord = {
+  rowNumber: number;
+  auditId: string;
+  scheduleId: string;
+  section: string;
+  recordId: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+  actorId: string;
+  changedAt: string;
 };
 
 export type HandoverTemplateRecord = {
@@ -80,6 +110,27 @@ export type HandoverLogRecord = {
   scheduleId: string;
   fieldId: string;
   isi: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type IncidentCategoryRecord = {
+  rowNumber: number;
+  id: string;
+  label: string;
+  aktif: boolean;
+};
+
+export type IncidentRecord = {
+  rowNumber: number;
+  incidentId: string;
+  categoryId: string;
+  deskripsi: string;
+  severity: string;
+  fotoUrl: string;
+  status: string;
+  resolvedBy: string;
+  resolvedAt: string;
   createdBy: string;
   createdAt: string;
 };
@@ -104,6 +155,8 @@ export async function loadSchedules(branchId: string) {
       status: values[4] ?? "scheduled",
       startedAt: values[5] ?? "",
       updatedVia: values[6] ?? "",
+      reportGeneratedAt: values[7] ?? "",
+      reportToken: values[8] ?? "",
     })),
   };
 }
@@ -160,19 +213,38 @@ export async function loadCategories(branchId: string) {
   };
 }
 
-export async function loadChecklistTemplates(branchId: string, type?: string) {
+export async function loadSopCategories(branchId: string) {
   const { spreadsheetId } = await branchSpreadsheet(branchId);
-  const rows = await readRows(spreadsheetId, branchSheetRange("Checklist_Template"));
-  const records: ChecklistTemplateRecord[] = rows.map(({ rowNumber, values }): ChecklistTemplateRecord => ({
+  const rows = await readRows(spreadsheetId, branchSheetRange("SOP_Kategori"));
+  const records: SopCategoryRecord[] = rows.map(({ rowNumber, values }): SopCategoryRecord => ({
     rowNumber,
-    itemId: values[0] ?? "",
-    type: values[1] ?? "",
-    description: values[2] ?? "",
-    requiresPhoto: toBool(values[3], false),
-    order: Number(values[4] ?? "0") || 0,
-    active: toBool(values[5], true),
+    categoryId: values[0] ?? "",
+    name: values[1] ?? "",
+    order: Number(values[2] ?? "0") || 0,
+    active: toBool(values[3], true),
   }));
-  return { spreadsheetId, records: type ? records.filter((record) => record.type === type) : records };
+  return { spreadsheetId, records };
+}
+
+export async function loadChecklistPoints(branchId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Checklist_Point"));
+  const records: ChecklistPointRecord[] = rows.map(({ rowNumber, values }): ChecklistPointRecord => ({
+    rowNumber,
+    pointId: values[0] ?? "",
+    categoryId: values[1] ?? "",
+    description: values[2] ?? "",
+    completionType: (values[3] ?? "centang") as ChecklistPointRecord["completionType"],
+    unit: values[4] ?? "",
+    min: values[5] ?? "",
+    max: values[6] ?? "",
+    options: (values[7] ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+    appliesAllShifts: toBool(values[8], false),
+    shiftIds: (values[9] ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+    order: Number(values[10] ?? "0") || 0,
+    active: toBool(values[11], true),
+  }));
+  return { spreadsheetId, records };
 }
 
 export async function loadChecklistLogs(branchId: string, scheduleId: string) {
@@ -182,10 +254,33 @@ export async function loadChecklistLogs(branchId: string, scheduleId: string) {
     rowNumber,
     logId: values[0] ?? "",
     scheduleId: values[1] ?? "",
-    itemId: values[2] ?? "",
-    checkedBy: values[3] ?? "",
-    checkedAt: values[4] ?? "",
-    photoUrl: values[5] ?? "",
+    pointId: values[2] ?? "",
+    value: values[3] ?? "",
+    photoUrl: values[4] ?? "",
+    checkedBy: values[5] ?? "",
+    checkedAt: values[6] ?? "",
+  }));
+  const latestByPoint = new Map<string, ChecklistLogRecord>();
+  for (const record of records.filter((entry) => entry.scheduleId === scheduleId)) {
+    latestByPoint.set(record.pointId, record);
+  }
+  return { spreadsheetId, records: [...latestByPoint.values()] };
+}
+
+export async function loadShiftReportAudits(branchId: string, scheduleId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Shift_Report_Audit"));
+  const records: ShiftReportAuditRecord[] = rows.map(({ rowNumber, values }) => ({
+    rowNumber,
+    auditId: values[0] ?? "",
+    scheduleId: values[1] ?? "",
+    section: values[2] ?? "",
+    recordId: values[3] ?? "",
+    field: values[4] ?? "",
+    oldValue: values[5] ?? "",
+    newValue: values[6] ?? "",
+    actorId: values[7] ?? "",
+    changedAt: values[8] ?? "",
   }));
   return { spreadsheetId, records: records.filter((record) => record.scheduleId === scheduleId) };
 }
@@ -218,45 +313,95 @@ export async function loadHandoverLogs(branchId: string, scheduleId: string) {
   return { spreadsheetId, records: records.filter((record) => record.scheduleId === scheduleId) };
 }
 
-// Idempotent: a second tap on the same item does not create a duplicate log row.
-export async function appendChecklistLogIfAbsent(input: {
+export async function loadIncidentCategories(branchId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Kategori_Incident"));
+  return {
+    spreadsheetId,
+    records: rows.map(({ rowNumber, values }): IncidentCategoryRecord => ({
+      rowNumber,
+      id: values[0] ?? "",
+      label: values[1] ?? "",
+      aktif: toBool(values[2], true),
+    })),
+  };
+}
+
+export async function loadIncidents(branchId: string) {
+  const { spreadsheetId } = await branchSpreadsheet(branchId);
+  const rows = await readRows(spreadsheetId, branchSheetRange("Incidents"));
+  return {
+    spreadsheetId,
+    records: rows.map(({ rowNumber, values }): IncidentRecord => ({
+      rowNumber,
+      incidentId: values[0] ?? "",
+      categoryId: values[1] ?? "",
+      deskripsi: values[2] ?? "",
+      severity: values[3] ?? "low",
+      fotoUrl: values[4] ?? "",
+      status: values[5] ?? "open",
+      resolvedBy: values[6] ?? "",
+      resolvedAt: values[7] ?? "",
+      createdBy: values[8] ?? "",
+      createdAt: values[9] ?? "",
+    })),
+  };
+}
+export async function saveChecklistLog(input: {
   spreadsheetId: string;
   scheduleId: string;
-  itemId: string;
+  pointId: string;
+  value: string;
   checkedBy: string;
   checkedAt: string;
   photoUrl: string;
-}): Promise<boolean> {
+}): Promise<void> {
   const rows = await readRows(input.spreadsheetId, branchSheetRange("Checklist_Log"));
   const existing = rows.find(
-    (row) => row.values[1] === input.scheduleId && row.values[2] === input.itemId
+    (row) => row.values[1] === input.scheduleId && row.values[2] === input.pointId
   );
 
   if (existing) {
-    const previousPhoto = existing.values[5] ?? "";
-    if (input.photoUrl && input.photoUrl !== previousPhoto) {
-      await replaceRow(input.spreadsheetId, "Checklist_Log", existing.rowNumber, [
-        existing.values[0] ?? "",
-        input.scheduleId,
-        input.itemId,
-        existing.values[3] || input.checkedBy,
-        existing.values[4] || input.checkedAt,
-        input.photoUrl,
-      ]);
-    }
-    return false;
+    await replaceRow(input.spreadsheetId, "Checklist_Log", existing.rowNumber, [
+      existing.values[0] ?? "",
+      input.scheduleId,
+      input.pointId,
+      input.value,
+      input.photoUrl,
+      input.checkedBy,
+      input.checkedAt,
+    ]);
+    return;
   }
 
   const logId = nextSequentialId(rows.map((row) => row.values[0] ?? ""), ID_PREFIX.checklistLog);
   await appendRow(input.spreadsheetId, branchSheetRange("Checklist_Log"), [
     logId,
     input.scheduleId,
-    input.itemId,
+    input.pointId,
+    input.value,
+    input.photoUrl,
     input.checkedBy,
     input.checkedAt,
-    input.photoUrl,
   ]);
-  return true;
+}
+
+export async function appendShiftReportAudit(input: Omit<ShiftReportAuditRecord, "rowNumber" | "auditId"> & {
+  spreadsheetId: string;
+}) {
+  const rows = await readRows(input.spreadsheetId, branchSheetRange("Shift_Report_Audit"));
+  const auditId = nextSequentialId(rows.map((row) => row.values[0] ?? ""), ID_PREFIX.shiftReportAudit);
+  await appendRow(input.spreadsheetId, branchSheetRange("Shift_Report_Audit"), [
+    auditId,
+    input.scheduleId,
+    input.section,
+    input.recordId,
+    input.field,
+    input.oldValue,
+    input.newValue,
+    input.actorId,
+    input.changedAt,
+  ]);
 }
 
 // Idempotent upsert keyed on (Schedule_ID, Field_ID): re-submitting a handover rewrites the
@@ -267,6 +412,7 @@ export async function saveHandoverLogs(input: {
   entries: { fieldId: string; value: string }[];
   createdBy: string;
   createdAt: string;
+  auditAfterReport?: boolean;
 }): Promise<void> {
   const rows = await readRows(input.spreadsheetId, branchSheetRange("Handover_Log"));
   const existingByField = new Map(
@@ -277,6 +423,7 @@ export async function saveHandoverLogs(input: {
   for (const entry of input.entries) {
     const existing = existingByField.get(entry.fieldId);
     if (existing) {
+      const previous = existing.values[3] ?? "";
       await replaceRow(input.spreadsheetId, "Handover_Log", existing.rowNumber, [
         existing.values[0] ?? "",
         input.scheduleId,
@@ -285,6 +432,19 @@ export async function saveHandoverLogs(input: {
         input.createdBy,
         input.createdAt,
       ]);
+      if (input.auditAfterReport && previous !== entry.value) {
+        await appendShiftReportAudit({
+          spreadsheetId: input.spreadsheetId,
+          scheduleId: input.scheduleId,
+          section: "handover",
+          recordId: entry.fieldId,
+          field: "Isi",
+          oldValue: previous,
+          newValue: entry.value,
+          actorId: input.createdBy,
+          changedAt: input.createdAt,
+        });
+      }
       continue;
     }
 
@@ -298,11 +458,34 @@ export async function saveHandoverLogs(input: {
       input.createdBy,
       input.createdAt,
     ]);
+    if (input.auditAfterReport && entry.value) {
+      await appendShiftReportAudit({
+        spreadsheetId: input.spreadsheetId,
+        scheduleId: input.scheduleId,
+        section: "handover",
+        recordId: entry.fieldId,
+        field: "Isi",
+        oldValue: "",
+        newValue: entry.value,
+        actorId: input.createdBy,
+        changedAt: input.createdAt,
+      });
+    }
   }
 }
 
 export function scheduleValues(record: ScheduleRecord) {
-  return [record.scheduleId, record.employeeId, record.shiftId, record.date, record.status, record.startedAt, record.updatedVia || "myshift"];
+  return [
+    record.scheduleId,
+    record.employeeId,
+    record.shiftId,
+    record.date,
+    record.status,
+    record.startedAt,
+    record.updatedVia || "myshift",
+    record.reportGeneratedAt,
+    record.reportToken,
+  ];
 }
 
 export function swapValues(record: SwapRecord) {
@@ -337,5 +520,27 @@ export async function saveIzin(spreadsheetId: string, record: IzinRecord) {
   assertSaved(
     await replaceRowById(spreadsheetId, "Izin", branchSheetRange("Izin"), record.izinId, izinValues(record)),
     "Pengajuan izin tidak ditemukan"
+  );
+}
+
+export function incidentValues(record: IncidentRecord) {
+  return [
+    record.incidentId,
+    record.categoryId,
+    record.deskripsi,
+    record.severity,
+    record.fotoUrl,
+    record.status,
+    record.resolvedBy,
+    record.resolvedAt,
+    record.createdBy,
+    record.createdAt,
+  ];
+}
+
+export async function saveIncident(spreadsheetId: string, record: IncidentRecord) {
+  assertSaved(
+    await replaceRowById(spreadsheetId, "Incidents", branchSheetRange("Incidents"), record.incidentId, incidentValues(record)),
+    "Incident tidak ditemukan"
   );
 }

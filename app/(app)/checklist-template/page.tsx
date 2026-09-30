@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
+import { Input, Select, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { request } from "@/lib/api";
 import { AdminShell } from "@/components/shell";
@@ -13,234 +12,359 @@ import { useToast } from "@/components/ui/toast";
 import { controlClass } from "@/lib/ui";
 import type { Branch } from "@/lib/types";
 
-type ChecklistItem = {
-  itemId: string;
-  type: string;
+type Session = { activeBranchId: string; branches: Branch[] };
+type SopCategory = { categoryId: string; name: string; order: number; active: boolean };
+type Shift = { shiftId: string; name: string; startTime: string; endTime: string };
+type CompletionType = "centang" | "centang_foto" | "angka" | "teks" | "pilihan";
+type Point = {
+  pointId: string;
+  categoryId: string;
   description: string;
-  requiresPhoto: boolean;
+  completionType: CompletionType;
+  unit: string;
+  min: string;
+  max: string;
+  options: string[];
+  appliesAllShifts: boolean;
+  shiftIds: string[];
   order: number;
   active: boolean;
+  hasLogs: boolean;
 };
+type PointForm = Omit<Point, "pointId" | "active" | "hasLogs">;
 
-type Session = {
-  role: "admin" | "kepala_cabang" | "karyawan";
-  activeBranchId: string;
-  branches: Branch[];
-};
+const blankForm = (categoryId = ""): PointForm => ({
+  categoryId,
+  description: "",
+  completionType: "centang",
+  unit: "",
+  min: "",
+  max: "",
+  options: [],
+  appliesAllShifts: true,
+  shiftIds: [],
+  order: 0,
+});
 
 export default function ChecklistTemplatePage() {
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
-
-  const [items, setItems] = useState<ChecklistItem[]>([]);
-  const [type, setType] = useState<"opening" | "closing">("opening");
-  const [desc, setDesc] = useState("");
-  const [photo, setPhoto] = useState(false);
-
+  const [categories, setCategories] = useState<SopCategory[]>([]);
+  const [points, setPoints] = useState<Point[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [selectedShift, setSelectedShift] = useState("");
+  const [newCategory, setNewCategory] = useState("");
+  const [form, setForm] = useState<PointForm>(blankForm());
+  const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      request<Session>("/api/auth/session"),
-      request<Branch[]>("/api/branches").catch(() => []),
-    ])
-      .then(([s, bList]) => {
-        setSession(s);
-        setBranches(bList);
-        const initialBranch =
-          s.activeBranchId || bList[0]?.branchId || s.branches[0]?.branchId || "";
-        setBranchId(initialBranch);
-        if (initialBranch) void loadItems(initialBranch);
+    request<Session>("/api/auth/session")
+      .then((value) => {
+        setSession(value);
+        setBranches(value.branches);
+        setBranchId(value.activeBranchId || value.branches[0]?.branchId || "");
       })
-      .catch((e: unknown) => {
-        toast(e instanceof Error ? e.message : "Gagal memuat sesi", "error");
-        setLoading(false);
-      });
+      .catch((error: unknown) => toast(error instanceof Error ? error.message : "Gagal memuat sesi", "error"));
   }, [toast]);
 
-  async function loadItems(targetBranch: string) {
-    if (!targetBranch) return;
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
     setLoading(true);
-    try {
-      const data = await request<ChecklistItem[]>(
-        `/api/checklist-templates?branchId=${targetBranch}`
-      );
-      setItems(data);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Gagal memuat checklist", "error");
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleBranchChange(newBranchId: string) {
-    setBranchId(newBranchId);
-    void loadItems(newBranchId);
-  }
-
-  async function handleAdd() {
-    if (!desc.trim() || !branchId) return;
-    setSubmitting(true);
-    try {
-      await request(`/api/checklist-templates?branchId=${branchId}`, {
-        method: "POST",
-        body: JSON.stringify({ type, description: desc.trim(), requiresPhoto: photo }),
+    Promise.all([
+      request<SopCategory[]>(`/api/sop-categories?branchId=${encodeURIComponent(branchId)}`),
+      request<Point[]>(`/api/checklist-points?branchId=${encodeURIComponent(branchId)}`),
+      request<Shift[]>(`/api/shifts?branchId=${encodeURIComponent(branchId)}`),
+    ])
+      .then(([categoryList, pointList, shiftList]) => {
+        if (cancelled) return;
+        setCategories(categoryList.sort((a, b) => a.order - b.order));
+        setPoints(pointList.sort((a, b) => a.order - b.order));
+        setShifts(shiftList);
+        setSelectedShift((current) => current || shiftList[0]?.shiftId || "");
+        setForm(blankForm(categoryList.find((category) => category.active)?.categoryId ?? ""));
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast(error instanceof Error ? error.message : "Gagal memuat checklist", "error");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      setDesc("");
-      setPhoto(false);
-      toast("Item checklist ditambahkan", "success");
-      void loadItems(branchId);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Gagal menambah item", "error");
-    } finally {
-      setSubmitting(false);
+    return () => {
+      cancelled = true;
+    };
+  }, [branchId, toast]);
+
+  const displayedPoints = useMemo(
+    () => points.filter((point) =>
+      point.appliesAllShifts || point.shiftIds.includes(selectedShift)
+    ),
+    [points, selectedShift]
+  );
+  const sections = categories.map((category) => ({
+    category,
+    items: displayedPoints.filter((point) => point.categoryId === category.categoryId),
+  })).filter(({ items }) => items.length > 0);
+
+  async function reload() {
+    if (!branchId) return;
+    const [categoryList, pointList] = await Promise.all([
+      request<SopCategory[]>(`/api/sop-categories?branchId=${encodeURIComponent(branchId)}`),
+      request<Point[]>(`/api/checklist-points?branchId=${encodeURIComponent(branchId)}`),
+    ]);
+    setCategories(categoryList.sort((a, b) => a.order - b.order));
+    setPoints(pointList.sort((a, b) => a.order - b.order));
+  }
+
+  async function createCategory() {
+    if (!newCategory.trim()) return;
+    try {
+      const category = await request<SopCategory>(`/api/sop-categories?branchId=${encodeURIComponent(branchId)}`, {
+        method: "POST",
+        body: JSON.stringify({ name: newCategory.trim(), order: categories.length + 1 }),
+      });
+      setCategories((previous) => [...previous, category]);
+      setForm((previous) => ({ ...previous, categoryId: category.categoryId }));
+      setNewCategory("");
+      toast("Kategori SOP ditambahkan", "success");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Gagal membuat kategori", "error");
     }
   }
 
-  async function handleDelete(itemId: string) {
-    if (!confirm("Hapus item checklist ini dari SOP cabang?")) return;
-    setDeletingId(itemId);
+  async function toggleCategory(category: SopCategory) {
     try {
-      await request(`/api/checklist-templates/${itemId}?branchId=${branchId}`, {
+      await request(`/api/sop-categories/${category.categoryId}?branchId=${encodeURIComponent(branchId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ active: !category.active }),
+      });
+      await reload();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Gagal mengubah kategori", "error");
+    }
+  }
+
+  function editPoint(point: Point) {
+    setEditingId(point.pointId);
+    setForm({
+      categoryId: point.categoryId,
+      description: point.description,
+      completionType: point.completionType,
+      unit: point.unit,
+      min: point.min,
+      max: point.max,
+      options: point.options,
+      appliesAllShifts: point.appliesAllShifts,
+      shiftIds: point.shiftIds,
+      order: point.order,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function resetForm() {
+    setEditingId("");
+    setForm(blankForm(categories.find((category) => category.active)?.categoryId ?? ""));
+  }
+
+  async function savePoint() {
+    if (!branchId) return;
+    setSaving(true);
+    try {
+      const path = editingId ? `/api/checklist-points/${editingId}` : "/api/checklist-points";
+      const point = await request<Point>(`${path}?branchId=${encodeURIComponent(branchId)}`, {
+        method: editingId ? "PATCH" : "POST",
+        body: JSON.stringify(form),
+      });
+      toast(editingId ? "Checklist point diperbarui" : "Checklist point ditambahkan", "success");
+      resetForm();
+      await reload();
+      if (point.hasLogs && editingId) toast("Data log lama dipertahankan; perubahan berlaku untuk pengisian berikutnya.", "info");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Gagal menyimpan checklist point", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function togglePoint(point: Point) {
+    try {
+      await request(`/api/checklist-points/${point.pointId}?branchId=${encodeURIComponent(branchId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ active: !point.active }),
+      });
+      await reload();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Gagal mengubah status point", "error");
+    }
+  }
+
+  async function deletePoint(point: Point) {
+    if (!confirm(point.hasLogs
+      ? "Point ini sudah punya log. Nonaktifkan tanpa menghapus riwayatnya?"
+      : "Hapus checklist point ini secara permanen?")) return;
+    try {
+      const result = await request<{ deleted: boolean }>(`/api/checklist-points/${point.pointId}?branchId=${encodeURIComponent(branchId)}`, {
         method: "DELETE",
       });
-      toast("Item checklist dihapus", "success");
-      void loadItems(branchId);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Gagal menghapus item", "error");
-    } finally {
-      setDeletingId(null);
+      toast(result.deleted ? "Checklist point dihapus" : "Point dinonaktifkan, log dipertahankan", "success");
+      await reload();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Gagal menghapus point", "error");
     }
   }
 
-  const filtered = items.filter((i) => i.type === type && i.active);
+  function toggleShift(shiftId: string) {
+    setForm((previous) => ({
+      ...previous,
+      shiftIds: previous.shiftIds.includes(shiftId)
+        ? previous.shiftIds.filter((id) => id !== shiftId)
+        : [...previous.shiftIds, shiftId],
+    }));
+  }
 
   return (
-    <AdminShell
-      title="Kelola Checklist SOP"
-      lead="Atur butir tugas wajib pembukaan (opening) dan penutupan (closing) per outlet."
-    >
-      <div className="mb-6 grid max-w-2xl gap-4 sm:grid-cols-2">
-        {session?.role === "admin" && (
-          <div>
-            <Label htmlFor="branch-select">Pilih Cabang</Label>
-            <Select
-              id="branch-select"
-              value={branchId}
-              onChange={(e) => handleBranchChange(e.target.value)}
-              className={controlClass}
-            >
-              {branches.map((b) => (
-                <option key={b.branchId} value={b.branchId}>
-                  {b.nama} ({b.branchId})
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-
+    <AdminShell title="Kelola Checklist" lead="Atur kategori SOP dan checklist point untuk setiap shift.">
+      <div className="mb-5 grid max-w-3xl gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="type-select">Kategori SOP</Label>
-          <Select
-            id="type-select"
-            value={type}
-            onChange={(e) => setType(e.target.value as "opening" | "closing")}
-            className={controlClass}
-          >
-            <option value="opening">Opening (Buka Outlet)</option>
-            <option value="closing">Closing (Tutup Outlet)</option>
+          <Label htmlFor="branch-select">Pilih Cabang</Label>
+          <Select id="branch-select" value={branchId} onChange={(event) => setBranchId(event.target.value)} className={controlClass}>
+            {branches.map((branch) => <option key={branch.branchId} value={branch.branchId}>{branch.nama} ({branch.branchId})</option>)}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="shift-select">Tampilkan Shift</Label>
+          <Select id="shift-select" value={selectedShift} onChange={(event) => setSelectedShift(event.target.value)} className={controlClass}>
+            {shifts.map((shift) => <option key={shift.shiftId} value={shift.shiftId}>{shift.name}</option>)}
           </Select>
         </div>
       </div>
 
-      {/* Tambah Form Card */}
-      <div className="mb-8 max-w-2xl rounded-lg border border-border bg-card p-5 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">
-          Tambah Item SOP {type === "opening" ? "Opening" : "Closing"}
-        </h2>
-        <div className="space-y-3">
+      <section className="mb-8 max-w-3xl rounded-lg border border-border bg-card p-5">
+        <h2 className="text-base font-semibold">{editingId ? "Edit Checklist Point" : "Tambah Checklist Point"}</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="desc-input">Deskripsi Tugas</Label>
-            <Input
-              id="desc-input"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              placeholder="Misal: Periksa kebersihan mesin kopi dan area kasir"
-              required
-              className={controlClass}
-            />
+            <Label htmlFor="sop-select">Kategori SOP</Label>
+            <Select id="sop-select" value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className={controlClass}>
+              {categories.filter((category) => category.active).map((category) =>
+                <option key={category.categoryId} value={category.categoryId}>{category.name}</option>
+              )}
+            </Select>
           </div>
-
-          <label className="flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
-              checked={photo}
-              onChange={(e) => setPhoto(e.target.checked)}
-              className="size-4 rounded border-input"
-            />
-            <span>Wajib upload foto bukti oleh staf saat centang</span>
-          </label>
-
-          <Button
-            onClick={handleAdd}
-            disabled={!desc.trim() || submitting || !branchId}
-            size="lg"
-            className="w-full sm:w-auto"
-          >
-            {submitting ? "Menyimpan..." : "Tambah ke Daftar SOP"}
-          </Button>
+          <div className="flex items-end gap-2">
+            <Input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="Nama SOP baru" aria-label="Nama SOP baru" className={controlClass} />
+            <Button type="button" variant="outline" onClick={createCategory} disabled={!newCategory.trim()}>Buat SOP</Button>
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="point-description">Deskripsi Checklist Point</Label>
+            <Textarea id="point-description" rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className={controlClass} />
+          </div>
+          <div>
+            <Label htmlFor="completion-type">Tipe Penyelesaian</Label>
+            <Select id="completion-type" value={form.completionType} onChange={(event) => setForm({ ...form, completionType: event.target.value as CompletionType, unit: "", min: "", max: "", options: [] })} className={controlClass}>
+              <option value="centang">Centang</option>
+              <option value="centang_foto">Centang + Foto</option>
+              <option value="angka">Angka</option>
+              <option value="teks">Teks</option>
+              <option value="pilihan">Pilihan</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="point-order">Urutan</Label>
+            <Input id="point-order" type="number" min="0" value={form.order} onChange={(event) => setForm({ ...form, order: Number(event.target.value) })} className={controlClass} />
+          </div>
+          {form.completionType === "angka" && <>
+            <div><Label htmlFor="unit">Satuan</Label><Input id="unit" value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} placeholder="°C, gram, ml" className={controlClass} /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label htmlFor="min">Batas minimum</Label><Input id="min" type="number" value={form.min} onChange={(event) => setForm({ ...form, min: event.target.value })} className={controlClass} /></div>
+              <div><Label htmlFor="max">Batas maksimum</Label><Input id="max" type="number" value={form.max} onChange={(event) => setForm({ ...form, max: event.target.value })} className={controlClass} /></div>
+            </div>
+          </>}
+          {form.completionType === "pilihan" && (
+            <div className="sm:col-span-2">
+              <Label htmlFor="options">Opsi (pisahkan dengan koma)</Label>
+              <Input id="options" value={form.options.join(", ")} onChange={(event) => setForm({ ...form, options: event.target.value.split(",").map((option) => option.trim()).filter(Boolean) })} placeholder="Baik, Perlu perhatian, Rusak" className={controlClass} />
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* List items */}
-      <div className="max-w-2xl">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Daftar Item Aktif ({filtered.length})
-        </h3>
-
-        {loading ? (
-          <SkeletonTable rows={4} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon="checklist"
-            title="Belum ada item checklist"
-            description={`Belum ada butir tugas ${type} untuk cabang ini.`}
-          />
-        ) : (
-          <div className="space-y-3">
-            {filtered.map((item) => (
-              <motion.div
-                key={item.itemId}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 shadow-sm"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{item.description}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    ID: {item.itemId} · {item.requiresPhoto ? "📷 Wajib Foto" : "Teks Saja"}
-                  </p>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={deletingId === item.itemId}
-                  onClick={() => handleDelete(item.itemId)}
-                  className="text-destructive hover:bg-destructive-wash"
-                >
-                  {deletingId === item.itemId ? "..." : "Hapus"}
-                </Button>
-              </motion.div>
+        <fieldset className="mt-4 space-y-3">
+          <legend className="text-sm font-medium">Cakupan Shift</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" checked={form.appliesAllShifts} onChange={() => setForm({ ...form, appliesAllShifts: true, shiftIds: [] })} />
+            Berlaku untuk semua shift
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" checked={!form.appliesAllShifts} onChange={() => setForm({ ...form, appliesAllShifts: false, shiftIds: form.shiftIds.length ? form.shiftIds : (selectedShift ? [selectedShift] : []) })} />
+            Hanya shift tertentu
+          </label>
+          {!form.appliesAllShifts && <div className="flex flex-wrap gap-4 pl-6">
+            {shifts.map((shift) => (
+              <label key={shift.shiftId} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.shiftIds.includes(shift.shiftId)} onChange={() => toggleShift(shift.shiftId)} />
+                {shift.name}
+              </label>
             ))}
-          </div>
+          </div>}
+        </fieldset>
+        <div className="mt-5 flex gap-2">
+          <Button onClick={savePoint} disabled={saving || !form.description.trim() || !form.categoryId}>
+            {saving ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "Tambah Checklist Point"}
+          </Button>
+          {editingId && <Button variant="outline" onClick={resetForm}>Batal</Button>}
+        </div>
+        {editingId && points.find((point) => point.pointId === editingId)?.hasLogs && (
+          <p className="mt-3 text-xs text-muted-foreground">Perubahan tipe tidak mengubah log sebelumnya; hanya memengaruhi pengisian berikutnya.</p>
         )}
-      </div>
+      </section>
+
+      <section className="mb-8 max-w-3xl">
+        <h2 className="mb-3 text-base font-semibold">Kategori SOP</h2>
+        <div className="space-y-2">
+          {categories.map((category) => (
+            <div key={category.categoryId} className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
+              <span>{category.name} <span className="text-xs text-muted-foreground">({category.categoryId})</span></span>
+              <Button size="sm" variant="outline" onClick={() => toggleCategory(category)}>{category.active ? "Nonaktifkan" : "Aktifkan"}</Button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="max-w-4xl">
+        <h2 className="mb-3 text-base font-semibold">Checklist Point menurut SOP</h2>
+        {loading ? <SkeletonTable rows={4} /> : sections.length === 0 ? (
+          <EmptyState icon="checklist" title="Belum ada checklist point" description="Tambahkan point untuk shift ini." />
+        ) : <div className="space-y-5">
+          {sections.map(({ category, items }) => (
+            <details key={category.categoryId} open className="rounded-lg border border-border bg-card">
+              <summary className="cursor-pointer border-b border-border px-4 py-3 font-semibold">{category.name} <span className="text-xs font-normal text-muted-foreground">({items.length})</span></summary>
+              <div className="divide-y divide-border">
+                {items.map((point) => (
+                  <div key={point.pointId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{point.description}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {point.pointId} · {point.completionType}{point.unit ? ` · ${point.unit}` : ""}
+                        {point.appliesAllShifts ? " · Semua shift" : ` · ${point.shiftIds.map((shiftId) => shifts.find((shift) => shift.shiftId === shiftId)?.name ?? shiftId).join(", ")}`}
+                        {point.hasLogs ? " · Ada riwayat" : ""}
+                      </p>
+                      {point.completionType === "pilihan" && <p className="text-xs text-muted-foreground">Opsi: {point.options.join(", ")}</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => editPoint(point)}>Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => togglePoint(point)}>{point.active ? "Nonaktifkan" : "Aktifkan"}</Button>
+                      <Button size="sm" variant="outline" onClick={() => deletePoint(point)}>{point.hasLogs ? "Arsipkan" : "Hapus"}</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ))}
+        </div>}
+      </section>
+      <p className="mt-6 text-xs text-muted-foreground">Login saat ini: {session ? "Admin" : "Memuat sesi"}</p>
     </AdminShell>
   );
 }

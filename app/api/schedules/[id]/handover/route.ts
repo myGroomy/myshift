@@ -1,5 +1,5 @@
 import { fail, handleRouteError, ok } from "@/lib/api-response";
-import { assertScheduleOwner } from "@/lib/domain/ops-validation";
+import { assertScheduleAccess } from "@/lib/domain/ops-validation";
 import { nowIso } from "@/lib/domain/date";
 import { normalizeHandoverSubmission } from "@/lib/domain/checklist-handover-validation";
 import { loadHandoverLogs, loadHandoverTemplates, loadSchedules, saveHandoverLogs } from "@/lib/google/ops-data";
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, context: Context) {
     const { records: schedules } = await loadSchedules(branchId);
     const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
     if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
-    if (auth.role === "karyawan") assertScheduleOwner(schedule.employeeId, auth.employeeId);
+    assertScheduleAccess({ role: auth.role, scheduleEmployeeId: schedule.employeeId, actorId: auth.employeeId });
 
     const { records: templates } = await loadHandoverTemplates(branchId);
     const fields = [...templates].sort((a, b) => a.order - b.order);
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, context: Context) {
       })),
       filledCount: [...existingFields.values()].filter((value) => value.trim()).length,
       total: fields.length,
-      completed: fields.every((field) => existingFields.get(field.fieldId)?.trim()),
+      completed: fields.every((field) => !field.isRequired || Boolean(existingFields.get(field.fieldId)?.trim())),
     });
   } catch (error) {
     return handleRouteError(error, "Gagal memuat handover");
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, context: Context) {
     const { records: schedules } = await loadSchedules(branchId);
     const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
     if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
-    assertScheduleOwner(schedule.employeeId, auth.employeeId);
+    assertScheduleAccess({ role: auth.role, scheduleEmployeeId: schedule.employeeId, actorId: auth.employeeId });
 
     const body = await request.json();
     const { spreadsheetId, records: templates } = await loadHandoverTemplates(branchId);
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest, context: Context) {
       entries,
       createdBy: auth.employeeId,
       createdAt: nowIso(),
+      auditAfterReport: Boolean(schedule.reportGeneratedAt),
     });
 
     return ok({ submitted: true, savedFields: entries.length });

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Sun, Moon } from "lucide-react";
 
 const STORAGE_KEY = "myshift-theme";
 
@@ -28,7 +29,7 @@ export function ThemeToggle() {
       aria-label={dark ? "Ganti ke mode terang" : "Ganti ke mode gelap"}
       className="h-9 w-9 rounded-lg"
     >
-      <span className="material-symbols-outlined text-lg">{dark ? "light_mode" : "dark_mode"}</span>
+      {dark ? <Sun size={18} /> : <Moon size={18} />}
     </Button>
   );
 }

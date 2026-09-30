@@ -67,7 +67,7 @@ async function main() {
   const blocking = blockingDiffs(diffs);
 
   if (diffs.length === 0) {
-    console.log("OK — nama sheet dan urutan header 9 sheet sesuai SHEETS-SCHEMA.md §2.");
+    console.log("OK — nama sheet dan urutan header 13 sheet sesuai SHEETS-SCHEMA.md §2.");
     return;
   }
 

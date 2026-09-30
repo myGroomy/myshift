@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dock } from "@/components/dock";
 import { useLogout } from "@/components/use-logout";
+import { LogOut, Store } from "lucide-react";
 import {
   KARYAWAN_DOCK_EXTRAS,
   KARYAWAN_DOCK_TABS,
@@ -68,7 +69,7 @@ export function KaryawanShell({
           <div className="ml-auto flex items-center gap-1.5">
             <Button asChild variant="ghost" size="icon" className="size-8" title="Pilih cabang">
               <Link href="/pilih-cabang" aria-label="Pilih cabang">
-                <span className="material-symbols-outlined text-lg">storefront</span>
+                <Store size={18} />
               </Link>
             </Button>
             <ThemeToggle />
@@ -80,7 +81,7 @@ export function KaryawanShell({
               title="Keluar"
               aria-label="Keluar dari akun"
             >
-              <span className="material-symbols-outlined text-lg">logout</span>
+              <LogOut size={18} />
             </Button>
           </div>
         </div>

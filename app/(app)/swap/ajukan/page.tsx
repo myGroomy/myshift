@@ -1,2 +1,5 @@
-import { SwapAjukanPage } from "@/components/phase2";
-export default function Page() { return <SwapAjukanPage />; }
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/jadwal-saya?tab=swap");
+}

@@ -15,6 +15,18 @@ import { StatusBadge } from "@/components/shell";
 import { todayInWIB } from "@/lib/domain/date";
 import { controlClass } from "@/lib/ui";
 import { cn } from "@/lib/utils";
+import {
+  AlertCircle,
+  Info,
+  ListChecks,
+  ClipboardList,
+  Play,
+  Check,
+  Camera,
+  History,
+  X,
+  CheckCircle2,
+} from "lucide-react";
 
 type ShiftDetail = {
   scheduleId: string;
@@ -26,6 +38,7 @@ type ShiftDetail = {
   status: string;
   startedAt: string;
   branchId: string;
+  reportGeneratedAt: string;
 };
 
 type ChecklistItem = {
@@ -177,6 +190,10 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
     loadAllData();
   }, [id]);
 
+  useEffect(() => {
+    if (activeTab === "checklist") router.replace(`/shift/${id}/checklist`);
+  }, [activeTab, id, router]);
+
   async function startShift() {
     if (!detail) return;
     setStarting(true);
@@ -326,7 +343,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
         </div>
       ) : loadError || !detail ? (
         <div className="max-w-2xl rounded-lg border border-destructive-wash bg-destructive-wash p-6 text-center">
-          <span className="material-symbols-outlined text-4xl text-destructive-foreground">error</span>
+          <AlertCircle size={36} className="text-destructive-foreground" />
           <h2 className="mt-2 text-base font-semibold text-destructive-foreground">Jadwal tidak dapat dibuka</h2>
           <p className="mt-1 text-sm text-destructive-foreground/80">{loadError || "Jadwal tidak ditemukan"}</p>
           <Button asChild variant="outline" className="mt-4">
@@ -346,12 +363,12 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="material-symbols-outlined text-base">info</span>
+              <Info size={16} />
               <span>Ringkasan</span>
             </button>
 
             <button
-              onClick={() => setActiveTab("checklist")}
+              onClick={() => router.push(`/shift/${id}/checklist`)}
               className={cn(
                 "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-all",
                 activeTab === "checklist"
@@ -359,7 +376,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="material-symbols-outlined text-base">checklist</span>
+              <ListChecks size={16} />
               <span>Checklist ({checklistDone}/{checklistTotal})</span>
             </button>
 
@@ -372,7 +389,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="material-symbols-outlined text-base">assignment</span>
+              <ClipboardList size={16} />
               <span>Handover ({handoverFilledCount}/{handoverFields.length})</span>
             </button>
           </div>
@@ -432,6 +449,10 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                       )}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <span className="text-muted-foreground">Laporan Shift</span>
+                    <span className="font-medium text-foreground">{detail.reportGeneratedAt ? "Sudah digenerate" : "Belum digenerate"}</span>
+                  </div>
                 </div>
               </div>
 
@@ -444,7 +465,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                     size="lg"
                     className="h-11 flex-1"
                   >
-                    <span className="material-symbols-outlined text-lg">play_arrow</span>
+                    <Play size={18} />
                     {starting ? "Memulai Shift..." : "Mulai Shift (Timestamp)"}
                   </Button>
                 )}
@@ -458,10 +479,10 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => setActiveTab("checklist")}
+                  onClick={() => router.push(`/shift/${id}/checklist`)}
                   className="h-11 flex-1"
                 >
-                  <span className="material-symbols-outlined text-lg">checklist</span>
+                  <ListChecks size={18} />
                   Isi Checklist SOP
                 </Button>
 
@@ -471,8 +492,11 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                   onClick={() => setActiveTab("handover")}
                   className="h-11 flex-1"
                 >
-                  <span className="material-symbols-outlined text-lg">assignment</span>
+                  <ClipboardList size={18} />
                   Isi Handover
+                </Button>
+                <Button asChild variant="outline" size="lg" className="h-11 flex-1">
+                  <Link href={`/shift/${id}/laporan`}>Laporan Shift</Link>
                 </Button>
               </div>
 
@@ -480,7 +504,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
               {previousHandover && previousHandover.fields && previousHandover.fields.length > 0 && (
                 <div className="rounded-lg border border-primary/30 bg-accent/40 p-5 shadow-sm">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-                    <span className="material-symbols-outlined text-base">history</span>
+                    <History size={16} />
                     Catatan Handover Shift Sebelumnya ({previousHandover.scheduleId})
                   </div>
                   <div className="mt-3 divide-y divide-border/60 text-sm">
@@ -552,7 +576,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                             aria-label={item.checked ? "Sudah dicentang" : "Centang item"}
                           >
                             {item.checked && (
-                              <span className="material-symbols-outlined text-sm font-bold">check</span>
+                              <Check size={14} strokeWidth={3} />
                             )}
                           </button>
 
@@ -571,7 +595,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                               </span>
                               {item.requiresPhoto && (
                                 <span className="inline-flex items-center gap-1 font-medium text-warning">
-                                  <span className="material-symbols-outlined text-xs">photo_camera</span>
+                                  <Camera size={12} />
                                   Wajib Bukti Foto
                                 </span>
                               )}
@@ -590,7 +614,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                               "..."
                             ) : item.requiresPhoto ? (
                               <>
-                                <span className="material-symbols-outlined text-sm">photo_camera</span>
+                                <Camera size={14} />
                                 Upload Foto
                               </>
                             ) : (
@@ -632,7 +656,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
               {previousHandover && previousHandover.fields && previousHandover.fields.length > 0 && (
                 <div className="rounded-lg border border-primary/30 bg-accent/40 p-5 shadow-sm">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-                    <span className="material-symbols-outlined text-base">history</span>
+                    <History size={16} />
                     Catatan Shift Sebelumnya ({previousHandover.scheduleId})
                   </div>
                   <div className="mt-3 divide-y divide-border/60 text-sm">
@@ -731,7 +755,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Tutup"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <X size={18} />
               </button>
             </div>
 
@@ -759,7 +783,7 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                 )}
                 {uploadedUrl && !uploadingPhoto && (
                   <p className="mt-1 flex items-center gap-1 text-xs font-medium text-success">
-                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    <CheckCircle2 size={14} />
                     Foto tersimpan, siap dicentang.
                   </p>
                 )}

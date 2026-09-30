@@ -101,7 +101,7 @@ async function main() {
     //    sebagai bukti eksplisit.
     const diffs = await verifyBranchSpreadsheet(provisioned.spreadsheetId);
     if (diffs.length > 0) throw new Error(`header salinan tidak sesuai: ${JSON.stringify(diffs)}`);
-    pass("header salinan sesuai SHEETS-SCHEMA §2", "9 sheet, urutan kolom sama");
+    pass("header salinan sesuai SHEETS-SCHEMA §2", "13 sheet, urutan kolom sama");
 
     // 4. Tandai ready, lalu lookup cabang harus resolve spreadsheet + folder.
     await writeRow(provisioned.spreadsheetId, "ready");
@@ -192,4 +192,3 @@ main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });
-

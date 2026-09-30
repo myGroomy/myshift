@@ -40,12 +40,24 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 
 export async function readRows(spreadsheetId: string, range: string): Promise<SheetRow[]> {
   return withRetry(async () => {
-    const result = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-    const rows = result.data.values ?? [];
-    return rows.slice(1).map((values, index) => ({
-      rowNumber: index + 2,
-      values: values.map(String),
-    }));
+    try {
+      const result = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+      const rows = result.data.values ?? [];
+      const parsed = rows.slice(1).map((values, index) => ({
+        rowNumber: index + 2,
+        values: values.map(String),
+      }));
+      return parsed;
+    } catch (err: unknown) {
+      const msg =
+        (err as { message?: string })?.message ||
+        (err as { cause?: { message?: string } })?.cause?.message ||
+        "";
+      if (/Unable to parse range/i.test(msg)) {
+        return [];
+      }
+      throw err;
+    }
   });
 }
 

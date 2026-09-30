@@ -54,14 +54,16 @@
 
 ## Fase 3 — Checklist & Handover
 
-- [ ] Admin/Kepala Cabang atur template checklist opening/closing per cabang
-- [ ] Karyawan isi checklist saat shift (checkbox; upload foto opsional per item — implementasi foto bisa disederhanakan dulu, misal upload ke Drive)
-- [ ] Validasi: shift tidak bisa "ditutup"/submit kalau checklist belum 100%
+- [ ] Admin atur kategori SOP dan Checklist Point per cabang serta cakupan shift
+- [ ] Karyawan isi checklist sesuai tipe point (centang, foto, angka, teks, pilihan)
+- [ ] Validasi backend: laporan shift tidak bisa digenerate sebelum checklist applicable dan handover wajib lengkap
 - [ ] Admin atur template handover (field wajib vs opsional)
 - [ ] Karyawan isi handover di akhir shift (wajib)
 - [ ] Karyawan shift berikutnya bisa lihat handover shift sebelumnya saat mulai shift
+- [ ] Admin/pemilik jadwal dapat mengoreksi checklist dan handover pasca-laporan dengan audit trail
+- [ ] Laporan per-shift dapat dibagikan melalui WhatsApp dan dibuka publik via token HMAC permanen
 
-**Selesai Fase 3 = alur operasional harian lengkap end-to-end (jadwal → mulai shift → checklist → handover).**
+**Selesai Fase 3 = alur operasional end-to-end, termasuk koreksi ter-audit dan laporan shift publik.**
 
 ---
 

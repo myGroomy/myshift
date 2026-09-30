@@ -33,6 +33,14 @@ export function assertScheduleOwner(scheduleEmployeeId: string, actorId: string)
   }
 }
 
+export function assertScheduleAccess(input: {
+  role: "admin" | "karyawan";
+  scheduleEmployeeId: string;
+  actorId: string;
+}) {
+  if (input.role === "karyawan") assertScheduleOwner(input.scheduleEmployeeId, input.actorId);
+}
+
 export function assertCanStartShift(status: string) {
   if (!canStartShift(status)) {
     throw new DomainError("VALIDATION_ERROR", "Shift sudah dimulai atau selesai");

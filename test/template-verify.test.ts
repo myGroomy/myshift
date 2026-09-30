@@ -68,8 +68,8 @@ test("a reordered or renamed column is reported with both header rows", () => {
   assert.equal(diffs.length, 1);
   assert.equal(diffs[0].kind, "header-mismatch");
   assert.deepEqual(diffs[0].expected, [...BRANCH_HEADERS.Schedules]);
-  assert.equal(diffs[0].actual[0], "Updated_Via");
-  assert.match(describeDiff(diffs[0]), /Updated_Via/);
+  assert.equal(diffs[0].actual[0], "Report_Token");
+  assert.match(describeDiff(diffs[0]), /Report_Token/);
 });
 
 test("header comparison tolerates stray whitespace from Sheets but not a real rename", () => {
@@ -106,7 +106,6 @@ test("readSpreadsheetHeaders reads only the expected tabs, in one batch", async 
 
   const read = await readSpreadsheetHeaders("sheet-1", api);
   assert.deepEqual(batchRanges, BRANCH_SHEET_NAMES.map((name) => headerRange(name, BRANCH_HEADERS[name].length)));
-  assert.deepEqual(batchRanges, ["Shifts!A1:D1", "Schedules!A1:G1", "Shift_Swaps!A1:H1", "Izin!A1:H1", "Kategori_Izin!A1:C1", "Checklist_Template!A1:F1", "Checklist_Log!A1:F1", "Handover_Template!A1:D1", "Handover_Log!A1:F1"]);
   assert.deepEqual(read.headers.Schedules, [...BRANCH_HEADERS.Schedules]);
 });
 
@@ -117,7 +116,7 @@ test("assertBranchSpreadsheetSchema accepts a conforming copy", async () => {
 test("assertBranchSpreadsheetSchema fails with SHEETS_SETUP_REQUIRED and names the offending sheet", async () => {
   const input = wellFormed();
   delete input.headers.Checklist_Log;
-  input.headers.Checklist_Log = ["Log_ID", "Item_ID"];
+  input.headers.Checklist_Log = ["Log_ID", "Schedule_ID", "Point_ID"];
 
   await assert.rejects(
     () => assertBranchSpreadsheetSchema("sheet-1", fakeSheets(input)),

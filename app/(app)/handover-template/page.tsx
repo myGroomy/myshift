@@ -21,7 +21,7 @@ type HandoverField = {
 };
 
 type Session = {
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   activeBranchId: string;
   branches: Branch[];
 };
@@ -46,7 +46,6 @@ export default function HandoverTemplatePage() {
       request<Branch[]>("/api/branches").catch(() => []),
     ])
       .then(([s, bList]) => {
-        // setSession(s);
         setBranches(bList);
         const initialBranch =
           s.activeBranchId || bList[0]?.branchId || s.branches[0]?.branchId || "";
@@ -120,7 +119,7 @@ export default function HandoverTemplatePage() {
       title="Kelola Handover Template"
       lead="Definisikan kolom form handover wajib dan opsional yang harus diisi staf di akhir shift."
     >
-      <div className="mb-6 max-w-xl">
+      <div className="mb-6 max-w-2xl">
         <Label htmlFor="branch-select">Pilih Cabang</Label>
         <Select
           id="branch-select"
@@ -136,91 +135,95 @@ export default function HandoverTemplatePage() {
         </Select>
       </div>
 
-      {/* Tambah Field Card */}
-      <div className="mb-8 max-w-xl rounded-lg border border-border bg-card p-5 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Tambah Field Handover Baru</h2>
-        <div className="space-y-3">
-          <div>
-            <Label htmlFor="label-input">Nama / Label Field</Label>
-            <Input
-              id="label-input"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Misal: Kondisi Kasir, Sisa Bahan Kritis, Catatan Komplain"
-              required
-              className={controlClass}
-            />
-          </div>
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Add Field Form */}
+        <div className="lg:col-span-1">
+          <div className="rounded-lg border border-border bg-card p-5 shadow-sm sticky top-24">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Tambah Field Handover Baru</h2>
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="label-input">Nama / Label Field</Label>
+                <Input
+                  id="label-input"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="Misal: Kondisi Kasir, Sisa Bahan Kritis"
+                  required
+                  className={controlClass}
+                />
+              </div>
 
-          <label className="flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
-              checked={required}
-              onChange={(e) => setRequired(e.target.checked)}
-              className="size-4 rounded border-input"
-            />
-            <span>Field wajib diisi staf sebelum shift dapat ditutup</span>
-          </label>
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={required}
+                  onChange={(e) => setRequired(e.target.checked)}
+                  className="size-4 rounded border-input"
+                />
+                <span>Field wajib diisi staf sebelum shift dapat ditutup</span>
+              </label>
 
-          <Button
-            onClick={handleAdd}
-            disabled={!label.trim() || submitting || !branchId}
-            size="lg"
-            className="w-full sm:w-auto"
-          >
-            {submitting ? "Menyimpan..." : "Tambah Field Handover"}
-          </Button>
-        </div>
-      </div>
-
-      {/* List fields */}
-      <div className="max-w-xl">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Daftar Field Handover ({fields.length})
-        </h3>
-
-        {loading ? (
-          <SkeletonTable rows={4} />
-        ) : fields.length === 0 ? (
-          <EmptyState
-            icon="assignment"
-            title="Belum ada field handover"
-            description="Tambahkan field pertanyaan agar staf mencatat informasi penting ke shift berikutnya."
-          />
-        ) : (
-          <div className="space-y-3">
-            {fields.map((field) => (
-              <motion.div
-                key={field.fieldId}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 shadow-sm"
+              <Button
+                onClick={handleAdd}
+                disabled={!label.trim() || submitting || !branchId}
+                size="lg"
+                className="w-full"
               >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{field.label}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    ID: {field.fieldId} ·{" "}
-                    {field.isRequired ? (
-                      <span className="font-semibold text-destructive">* Wajib Diisi</span>
-                    ) : (
-                      "Opsional"
-                    )}
-                  </p>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={deletingId === field.fieldId}
-                  onClick={() => handleDelete(field.fieldId)}
-                  className="text-destructive hover:bg-destructive-wash"
-                >
-                  {deletingId === field.fieldId ? "..." : "Hapus"}
-                </Button>
-              </motion.div>
-            ))}
+                {submitting ? "Menyimpan..." : "Tambah Field Handover"}
+              </Button>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Field List */}
+        <div className="lg:col-span-2">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Daftar Field Handover ({fields.length})
+          </h3>
+
+          {loading ? (
+            <SkeletonTable rows={4} />
+          ) : fields.length === 0 ? (
+            <EmptyState
+              icon="assignment"
+              title="Belum ada field handover"
+              description="Tambahkan field pertanyaan agar staf mencatat informasi penting ke shift berikutnya."
+            />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {fields.map((field) => (
+                <motion.div
+                  key={field.fieldId}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 shadow-sm"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{field.label}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      ID: {field.fieldId} ·{" "}
+                      {field.isRequired ? (
+                        <span className="font-semibold text-destructive">* Wajib Diisi</span>
+                      ) : (
+                        "Opsional"
+                      )}
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={deletingId === field.fieldId}
+                    onClick={() => handleDelete(field.fieldId)}
+                    className="text-destructive hover:bg-destructive-wash shrink-0"
+                  >
+                    {deletingId === field.fieldId ? "..." : "Hapus"}
+                  </Button>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </AdminShell>
   );

@@ -7,6 +7,53 @@ import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { NavGroup, NavItem } from "@/components/nav-config";
+import {
+  LayoutDashboard,
+  Calendar,
+  BarChart3,
+  Store,
+  Users,
+  Clock,
+  Tag,
+  ListChecks,
+  ArrowLeftRight,
+  AlertTriangle,
+  CheckCircle2,
+  CalendarDays,
+  CalendarX,
+  History,
+  User,
+  X,
+  LogOut,
+  LayoutGrid,
+  type LucideIcon,
+} from "lucide-react";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  calendar_today: Calendar,
+  bar_chart: BarChart3,
+  storefront: Store,
+  group: Users,
+  schedule: Clock,
+  label: Tag,
+  checklist: ListChecks,
+  swap_calls: ArrowLeftRight,
+  approval: CheckCircle2,
+  event_note: CalendarDays,
+  swap_horiz: ArrowLeftRight,
+  event_busy: CalendarX,
+  history: History,
+  person: User,
+  // Dipakai tab Incident. Tanpa kunci ini `report` jatuh ke fallback LayoutDashboard
+  // dan tab Incident kehilangan identitas visualnya.
+  report: AlertTriangle,
+};
+
+function NavIcon({ name, size = 20 }: { name: string; size?: number }) {
+  const Icon = ICON_MAP[name] ?? LayoutDashboard;
+  return <Icon size={size} />;
+}
 
 /**
  * Dock untuk layar kecil: 4 tab esensial + tombol "Lainnya" yang membuka sheet berisi sisa menu.
@@ -77,9 +124,7 @@ export function Dock({
               aria-current={isCurrent(item.href) ? "page" : undefined}
               className={tabClass(isCurrent(item.href))}
             >
-              <span className="material-symbols-outlined text-xl" aria-hidden="true">
-                {item.icon}
-              </span>
+              <NavIcon name={item.icon} size={20} />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -91,9 +136,7 @@ export function Dock({
             aria-expanded={open}
             className={tabClass(insideGroup)}
           >
-            <span className="material-symbols-outlined text-xl" aria-hidden="true">
-              apps
-            </span>
+            <LayoutGrid size={20} />
             <span>Lainnya</span>
           </button>
         </div>
@@ -107,7 +150,7 @@ export function Dock({
               <p className="text-xs text-muted-foreground">Semua halaman di luar 4 tab utama.</p>
             </div>
             <Button variant="ghost" size="icon" onClick={close} aria-label="Tutup menu" className="size-8">
-              <span className="material-symbols-outlined text-xl">close</span>
+              <X size={20} />
             </Button>
           </div>
 
@@ -126,9 +169,7 @@ export function Dock({
                         aria-current={isCurrent(item.href) ? "page" : undefined}
                         className={linkClass(isCurrent(item.href))}
                       >
-                        <span className="material-symbols-outlined text-lg" aria-hidden="true">
-                          {item.icon}
-                        </span>
+                        <NavIcon name={item.icon} size={18} />
                         {item.label}
                       </Link>
                     </li>
@@ -147,9 +188,7 @@ export function Dock({
                       aria-current={isCurrent(item.href) ? "page" : undefined}
                       className={linkClass(isCurrent(item.href))}
                     >
-                      <span className="material-symbols-outlined text-lg" aria-hidden="true">
-                        {item.icon}
-                      </span>
+                      <NavIcon name={item.icon} size={18} />
                       {item.label}
                     </Link>
                   </li>
@@ -166,9 +205,7 @@ export function Dock({
                 }}
                 className="mt-2 flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10"
               >
-                <span className="material-symbols-outlined text-lg" aria-hidden="true">
-                  logout
-                </span>
+                <LogOut size={18} />
                 Keluar dari Akun
               </button>
             )}

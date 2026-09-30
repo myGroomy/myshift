@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { request } from "@/lib/api";
 import { Dock } from "@/components/dock";
 import { useLogout } from "@/components/use-logout";
+import { LogOut, Store, CircleUserRound } from "lucide-react";
 import {
   ADMIN_DOCK_EXTRAS,
   ADMIN_DOCK_TABS,
@@ -18,7 +19,7 @@ import {
 } from "@/components/nav-config";
 import { cn } from "@/lib/utils";
 
-type NavRole = "admin" | "kepala_cabang" | "karyawan";
+type NavRole = "admin" | "karyawan";
 
 type SessionInfo = {
   employeeId: string;
@@ -29,7 +30,7 @@ type SessionInfo = {
 };
 
 /**
- * Header navigasi admin/kepala_cabang.
+ * Header navigasi Admin.
  *
  * Desktop (`lg+`): nav horizontal di header — ruangnya cukup, jadi semua menu tampil datar.
  * Mobile: tidak ada hamburger lagi; navigasi pindah ke dock 4 tab + "Lainnya" (`<Dock />`), satu
@@ -97,7 +98,7 @@ export function Nav() {
             {session?.branches && session.branches.length > 1 && (
               <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-xs">
                 <Link href="/pilih-cabang" title="Pindah cabang">
-                  <span className="material-symbols-outlined text-sm">storefront</span>
+                  <Store size={14} />
                   <span className="hidden md:inline">{session.activeBranchId}</span>
                 </Link>
               </Button>
@@ -107,7 +108,7 @@ export function Nav() {
 
             <Button asChild variant="ghost" size="icon" className="size-8" title="Profil saya">
               <Link href="/profil" aria-label="Profil Saya">
-                <span className="material-symbols-outlined text-lg">account_circle</span>
+                <CircleUserRound size={18} />
               </Link>
             </Button>
 
@@ -119,7 +120,7 @@ export function Nav() {
               title="Keluar"
               aria-label="Keluar dari akun"
             >
-              <span className="material-symbols-outlined text-lg">logout</span>
+              <LogOut size={18} />
             </Button>
           </div>
         </div>

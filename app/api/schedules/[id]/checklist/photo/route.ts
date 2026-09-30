@@ -1,8 +1,8 @@
 import { fail, handleRouteError, ok } from "@/lib/api-response";
 import { requiredText } from "@/lib/domain/master-validation";
-import { assertScheduleOwner, assertShiftNotClosed } from "@/lib/domain/ops-validation";
+import { assertScheduleAccess } from "@/lib/domain/ops-validation";
 import { branchSpreadsheet } from "@/lib/google/branch-data";
-import { loadChecklistTemplates, loadSchedules } from "@/lib/google/ops-data";
+import { loadChecklistPoints, loadSchedules } from "@/lib/google/ops-data";
 import { uploadChecklistEvidence } from "@/lib/google/photo-upload";
 import { isResponse, resolveBranchId, staffSession } from "@/lib/route-auth";
 import type { NextRequest } from "next/server";
@@ -45,12 +45,17 @@ export async function POST(request: NextRequest, context: Context) {
     const { records: schedules } = await loadSchedules(branchId);
     const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
     if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
-    assertScheduleOwner(schedule.employeeId, auth.employeeId);
-    assertShiftNotClosed(schedule.status);
+    assertScheduleAccess({ role: auth.role, scheduleEmployeeId: schedule.employeeId, actorId: auth.employeeId });
 
-    const { records: templates } = await loadChecklistTemplates(branchId);
-    const item = templates.find((entry) => entry.itemId === itemId && entry.active);
-    if (!item) return fail("NOT_FOUND", "Item checklist tidak ditemukan");
+    const { records: points } = await loadChecklistPoints(branchId);
+    const item = points.find((entry) => entry.pointId === itemId && entry.active);
+    if (
+      !item
+      || item.completionType !== "centang_foto"
+      || (!item.appliesAllShifts && !item.shiftIds.includes(schedule.shiftId))
+    ) {
+      return fail("NOT_FOUND", "Checklist point tidak memerlukan foto");
+    }
 
     const file = asUploadedFile((await request.formData()).get("file"));
     if (!file) return fail("VALIDATION_ERROR", "Field `file` wajib berupa file yang tidak kosong.");

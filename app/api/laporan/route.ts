@@ -6,9 +6,12 @@ import { readRows } from "@/lib/google/sheets-data";
 import { branchSheetRange } from "@/lib/google/sheet-schema";
 import { todayInWIB } from "@/lib/domain/date";
 import { toCsv } from "@/lib/domain/csv";
-import { branchManagerSession, isResponse, resolveBranchId } from "@/lib/route-auth";
+import { reportBranchId } from "@/lib/domain/report-validation";
+import { checklistPointComplete } from "@/lib/domain/checklist-spec-validation";
+import { isResponse, staffSession } from "@/lib/route-auth";
 import type { Branch } from "@/lib/google/registry";
 import type { SessionPayload } from "@/lib/session";
+import type { ChecklistPointRecord } from "@/lib/google/ops-data";
 
 interface LaporanRow {
   type: string;
@@ -27,11 +30,8 @@ async function targetBranches(session: SessionPayload, branchFilter: string): Pr
   // branch in a single Promise.all, so one pending branch used to fail the whole report (a branch
   // that is merely not set up yet must not blank out the numbers for the rest).
   const branches = usableBranches(await getBranches());
-  if (session.role === "admin") {
-    return branchFilter ? branches.filter((branch) => branch.branchId === branchFilter) : branches;
-  }
-  const branchId = resolveBranchId(session, branchFilter || null);
-  return branches.filter((branch) => branch.branchId === branchId);
+  const branchId = reportBranchId(session, branchFilter);
+  return branchId ? branches.filter((branch) => branch.branchId === branchId) : branches;
 }
 
 async function fetchLaporan(input: {
@@ -52,13 +52,64 @@ async function fetchLaporan(input: {
   const perBranch = await Promise.all(
     branches.map(async (branch): Promise<LaporanRow[]> => {
       const { spreadsheetId } = branchSpreadsheetFrom(branch);
-      const [scheduleRows, swapRows, izinRows] = await Promise.all([
+      const [
+        scheduleRows,
+        swapRows,
+        izinRows,
+        checklistPointRows,
+        checklistLogs,
+        handoverTemplates,
+        handoverLogs,
+        incidentRows,
+      ] = await Promise.all([
         readRows(spreadsheetId, branchSheetRange("Schedules")),
         readRows(spreadsheetId, branchSheetRange("Shift_Swaps")),
         readRows(spreadsheetId, branchSheetRange("Izin")),
+        readRows(spreadsheetId, branchSheetRange("Checklist_Point")),
+        readRows(spreadsheetId, branchSheetRange("Checklist_Log")),
+        readRows(spreadsheetId, branchSheetRange("Handover_Template")),
+        readRows(spreadsheetId, branchSheetRange("Handover_Log")),
+        readRows(spreadsheetId, branchSheetRange("Incidents")),
       ]);
       const schedulesById = new Map(scheduleRows.map((row) => [row.values[0] ?? "", row.values]));
       const rows: LaporanRow[] = [];
+      const checklistPoints: ChecklistPointRecord[] = checklistPointRows.map(({ rowNumber, values }) => ({
+        rowNumber,
+        pointId: values[0] ?? "",
+        categoryId: values[1] ?? "",
+        description: values[2] ?? "",
+        completionType: (values[3] ?? "centang") as ChecklistPointRecord["completionType"],
+        unit: values[4] ?? "",
+        min: values[5] ?? "",
+        max: values[6] ?? "",
+        options: (values[7] ?? "").split(",").map((entry) => entry.trim()).filter(Boolean),
+        appliesAllShifts: (values[8] ?? "FALSE").toUpperCase() === "TRUE",
+        shiftIds: (values[9] ?? "").split(",").map((entry) => entry.trim()).filter(Boolean),
+        order: Number(values[10] ?? "0") || 0,
+        active: (values[11] ?? "TRUE").toUpperCase() === "TRUE",
+      }));
+      const requiredHandoverFields = handoverTemplates.filter(
+        (row) => (row.values[2] ?? "FALSE").toUpperCase() === "TRUE"
+      );
+      const checkedChecklistBySchedule = new Map<string, Map<string, { value: string; photoUrl: string }>>();
+      for (const log of checklistLogs) {
+        const scheduleId = log.values[1] ?? "";
+        const itemValues = checkedChecklistBySchedule.get(scheduleId) ?? new Map();
+        itemValues.set(log.values[2] ?? "", {
+          value: log.values[3] ?? "",
+          photoUrl: log.values[4] ?? "",
+        });
+        checkedChecklistBySchedule.set(scheduleId, itemValues);
+      }
+      const filledHandoverBySchedule = new Map<string, Set<string>>();
+      for (const log of handoverLogs) {
+        const scheduleId = log.values[1] ?? "";
+        const fieldId = log.values[2] ?? "";
+        if (!(log.values[3] ?? "").trim()) continue;
+        const fieldIds = filledHandoverBySchedule.get(scheduleId) ?? new Set<string>();
+        fieldIds.add(fieldId);
+        filledHandoverBySchedule.set(scheduleId, fieldIds);
+      }
 
       for (const row of scheduleRows) {
         const date = row.values[3] ?? "";
@@ -105,6 +156,60 @@ async function fetchLaporan(input: {
         });
       }
 
+      for (const schedule of scheduleRows) {
+        const scheduleId = schedule.values[0] ?? "";
+        const date = schedule.values[3] ?? "";
+        if (!inRange(date)) continue;
+
+        const scheduleShiftId = schedule.values[2] ?? "";
+        const activeChecklistItems = checklistPoints.filter((item) =>
+          item.active && (item.appliesAllShifts || item.shiftIds.includes(scheduleShiftId))
+        );
+        const checkedItems = checkedChecklistBySchedule.get(scheduleId) ?? new Map();
+        const completedChecklistItems = activeChecklistItems.filter((item) => {
+          const value = checkedItems.get(item.pointId);
+          return checklistPointComplete(item, value?.value ?? "", value?.photoUrl ?? "");
+        }).length;
+        rows.push({
+          type: "Checklist",
+          id: scheduleId,
+          date,
+          employeeId: schedule.values[1] ?? "",
+          employeeName: nameOf(schedule.values[1] ?? ""),
+          details: `${completedChecklistItems}/${activeChecklistItems.length} item selesai`,
+          status: completedChecklistItems === activeChecklistItems.length ? "completed" : "incomplete",
+        });
+
+        const filledHandoverFields = filledHandoverBySchedule.get(scheduleId) ?? new Set<string>();
+        const completedHandoverFields = requiredHandoverFields.filter((field) =>
+          filledHandoverFields.has(field.values[0] ?? "")
+        ).length;
+        rows.push({
+          type: "Handover",
+          id: scheduleId,
+          date,
+          employeeId: schedule.values[1] ?? "",
+          employeeName: nameOf(schedule.values[1] ?? ""),
+          details: `${completedHandoverFields}/${requiredHandoverFields.length} field wajib terisi`,
+          status: completedHandoverFields === requiredHandoverFields.length ? "completed" : "incomplete",
+        });
+      }
+
+      for (const row of incidentRows) {
+        const date = (row.values[9] ?? "").slice(0, 10);
+        if (!inRange(date)) continue;
+        const employeeId = row.values[8] ?? "";
+        rows.push({
+          type: "Incident",
+          id: row.values[0] ?? "",
+          date,
+          employeeId,
+          employeeName: nameOf(employeeId),
+          details: `${row.values[1] ?? ""} — ${row.values[2] ?? ""} (${row.values[3] ?? ""})`,
+          status: row.values[5] ?? "open",
+        });
+      }
+
       return rows;
     })
   );
@@ -145,7 +250,7 @@ function readFilters(request: NextRequest, session: SessionPayload) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await branchManagerSession(request);
+  const auth = await staffSession(request);
   if (isResponse(auth)) return auth;
   try {
     const format = request.nextUrl.searchParams.get("format") ?? "json";
@@ -159,7 +264,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await branchManagerSession(request);
+  const auth = await staffSession(request);
   if (isResponse(auth)) return auth;
   try {
     const body = await request.json().catch(() => ({}));

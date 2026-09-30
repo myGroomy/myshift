@@ -44,7 +44,7 @@ pnpm run setup:sheets          # Registry: Daftar_Cabang, Employees, Settings_Gl
 # deploy Drive bridge dulu (gas/README.md) lalu isi GAS_DRIVE_BRIDGE_URL + GAS_BRIDGE_SECRET
 pnpm run template:branch       # generate PLAN/templates/MYSHIFT-Template-Cabang.xlsx
 pnpm run template:import -- --parent=<folderId>   # .xlsx -> Google Sheet native (via bridge)
-pnpm run verify:template       # cek header 9 sheet sesuai SHEETS-SCHEMA.md §2
+pnpm run verify:template       # cek header 11 sheet sesuai SHEETS-SCHEMA.md §2
 pnpm run check:bridge          # uji end-to-end copy + upload lewat bridge (bersihkan sendiri)
 pnpm run check:provisioning    # acceptance provisioning end-to-end (bersihkan sendiri)
 pnpm run spike:drive           # cek jalur service account: folder OK, file ditolak (kuota)
@@ -54,7 +54,7 @@ MYSHIFT_SEED_PIN=123456 npx tsx scripts/seed-dummy-data.ts
 ```
 
 `setup:sheets` menyiapkan Registry Spreadsheet. `template:import` meng-import template dan menulis
-header 9 sheet dari `lib/google/sheet-schema.ts`; ID hasil import ditulis ke
+header 11 sheet dari `lib/google/sheet-schema.ts`; ID hasil import ditulis ke
 `TEMPLATES.Template_Spreadsheet_ID`, folder induk ke `TEMPLATES.Parent_Folder_ID`. Cabang baru dibuat
 aplikasi (`POST /api/branches`, atau tombol Retry di `/cabang` untuk cabang yang provisioning-nya
 gagal).

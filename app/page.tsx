@@ -12,8 +12,6 @@ import {
   FileText,
   CheckSquare,
   Handshake,
-  Menu,
-  X,
 } from "lucide-react";
 import { SandTransitionImage } from "@/components/sand-transition";
 
@@ -106,7 +104,7 @@ export default function LandingPage() {
   return (
     <div className="relative w-full min-h-screen bg-[#fcfcfc] text-[#111] overflow-x-hidden">
       {/* SECTION 1: HERO */}
-      <section className="relative w-full min-h-screen flex flex-col overflow-hidden">
+      <section className="relative w-full min-h-screen flex flex-col overflow-hidden pb-24">
         {/* Background Video */}
         {showVideo && (
           <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
@@ -122,13 +120,13 @@ export default function LandingPage() {
                 type="video/mp4"
               />
             </video>
-            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
           </div>
         )}
 
         {/* 1A: HEADER */}
         <motion.header
-          className="pt-6 px-6 md:px-16 relative z-20"
+          className="pt-8 md:pt-10 px-8 md:px-20 relative z-20"
           initial="initial"
           animate="animate"
           variants={staggerHeader}
@@ -136,7 +134,7 @@ export default function LandingPage() {
           {/* Logo */}
           <motion.h1
             variants={staggerLogo}
-            className="text-2xl md:text-3xl font-semibold tracking-tight"
+            className="text-3xl md:text-4xl font-semibold tracking-tight"
           >
             {"MYSHIFT".split("").map((letter, i) => (
               <motion.span
@@ -153,13 +151,13 @@ export default function LandingPage() {
           <motion.div
             variants={fadeUp}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="flex justify-between items-start mt-8"
+            className="flex justify-between items-start mt-10 md:mt-12"
           >
             {/* Left column */}
-            <div className="w-[15%] text-[10px] md:text-[11px] font-mono tracking-[0.2em] uppercase">
-              <div className="text-gray-500">Multi</div>
-              <div className="text-gray-500">Cabang</div>
-              <div className="text-gray-500">F&B</div>
+            <div className="w-[15%] text-[11px] md:text-[12px] font-mono tracking-[0.2em] uppercase">
+              <div className="text-gray-400">Multi</div>
+              <div className="text-gray-400">Cabang</div>
+              <div className="text-gray-400">F&B</div>
             </div>
 
             {/* Arrow separator */}
@@ -168,7 +166,7 @@ export default function LandingPage() {
             </div>
 
             {/* Center column */}
-            <div className="flex-1 md:w-[30%] text-[10px] md:text-[11px] font-mono tracking-[0.2em] uppercase text-gray-800 leading-relaxed">
+            <div className="flex-1 md:w-[30%] text-[11px] md:text-[12px] font-mono tracking-[0.2em] uppercase text-gray-300 leading-relaxed">
               <span className="hidden md:inline">
                 Mengelola shift kerja cabang dengan rapi, transparan, dan tanpa bentrok.
               </span>
@@ -183,9 +181,9 @@ export default function LandingPage() {
             </div>
 
             {/* Right column - Nav links */}
-            <div className="w-[15%] hidden md:block text-[10px] md:text-[11px] font-mono tracking-[0.2em] uppercase text-gray-800">
+            <div className="w-[15%] hidden md:block text-[11px] md:text-[12px] font-mono tracking-[0.2em] uppercase text-gray-300">
               {navLinks.map((link) => (
-                <div key={link} className="hover:text-black hover:underline cursor-pointer">
+                <div key={link} className="hover:text-white hover:underline cursor-pointer py-0.5">
                   {link}
                 </div>
               ))}
@@ -198,7 +196,7 @@ export default function LandingPage() {
               aria-label="Toggle menu"
             >
               <motion.div
-                className="h-[1.5px] bg-black"
+                className="h-[1.5px] bg-white"
                 animate={{
                   width: isMobileMenuOpen ? 24 : 32,
                   rotate: isMobileMenuOpen ? 45 : 0,
@@ -207,7 +205,7 @@ export default function LandingPage() {
                 transition={{ duration: 0.3 }}
               />
               <motion.div
-                className="h-[1.5px] bg-black"
+                className="h-[1.5px] bg-white"
                 animate={{
                   width: isMobileMenuOpen ? 24 : 40,
                   rotate: isMobileMenuOpen ? -45 : 0,
@@ -226,13 +224,13 @@ export default function LandingPage() {
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="bg-[#fcfcfc] border-b border-gray-200 shadow-xl md:hidden relative z-50"
+              className="bg-[#1c2b42] border-b border-gray-700 shadow-xl md:hidden relative z-50"
             >
               <div className="px-6 py-8 space-y-6">
                 {navLinks.map((link) => (
                   <div
                     key={link}
-                    className="text-sm font-mono tracking-[0.2em] uppercase text-gray-800"
+                    className="text-sm font-mono tracking-[0.2em] uppercase text-white"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {link}
@@ -245,21 +243,21 @@ export default function LandingPage() {
 
         {/* 1E: LEFT SIDEBAR CONTENT */}
         <motion.div
-          className="px-10 md:px-16 mt-20 sm:mt-28 md:mt-32 w-[320px] relative z-10"
+          className="px-10 md:px-20 mt-16 sm:mt-20 md:mt-24 w-[340px] md:w-[400px] relative z-10"
           initial="initial"
           animate="animate"
           variants={staggerLeft}
         >
           {/* Section indicator */}
           <motion.div variants={fadeUp} className="flex items-center gap-4 mb-8">
-            <span className="text-xs font-mono text-gray-500">01</span>
-            <div className="w-16 h-[1.5px] bg-black/20" />
+            <span className="text-xs font-mono text-gray-400">01</span>
+            <div className="w-16 h-[1.5px] bg-white/30" />
           </motion.div>
 
           {/* Headline */}
           <motion.h2
             variants={fadeUp}
-            className="text-[3.5rem] md:text-[5rem] font-normal tracking-tight leading-[1] text-white"
+            className="text-[3rem] md:text-[4.5rem] font-normal tracking-tight leading-[1] text-white drop-shadow-lg"
           >
             ATUR SHIFT
             <br />
@@ -269,26 +267,26 @@ export default function LandingPage() {
           {/* Description */}
           <motion.p
             variants={fadeUp}
-            className="mt-6 text-[13px] md:text-[14px] text-white/80 w-[240px] leading-[1.6]"
+            className="mt-6 text-sm md:text-[15px] text-white/90 w-[260px] md:w-[300px] leading-[1.6] drop-shadow-md"
           >
             Kelola jadwal, swap shift, dan checklist SOP dalam satu platform yang rapi dan transparan.
           </motion.p>
 
           {/* CTA Button */}
-          <motion.div variants={fadeUp} className="mt-8">
+          <motion.div variants={fadeUp} className="mt-10">
             <Link
               href="/login"
-              className="group relative inline-flex items-center gap-3 bg-[#1c2b42] px-6 py-3.5 border border-[#1c2b42] rounded-md shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-[0.5px] hover:shadow-[3px_3px_0px_rgba(17,17,17,0.5)] active:translate-y-0 active:shadow-none"
+              className="group relative inline-flex items-center gap-3 bg-[#1c2b42] px-7 py-4 border border-[#1c2b42] rounded-md shadow-lg overflow-hidden transition-all duration-300 hover:-translate-y-[0.5px] hover:shadow-[4px_4px_0px_rgba(255,255,255,0.3)] active:translate-y-0 active:shadow-none"
             >
               {/* Sliding background */}
-              <div className="absolute inset-0 bg-[#fcfcfc] -translate-x-[101%] group-hover:translate-x-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
+              <div className="absolute inset-0 bg-white -translate-x-[101%] group-hover:translate-x-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
               {/* Icon */}
               <Calendar
                 size={18}
-                className="relative z-10 text-white group-hover:text-[#111] group-hover:scale-110 group-hover:-rotate-12 group-hover:-translate-y-1 transition-all duration-300"
+                className="relative z-10 text-white group-hover:text-[#1c2b42] group-hover:scale-110 group-hover:-rotate-12 group-hover:-translate-y-1 transition-all duration-300"
               />
               {/* Text */}
-              <span className="relative z-10 text-[15px] font-medium text-white group-hover:text-[#111] transition-colors duration-300">
+              <span className="relative z-10 text-[15px] font-medium text-white group-hover:text-[#1c2b42] transition-colors duration-300">
                 Mulai Sekarang
               </span>
             </Link>
@@ -297,34 +295,34 @@ export default function LandingPage() {
 
         {/* 1F: RIGHT SIDEBAR (hidden on mobile) */}
         <motion.div
-          className="w-[200px] mt-12 md:mt-20 absolute right-10 md:right-16 top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-8 z-10"
+          className="w-[220px] mt-16 md:mt-24 absolute right-10 md:right-20 top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-10 z-10"
           initial="initial"
           animate="animate"
           variants={staggerRight}
         >
           {/* Specimen info */}
           <motion.div variants={fadeUp}>
-            <h3 className="text-[10px] font-bold font-mono tracking-widest uppercase text-white/90">
+            <h3 className="text-[11px] font-bold font-mono tracking-widest uppercase text-white/90">
               Platform Shift
             </h3>
-            <p className="mt-2 text-[12px] text-white/60 leading-[1.6]">
+            <p className="mt-3 text-[13px] text-white/70 leading-[1.6]">
               Untuk UMKM F&B multi-cabang. Tanpa instalasi, langsung pakai dari browser.
             </p>
           </motion.div>
 
           {/* Stats */}
-          <motion.div variants={fadeUp} className="space-y-3">
+          <motion.div variants={fadeUp} className="space-y-4">
             <div>
-              <div className="text-[10px] font-mono tracking-widest uppercase text-white/50">
+              <div className="text-[11px] font-mono tracking-widest uppercase text-white/50">
                 Cabang
               </div>
-              <div className="text-[13px] font-medium text-white">2 - 50+ outlet</div>
+              <div className="text-sm font-medium text-white mt-1">2 - 50+ outlet</div>
             </div>
             <div>
-              <div className="text-[10px] font-mono tracking-widest uppercase text-white/50">
+              <div className="text-[11px] font-mono tracking-widest uppercase text-white/50">
                 Karyawan
               </div>
-              <div className="text-[13px] font-medium text-white">10 - 500+ staf</div>
+              <div className="text-sm font-medium text-white mt-1">10 - 500+ staf</div>
             </div>
           </motion.div>
 
@@ -334,14 +332,14 @@ export default function LandingPage() {
               href="/login"
               className="group flex items-center gap-3"
             >
-              <div className="w-10 h-10 rounded-full border border-white/40 flex items-center justify-center group-hover:border-white group-hover:bg-white transition-all duration-300">
+              <div className="w-11 h-11 rounded-full border border-white/40 flex items-center justify-center group-hover:border-white group-hover:bg-white transition-all duration-300">
                 <Plus
                   size={16}
                   strokeWidth={1.5}
-                  className="text-white/60 group-hover:text-[#111] transition-colors duration-300"
+                  className="text-white/60 group-hover:text-[#1c2b42] transition-colors duration-300"
                 />
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-white/60 group-hover:text-white transition-colors duration-300">
+              <span className="text-[11px] font-mono uppercase tracking-widest font-bold text-white/60 group-hover:text-white transition-colors duration-300">
                 Lihat Detail
               </span>
             </Link>
@@ -350,7 +348,7 @@ export default function LandingPage() {
 
         {/* 1G: BOTTOM-LEFT "SCROLL TO EXPLORE" */}
         <motion.div
-          className="absolute bottom-10 left-[2.5rem] md:left-[4rem] hidden md:flex items-center gap-4 z-10"
+          className="absolute bottom-12 left-[2.5rem] md:left-[5rem] hidden md:flex items-center gap-4 z-10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.2, duration: 0.8 }}
@@ -359,21 +357,21 @@ export default function LandingPage() {
             <div className="w-[1px] h-[12px] bg-white/60" />
             <div className="w-[1px] h-[12px] bg-white/60" />
           </div>
-          <span className="text-[10px] font-mono tracking-widest uppercase text-white/50 font-semibold">
+          <span className="text-[11px] font-mono tracking-widest uppercase text-white/50 font-semibold">
             Scroll to explore
           </span>
         </motion.div>
       </section>
 
       {/* SECTION 2: "FITUR MYSHIFT" */}
-      <section className="relative w-full min-h-[75vh] md:min-h-screen bg-[#fcfcfc] flex flex-col items-center pt-24 md:pt-32 pb-0 z-20">
+      <section className="relative w-full min-h-[75vh] md:min-h-screen bg-[#fcfcfc] flex flex-col items-center pt-28 md:pt-36 pb-0 z-20">
         {/* 2A: SECTION LABEL */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8 }}
-          className="text-[10px] md:text-[11px] font-mono tracking-[0.2em] mb-12"
+          className="text-[11px] md:text-[12px] font-mono tracking-[0.2em] mb-14"
         >
           <span className="text-gray-500">[ 02 ]</span>{" "}
           <span className="text-gray-900 font-bold uppercase">Fitur MYSHIFT</span>
@@ -385,13 +383,13 @@ export default function LandingPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8 }}
-          className="text-[2.2rem] md:text-[3.5rem] lg:text-[4.2rem] leading-[1.1] font-medium tracking-tight text-[#111] max-w-[1000px] text-center px-6"
+          className="text-[2rem] md:text-[3rem] lg:text-[3.8rem] leading-[1.1] font-medium tracking-tight text-[#111] max-w-[900px] text-center px-6"
         >
           Semua yang kamu butuhkan untuk mengelola shift kerja cabang.
         </motion.h2>
 
         {/* 2C: ACTION PILLS */}
-        <div className="flex flex-wrap justify-center gap-3 md:gap-4 mt-12 md:mt-16 mb-10 md:mb-24 px-6">
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4 mt-14 md:mt-20 mb-12 md:mb-28 px-6">
           {actionPills.map((pill, i) => (
             <motion.div
               key={pill.label}
@@ -399,7 +397,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1, duration: 0.5 }}
-              className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-gray-300 text-[11px] font-medium uppercase tracking-wider bg-white/50 backdrop-blur-sm text-gray-800 cursor-pointer hover:border-[#1c2b42] hover:bg-[#1c2b42] hover:text-white transition-all duration-300"
+              className="group flex items-center gap-2 px-6 py-3 rounded-full border border-gray-300 text-[12px] font-medium uppercase tracking-wider bg-white/50 backdrop-blur-sm text-gray-800 cursor-pointer hover:border-[#1c2b42] hover:bg-[#1c2b42] hover:text-white transition-all duration-300"
             >
               <pill.icon size={14} strokeWidth={2} />
               {pill.label}
@@ -408,15 +406,15 @@ export default function LandingPage() {
         </div>
 
         {/* 2D: SPACER */}
-        <div className="min-h-[220px] md:min-h-[450px]" />
+        <div className="min-h-[200px] md:min-h-[400px]" />
 
         {/* 2E: BOTTOM TEXT */}
-        <div className="absolute bottom-0 left-0 right-0 px-8 md:px-16 pb-8 md:pb-12 pointer-events-none">
+        <div className="absolute bottom-0 left-0 right-0 px-8 md:px-20 pb-10 md:pb-14 pointer-events-none">
           <div className="flex justify-between">
-            <span className="text-[10px] font-mono tracking-widest uppercase text-gray-500 font-medium hidden md:block">
+            <span className="text-[11px] font-mono tracking-widest uppercase text-gray-500 font-medium hidden md:block">
               KAMI TIDAK HANYA MENGATUR JADWAL.
             </span>
-            <span className="text-[10px] font-mono tracking-widest uppercase text-gray-500 font-medium hidden md:block">
+            <span className="text-[11px] font-mono tracking-widest uppercase text-gray-500 font-medium hidden md:block">
               MYSHIFT (C) 2026
             </span>
           </div>
@@ -430,7 +428,8 @@ export default function LandingPage() {
           <motion.img
             src="https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=1200&q=80"
             alt="Restaurant team"
-            className="w-full h-auto"
+            className="w-full h-auto object-cover"
+            style={{ maxHeight: "600px", objectPosition: "center 30%" }}
             initial={{ y: "-65%", opacity: 0 }}
             whileInView={{ y: "-78%", opacity: 1 }}
             viewport={{ once: true, margin: "100px" }}
@@ -439,15 +438,15 @@ export default function LandingPage() {
         </div>
 
         {/* 3B: HEADING AREA */}
-        <div className="px-8 md:px-16 pt-32 md:pt-48 mb-16 relative z-10">
-          <div className="flex flex-col xl:flex-row justify-between gap-12">
+        <div className="px-8 md:px-20 pt-40 md:pt-56 mb-20 relative z-10">
+          <div className="flex flex-col xl:flex-row justify-between gap-16">
             {/* Left -- Main heading */}
             <motion.h2
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.8 }}
-              className="text-[1.8rem] md:text-[3rem] lg:text-[3.8rem] xl:text-[4rem] leading-[1.15] font-medium tracking-tight text-white"
+              className="text-[1.6rem] md:text-[2.8rem] lg:text-[3.5rem] xl:text-[3.8rem] leading-[1.15] font-medium tracking-tight text-white"
             >
               Dari jadwal sampai laporan,{" "}
               <span className="inline-flex gap-2 md:gap-3 align-middle mx-2 md:mx-4 translate-y-[-4px]">
@@ -470,7 +469,7 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="text-[9px] md:text-[10px] font-mono tracking-widest text-gray-400 uppercase mb-6 leading-relaxed"
+                className="text-[10px] md:text-[11px] font-mono tracking-widest text-gray-400 uppercase mb-8 leading-relaxed"
               >
                 KAMI TIDAK HANYA MENGATUR JADWAL
                 <br />
@@ -486,7 +485,7 @@ export default function LandingPage() {
                 {["Otomatis", "Transparan", "Terpercaya"].map((pill) => (
                   <span
                     key={pill}
-                    className="px-5 py-2 rounded-full border border-gray-600 text-[9px] font-mono tracking-widest uppercase text-gray-300 hover:bg-white hover:text-black hover:border-white transition-all duration-300 cursor-pointer"
+                    className="px-6 py-2.5 rounded-full border border-gray-600 text-[10px] font-mono tracking-widest uppercase text-gray-300 hover:bg-white hover:text-black hover:border-white transition-all duration-300 cursor-pointer"
                   >
                     {pill}
                   </span>
@@ -501,28 +500,28 @@ export default function LandingPage() {
           <div className="h-[1px] bg-gray-800" />
           <div className="flex flex-col md:flex-row">
             {/* Left panel (35%) - Chapter image */}
-            <div className="md:w-[35%] border-b md:border-b-0 md:border-r border-gray-800 min-h-[400px] md:min-h-[500px] relative">
-              <div className="absolute top-8 left-8 text-gray-500 text-xl tracking-[0.3em]">
+            <div className="md:w-[35%] border-b md:border-b-0 md:border-r border-gray-800 min-h-[450px] md:min-h-[550px] relative">
+              <div className="absolute top-10 left-10 text-gray-500 text-xl tracking-[0.3em]">
                 ***
               </div>
               <SandTransitionImage
                 src={chaptersData[activeChapter].image}
                 alt={chaptersData[activeChapter].name}
-                className="absolute inset-0 w-[80%] h-[80%] m-auto"
+                className="absolute inset-0 w-[85%] h-[85%] m-auto"
               />
-              <div className="absolute bottom-8 left-8 right-8 flex items-center gap-2">
-                <span className="text-[10px] font-mono tracking-widest text-[#888] uppercase">
+              <div className="absolute bottom-10 left-10 right-10 flex items-center gap-3">
+                <span className="text-[11px] font-mono tracking-widest text-[#888] uppercase">
                   Chapter
                 </span>
                 <motion.span
                   key={activeChapter}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  className="text-[10px] font-mono tracking-widest text-white uppercase"
+                  className="text-[11px] font-mono tracking-widest text-white uppercase"
                 >
                   {String(activeChapter + 1).padStart(2, "0")}
                 </motion.span>
-                <span className="text-[10px] font-mono tracking-widest text-[#333]">
+                <span className="text-[11px] font-mono tracking-widest text-[#333]">
                   / {String(chaptersData.length).padStart(2, "0")}
                 </span>
               </div>
@@ -531,15 +530,15 @@ export default function LandingPage() {
             {/* Right panel (65%) - Chapter list */}
             <div className="md:w-[65%]">
               {/* Top bar */}
-              <div className="border-b border-gray-800 p-8 flex justify-between items-center">
-                <span className="text-[10px] font-mono text-gray-400 tracking-widest">
+              <div className="border-b border-gray-800 p-10 flex justify-between items-center">
+                <span className="text-[11px] font-mono text-gray-400 tracking-widest">
                   Jelajahi fitur. Pahami cara kerjanya.
                 </span>
                 <motion.span
                   key={activeChapter}
                   initial={{ y: 10, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  className="text-[10px] font-mono text-gray-400 tracking-widest"
+                  className="text-[11px] font-mono text-gray-400 tracking-widest"
                 >
                   Chapter {String(activeChapter + 1).padStart(2, "0")}
                 </motion.span>
@@ -551,7 +550,7 @@ export default function LandingPage() {
                   <motion.div
                     key={chapter.name}
                     onClick={() => setActiveChapter(i)}
-                    className={`border-b border-gray-800/80 py-8 px-8 cursor-pointer transition-colors duration-300 ${
+                    className={`border-b border-gray-800/80 py-10 px-10 cursor-pointer transition-colors duration-300 ${
                       activeChapter === i
                         ? "text-white"
                         : "text-[#444] hover:text-[#999]"
@@ -563,7 +562,7 @@ export default function LandingPage() {
                         <h3 className="text-2xl md:text-[2rem] font-medium tracking-tight">
                           {chapter.name}
                         </h3>
-                        <p className="mt-1 text-sm text-gray-500">{chapter.desc}</p>
+                        <p className="mt-2 text-sm text-gray-500">{chapter.desc}</p>
                       </div>
                       <AnimatePresence>
                         {activeChapter === i && (
@@ -589,7 +588,7 @@ export default function LandingPage() {
 
           {/* 3D: BOTTOM FOOTER */}
           <div className="h-[1px] bg-gray-800" />
-          <div className="px-8 py-8 text-[10px] font-mono tracking-widest text-gray-500 uppercase bg-[#0a0a0a]">
+          <div className="px-8 md:px-20 py-10 text-[11px] font-mono tracking-widest text-gray-500 uppercase bg-[#0a0a0a]">
             Membangun sistem kerja yang rapi untuk F&B UMKM
           </div>
         </div>
@@ -598,20 +597,21 @@ export default function LandingPage() {
       {/* SECTION 4: CTA + FOOTER */}
       <section className="relative w-full">
         {/* CTA with background image */}
-        <div className="relative h-[60vh] md:h-[70vh] overflow-hidden">
+        <div className="relative h-[70vh] md:h-[80vh] overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80"
             alt="Restaurant interior"
             className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: "center 40%" }}
           />
-          <div className="absolute inset-0 bg-[#1c2b42]/80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1c2b42]/85 via-[#1c2b42]/75 to-[#1c2b42]/85" />
           <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
             <motion.h2
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.8 }}
-              className="text-[2rem] md:text-[3.5rem] lg:text-[4rem] font-medium tracking-tight text-white max-w-3xl leading-[1.1]"
+              className="text-[1.8rem] md:text-[3rem] lg:text-[3.5rem] font-medium tracking-tight text-white max-w-3xl leading-[1.1]"
             >
               Siap merapikan operasional shift outlet Anda?
             </motion.h2>
@@ -620,7 +620,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="mt-4 text-white/70 max-w-lg text-sm md:text-base"
+              className="mt-6 text-white/80 max-w-lg text-sm md:text-base leading-relaxed"
             >
               Tinggalkan rekap WhatsApp yang berantakan. Berdayakan tim gerai Anda dengan sistem kerja yang rapi, transparan, dan terpercaya.
             </motion.p>
@@ -629,11 +629,11 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="mt-8"
+              className="mt-10"
             >
               <Link
                 href="/login"
-                className="group relative inline-flex items-center gap-3 bg-white px-8 py-4 border border-white rounded-md shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-[0.5px] hover:shadow-[3px_3px_0px_rgba(255,255,255,0.3)]"
+                className="group relative inline-flex items-center gap-3 bg-white px-8 py-4 border border-white rounded-md shadow-lg overflow-hidden transition-all duration-300 hover:-translate-y-[0.5px] hover:shadow-[4px_4px_0px_rgba(255,255,255,0.3)]"
               >
                 <div className="absolute inset-0 bg-[#1c2b42] -translate-x-[101%] group-hover:translate-x-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
                 <span className="relative z-10 text-[15px] font-medium text-[#1c2b42] group-hover:text-white transition-colors duration-300">
@@ -649,23 +649,23 @@ export default function LandingPage() {
         </div>
 
         {/* Footer */}
-        <footer className="bg-[#0a0a0a] text-white py-12 px-6 md:px-16">
-          <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <footer className="bg-[#0a0a0a] text-white py-14 px-6 md:px-20">
+          <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
             <div>
-              <div className="text-lg font-semibold tracking-tight">MYSHIFT</div>
-              <p className="text-xs text-gray-500 mt-1">
+              <div className="text-xl font-semibold tracking-tight">MYSHIFT</div>
+              <p className="text-sm text-gray-500 mt-2">
                 Platform manajemen shift F&B UMKM multi-cabang.
               </p>
             </div>
-            <div className="flex gap-6 text-xs text-gray-500">
+            <div className="flex gap-8 text-sm text-gray-500">
               <a href="#" className="hover:text-white transition-colors">Fitur</a>
               <a href="#" className="hover:text-white transition-colors">Cara Kerja</a>
               <a href="#" className="hover:text-white transition-colors">FAQ</a>
               <a href="#" className="hover:text-white transition-colors">Kontak</a>
             </div>
           </div>
-          <div className="max-w-[1200px] mx-auto mt-8 pt-8 border-t border-gray-800">
-            <p className="text-[10px] font-mono tracking-widest text-gray-600 uppercase">
+          <div className="max-w-[1200px] mx-auto mt-10 pt-8 border-t border-gray-800">
+            <p className="text-[11px] font-mono tracking-widest text-gray-600 uppercase">
               MYSHIFT (c) 2026. Platform manajemen shift F&B UMKM.
             </p>
           </div>

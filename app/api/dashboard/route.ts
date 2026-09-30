@@ -5,7 +5,9 @@ import { readRows } from "@/lib/google/sheets-data";
 import { branchSheetRange } from "@/lib/google/sheet-schema";
 import { todayInWIB } from "@/lib/domain/date";
 import { SHIFT_STATUS } from "@/lib/domain/shift-lifecycle";
-import { branchManagerSession, isResponse, resolveBranchId } from "@/lib/route-auth";
+import { checklistPointComplete } from "@/lib/domain/checklist-spec-validation";
+import type { ChecklistPointRecord } from "@/lib/google/ops-data";
+import { adminSession, isResponse, resolveBranchId } from "@/lib/route-auth";
 import type { NextRequest } from "next/server";
 import type { Branch } from "@/lib/google/registry";
 
@@ -19,39 +21,59 @@ interface DashboardData {
   handoverCount: number;
   pendingSwaps: number;
   pendingIzins: number;
+  openIncidents: number;
+  highIncidents: number;
 }
 
 async function summarize(branch: Branch, today: string): Promise<DashboardData> {
   const { spreadsheetId } = branchSpreadsheetFrom(branch);
-  const [scheduleRows, checklistLogRows, checklistTemplateRows, handoverLogRows, swapRows, izinRows] =
+  const [scheduleRows, checklistLogRows, checklistPointRows, handoverLogRows, swapRows, izinRows, incidentRows] =
     await Promise.all([
       readRows(spreadsheetId, branchSheetRange("Schedules")),
       readRows(spreadsheetId, branchSheetRange("Checklist_Log")),
-      readRows(spreadsheetId, branchSheetRange("Checklist_Template")),
+      readRows(spreadsheetId, branchSheetRange("Checklist_Point")),
       readRows(spreadsheetId, branchSheetRange("Handover_Log")),
       readRows(spreadsheetId, branchSheetRange("Shift_Swaps")),
       readRows(spreadsheetId, branchSheetRange("Izin")),
+      readRows(spreadsheetId, branchSheetRange("Incidents")),
     ]);
 
   const todaySchedules = scheduleRows.filter((row) => row.values[3] === today);
   const todayScheduleIds = new Set(todaySchedules.map((row) => row.values[0] ?? ""));
 
-  // Percentage of (schedule x active item) pairs that are checked — counting shifts that have
-  // at least one tick used to report 100% for a 1/10 checklist (audit M-3).
-  const activeItemIds = checklistTemplateRows
-    .filter((row) => (row.values[5] ?? "TRUE").toUpperCase() === "TRUE")
-    .map((row) => row.values[0] ?? "");
-  const checkedPairs = new Set(
-    checklistLogRows
-      .filter((row) => todayScheduleIds.has(row.values[1] ?? ""))
-      .map((row) => `${row.values[1]}::${row.values[2]}`)
+  const points: ChecklistPointRecord[] = checklistPointRows.map(({ rowNumber, values }) => ({
+    rowNumber,
+    pointId: values[0] ?? "",
+    categoryId: values[1] ?? "",
+    description: values[2] ?? "",
+    completionType: (values[3] ?? "centang") as ChecklistPointRecord["completionType"],
+    unit: values[4] ?? "",
+    min: values[5] ?? "",
+    max: values[6] ?? "",
+    options: (values[7] ?? "").split(",").map((entry) => entry.trim()).filter(Boolean),
+    appliesAllShifts: (values[8] ?? "FALSE").toUpperCase() === "TRUE",
+    shiftIds: (values[9] ?? "").split(",").map((entry) => entry.trim()).filter(Boolean),
+    order: Number(values[10] ?? "0") || 0,
+    active: (values[11] ?? "TRUE").toUpperCase() === "TRUE",
+  }));
+  const latestLog = new Map(
+    checklistLogRows.map((row) => [
+      `${row.values[1] ?? ""}::${row.values[2] ?? ""}`,
+      { value: row.values[3] ?? "", photoUrl: row.values[4] ?? "" },
+    ])
   );
-  const totalPairs = todaySchedules.length * activeItemIds.length;
-  const checkedCount = todaySchedules.reduce(
-    (total, row) =>
-      total + activeItemIds.filter((itemId) => checkedPairs.has(`${row.values[0]}::${itemId}`)).length,
-    0
-  );
+  let totalPairs = 0;
+  let checkedCount = 0;
+  for (const schedule of todaySchedules) {
+    const applicable = points.filter((point) =>
+      point.active && (point.appliesAllShifts || point.shiftIds.includes(schedule.values[2] ?? ""))
+    );
+    totalPairs += applicable.length;
+    for (const point of applicable) {
+      const log = latestLog.get(`${schedule.values[0] ?? ""}::${point.pointId}`);
+      if (checklistPointComplete(point, log?.value ?? "", log?.photoUrl ?? "")) checkedCount += 1;
+    }
+  }
 
   return {
     branchId: branch.branchId,
@@ -63,11 +85,13 @@ async function summarize(branch: Branch, today: string): Promise<DashboardData> 
     handoverCount: handoverLogRows.filter((row) => todayScheduleIds.has(row.values[1] ?? "")).length,
     pendingSwaps: swapRows.filter((row) => row.values[5] === "pending").length,
     pendingIzins: izinRows.filter((row) => row.values[5] === "pending").length,
+    openIncidents: incidentRows.filter((row) => row.values[5] === "open").length,
+    highIncidents: incidentRows.filter((row) => row.values[3] === "high" && row.values[5] === "open").length,
   };
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await branchManagerSession(request);
+  const auth = await adminSession(request);
   if (isResponse(auth)) return auth;
   try {
     // usableBranches() drops inactive *and* not-yet-provisioned branches, logging each one —

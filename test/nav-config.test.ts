@@ -22,7 +22,7 @@ test("dock admin persis 4 tab", () => {
   assert.equal(ADMIN_DOCK_TABS.length, 4);
   assert.deepEqual(
     ADMIN_DOCK_TABS.map((item) => item.href),
-    ["/dashboard", "/jadwal", "/approval", "/laporan"],
+    ["/dashboard", "/jadwal", "/approval", "/incident"],
   );
 });
 
@@ -30,7 +30,7 @@ test("dock karyawan persis 4 tab", () => {
   assert.equal(KARYAWAN_DOCK_TABS.length, 4);
   assert.deepEqual(
     KARYAWAN_DOCK_TABS.map((item) => item.href),
-    ["/jadwal-saya", "/swap/ajukan", "/izin/ajukan", "/riwayat"],
+    ["/jadwal-saya", "/checklist", "/handover", "/incident"],
   );
 });
 
@@ -42,14 +42,19 @@ test("setiap tab dock punya ikon (Material Symbols) dan label", () => {
   }
 });
 
-test("groupsForRole menyembunyikan item admin-only dan membuang grup kosong", () => {
-  const asHead = groupsForRole(ADMIN_NAV_GROUPS, false);
-  const hrefs = flatten(asHead).map((item) => item.href);
-  assert.equal(hrefs.includes("/handover-template"), false, "kepala_cabang tidak boleh melihat Handover");
-  assert.equal(hrefs.includes("/cabang"), false, "master data khusus admin");
-  assert.equal(hrefs.includes("/checklist-template"), true, "checklist boleh dibuka kepala_cabang");
+test("menu Admin tidak tersedia ke Karyawan dan grup kosong dihapus", () => {
+  const asEmployee = groupsForRole(ADMIN_NAV_GROUPS, false);
+  const hrefs = flatten(asEmployee).map((item) => item.href);
+  assert.equal(hrefs.includes("/handover-template"), false, "Karyawan tidak boleh melihat template Handover");
+  assert.equal(hrefs.includes("/checklist-template"), false, "Karyawan tidak boleh melihat template Checklist");
+  assert.equal(hrefs.includes("/cabang"), false, "master data khusus Admin");
+  assert.equal(hrefs.includes("/dashboard"), false);
+  assert.equal(hrefs.includes("/jadwal"), false);
+  assert.equal(hrefs.includes("/approval"), false);
+  assert.equal(hrefs.includes("/incident"), true, "Incident dapat diakses kedua role");
+  assert.equal(hrefs.includes("/laporan"), true, "Laporan dapat diakses kedua role");
   assert.equal(
-    asHead.some((group) => group.items.length === 0),
+    asEmployee.some((group) => group.items.length === 0),
     false,
     "grup kosong tidak boleh ikut (hanya terisi label tanpa isi)",
   );
@@ -95,9 +100,9 @@ test("tidak ada href yang muncul dua kali di dock admin (tabs + Lainnya + extras
   assert.ok(seen.size > 4, "dock harus punya lebih dari 4 tujuan");
 });
 
-test("tab dock tidak pernah menunjuk halaman admin-only (kepala_cabang ikut aman)", () => {
-  const forHead = itemsForRole(ADMIN_DOCK_TABS, false);
-  assert.equal(forHead.length, ADMIN_DOCK_TABS.length, "ada tab dock yang khusus admin");
+test("tab dock Admin tidak dibagikan ke Karyawan", () => {
+  const forEmployee = itemsForRole(ADMIN_DOCK_TABS, false);
+  assert.deepEqual(forEmployee.map((item) => item.href), ["/incident"]);
 });
 
 test("karyawan: profil & pilih cabang tetap terjangkau, logout ditangani pemanggil", () => {
@@ -107,5 +112,7 @@ test("karyawan: profil & pilih cabang tetap terjangkau, logout ditangani pemangg
   // Nav desktop karyawan memuat Profil juga; dock + nav tidak boleh dobel di layar yang sama
   // (dock lg:hidden), jadi Profil sengaja ada di nav desktop DAN di Lainnya mobile.
   assert.ok(KARYAWAN_NAV_ITEMS.some((item) => item.href === "/profil"));
+  assert.ok(KARYAWAN_NAV_ITEMS.some((item) => item.href === "/laporan"));
+  assert.ok(hrefs.includes("/laporan"), "Laporan tersedia di Lainnya mobile");
   assert.equal(KARYAWAN_DOCK_TABS.some((item) => item.href === "/profil"), false, "Profil bukan tab dock");
 });

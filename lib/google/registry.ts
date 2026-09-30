@@ -7,7 +7,7 @@ export interface Employee {
   username: string;
   pinHash: string;
   nama: string;
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   cabangAktif: string;
   cabangTerafiliasi: string[];
   aktif: boolean;
@@ -38,11 +38,11 @@ export function parseProvisionStatus(value: string | undefined): ProvisionStatus
 
 export type EmployeeRow = SheetRow & { employee: Employee; attempts: number; lockedUntil: string };
 
-export const EMPLOYEE_ROLE_VALUES = ["admin", "kepala_cabang", "karyawan"] as const;
+export const EMPLOYEE_ROLE_VALUES = ["admin", "karyawan"] as const;
 
 export function parseRole(value: string): Employee["role"] {
   const normalized = (value ?? "").trim();
-  return normalized === "admin" || normalized === "kepala_cabang" || normalized === "karyawan" ? normalized : "karyawan";
+  return normalized === "admin" ? "admin" : "karyawan";
 }
 
 export function parseAktif(value: string): boolean {

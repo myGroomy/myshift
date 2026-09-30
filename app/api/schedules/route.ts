@@ -10,50 +10,31 @@ import { adminSession, isResponse, resolveBranchId, staffSession } from "@/lib/r
 import { DomainError } from "@/lib/error-codes";
 import type { NextRequest } from "next/server";
 
-type Schedule = {
-  scheduleId: string;
-  employeeId: string;
-  shiftId: string;
-  date: string;
-  status: string;
-  startedAt: string;
-  conflictWarning: boolean;
-};
+import { projectSchedules, EnrichedSchedule } from "@/lib/google/schedules-data";
 
-async function entries(spreadsheetId: string): Promise<Schedule[]> {
+async function entries(spreadsheetId: string): Promise<EnrichedSchedule[]> {
   const [scheduleRows, shiftRows] = await Promise.all([
     readRows(spreadsheetId, branchSheetRange("Schedules")),
     readRows(spreadsheetId, branchSheetRange("Shifts")),
   ]);
-  const shifts = new Map(shiftRows.map(({ values }) => [values[0], { start: values[2], end: values[3] }]));
-  const parsed = scheduleRows.map(({ values }) => ({
+
+  const rawSchedules = scheduleRows.map(({ values }) => ({
     scheduleId: values[0] ?? "",
     employeeId: values[1] ?? "",
     shiftId: values[2] ?? "",
     date: values[3] ?? "",
     status: values[4] ?? "scheduled",
     startedAt: values[5] ?? "",
-    conflictWarning: false,
   }));
 
-  // Conflict is a warning, never a block (contract §5).
-  return parsed.map((entry) => ({
-    ...entry,
-    conflictWarning: parsed.some(
-      (other) =>
-        other.scheduleId !== entry.scheduleId &&
-        other.employeeId === entry.employeeId &&
-        other.date === entry.date &&
-        shifts.get(other.shiftId) &&
-        shifts.get(entry.shiftId) &&
-        timeOverlaps(
-          shifts.get(other.shiftId)!.start,
-          shifts.get(other.shiftId)!.end,
-          shifts.get(entry.shiftId)!.start,
-          shifts.get(entry.shiftId)!.end
-        )
-    ),
+  const rawShifts = shiftRows.map(({ values }) => ({
+    shiftId: values[0] ?? "",
+    shiftName: values[1] ?? "",
+    startTime: values[2] ?? "",
+    endTime: values[3] ?? "",
   }));
+
+  return projectSchedules(rawSchedules, rawShifts);
 }
 
 export async function GET(request: NextRequest) {

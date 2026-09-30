@@ -11,14 +11,6 @@ export async function adminSession(request: NextRequest): Promise<SessionPayload
   return session;
 }
 
-// Admin + Kepala Cabang: master templates are scoped to the caller's own branch (contract §8).
-export async function branchManagerSession(request: NextRequest): Promise<SessionPayload | Response> {
-  const session = await getSession(request);
-  if (!session) return fail("UNAUTHORIZED", "Session tidak valid");
-  if (!hasRole(session, ["admin", "kepala_cabang"])) return fail("FORBIDDEN", "Akses admin atau kepala cabang diperlukan");
-  return session;
-}
-
 export async function staffSession(request: NextRequest): Promise<SessionPayload | Response> {
   const session = await getSession(request);
   if (!session) return fail("UNAUTHORIZED", "Session tidak valid");

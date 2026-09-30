@@ -16,6 +16,7 @@ import { request } from "@/lib/api";
 import { todayInWIB } from "@/lib/domain/date";
 import type { Branch, Employee, Schedule, Shift } from "@/lib/types";
 import { controlClass } from "@/lib/ui";
+import { Copy, FolderOpen, Sheet } from "lucide-react";
 
 function msg(error: unknown): string {
   return error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -185,7 +186,29 @@ export function BranchesPage() {
                 <StatusBadge status={item.provisionStatus ?? "pending"} />
               </td>
               <td className={tdClass}>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {item.folderId && (
+                    <a
+                      href={`https://drive.google.com/drive/folders/${item.folderId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <FolderOpen size={12} />
+                      Folder
+                    </a>
+                  )}
+                  {item.spreadsheetId && (
+                    <a
+                      href={`https://docs.google.com/spreadsheets/d/${item.spreadsheetId}/edit`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <Sheet size={12} />
+                      Spreadsheet
+                    </a>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -397,7 +420,6 @@ export function EmployeesPage() {
             className={controlClass}
           >
             <option value="karyawan">Karyawan (Staf Outlet)</option>
-            <option value="kepala_cabang">Kepala Cabang</option>
             <option value="admin">Admin Pusat</option>
           </Select>
         </div>
@@ -772,7 +794,13 @@ export function ShiftsPage() {
 // ---------------------------------------------------------------------------
 // 4. JADWAL (UI-PLAN §2.3 / §2.11)
 // ---------------------------------------------------------------------------
-export function SchedulePage({ mine = false }: { mine?: boolean }) {
+/**
+ * Isi halaman jadwal TANPA shell — dipakai dua tempat: `/jadwal` (admin, `mine=false`)
+ * lewat `SchedulePage`, dan tab pertama `/jadwal-saya` (petugas) lewat `JadwalSayaPage`.
+ * Tanpa dipisah begini, keduanya akan menaruh `KaryawanShell` di dalam `KaryawanShell`
+ * sehingga header dan dock ter-render dua kali.
+ */
+export function ScheduleContent({ mine = false }: { mine?: boolean }) {
   const { toast } = useToast();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -920,22 +948,19 @@ export function SchedulePage({ mine = false }: { mine?: boolean }) {
     }
   }
 
-  const Shell = mine ? KaryawanShell : AdminShell;
   const today = todayInWIB();
 
   // Maps for names
   const empMap = new Map(employees.map((e) => [e.employeeId, e.nama]));
-  const shiftMap = new Map(shifts.map((s) => [s.shiftId, s.name]));
+  // Nama shift datang dari response schedules (shiftName) supaya petugas tidak melihat ID mentah;
+  // fallback ke daftar shift admin untuk baris yang belum terproyeksi.
+  const shiftMap = new Map<string, string>(shifts.map((s) => [s.shiftId, s.name]));
+  for (const item of items) {
+    if (item.shiftName) shiftMap.set(item.shiftId, item.shiftName);
+  }
 
   return (
-    <Shell
-      title={mine ? "Jadwal Saya" : "Kelola Jadwal"}
-      lead={
-        mine
-          ? "Daftar penugasan shift kerja Anda di outlet."
-          : "Plot giliran kerja mingguan karyawan per cabang."
-      }
-    >
+    <>
       {!mine && (
         <form
           onSubmit={submit}
@@ -951,7 +976,7 @@ export function SchedulePage({ mine = false }: { mine?: boolean }) {
               onClick={duplicateLastWeek}
               className="text-xs"
             >
-              <span className="material-symbols-outlined text-sm">content_copy</span>
+              <Copy size={14} />
               {duplicating ? "Menduplikat..." : "Duplikat Minggu Lalu"}
             </Button>
           </div>
@@ -1105,6 +1130,26 @@ export function SchedulePage({ mine = false }: { mine?: boolean }) {
           })}
         </div>
       )}
+    </>
+  );
+}
+
+/**
+ * Halaman `/jadwal` — versi admin. Petugas tidak memakai ini; dia masuk lewat
+ * `JadwalSayaPage` (`components/jadwal-saya.tsx`) yang membungkus `ScheduleContent`.
+ */
+export function SchedulePage({ mine = false }: { mine?: boolean }) {
+  const Shell = mine ? KaryawanShell : AdminShell;
+  return (
+    <Shell
+      title={mine ? "Jadwal Saya" : "Kelola Jadwal"}
+      lead={
+        mine
+          ? "Daftar penugasan shift kerja Anda di outlet."
+          : "Plot giliran kerja mingguan karyawan per cabang."
+      }
+    >
+      <ScheduleContent mine={mine} />
     </Shell>
   );
 }

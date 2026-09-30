@@ -1,6 +1,6 @@
 # MYSHIFT — API Contract
 
-> **Versi:** 1.2.0
+> **Versi:** 1.5.0
 > **Tanggal:** 2026-09-28
 > **Turunan dari:** `FULL-PRD.md`
 > **Base URL:** `/api`
@@ -11,7 +11,9 @@
 > // Gagal
 > { "success": false, "error": { "code": "STRING_CODE", "message": "Pesan untuk user", "data": { ... } } }
 > ```
-> Semua endpoint (kecuali `/api/auth/login`) memerlukan session cookie valid. Semua endpoint di-scope ke `branchId` aktif di sesi user, kecuali disebutkan lain.
+> Semua endpoint (kecuali `/api/auth/login`) memerlukan session cookie valid. Data per-cabang untuk
+> Admin dapat di-scope ke cabang mana pun; Karyawan hanya dapat mengakses cabang yang terafiliasi
+> dengannya. Laporan Karyawan khusus cabang aktif.
 >
 > **Perubahan v1.1.0** (audit backend): error code disamakan dengan §11 (`VALIDATION_ERROR`, bukan `INVALID_REQUEST`), detail per-field dipindah ke `error.data`, lockout login diimplementasikan, `/api/laporan` menggantikan `/api/reports`, dashboard mengembalikan array (bentuk aktual), dan `GET /api/schedules/:id` ditambahkan.
 >
@@ -37,12 +39,16 @@
 > terkonfigurasi → `503 SHEETS_SETUP_REQUIRED` (sebelum menyentuh Drive); bridge ditolak/timeout →
 > `502 PROVISION_FAILED`; cabang `pending`/`failed` tetap tidak bisa dipakai sampai `retry-provision`
 > sukses. Verifikasi end-to-end: `pnpm check:bridge`.
+>
+> **Perubahan v1.5.0** (simplifikasi role + laporan karyawan): role yang didukung tinggal
+> `admin` dan `karyawan`; template checklist dan dashboard hanya untuk Admin. Laporan tersedia
+> untuk Karyawan, mencakup progres checklist/handover, dan dibatasi ke cabang aktif.
 
 ---
 
 ## 0. Aturan umum
 
-- **Branch scope.** Semua endpoint per-cabang menerima `?branchId=` (opsional). Untuk `karyawan`/`kepala_cabang`, `branchId` harus salah satu cabang di sesi mereka — kalau tidak → `403 FORBIDDEN`. Untuk `admin`, `branchId` boleh cabang mana pun; kalau tidak dikirim, dipakai `activeBranchId` dari sesi admin.
+- **Branch scope.** Semua endpoint per-cabang menerima `?branchId=` (opsional). Untuk `karyawan`, `branchId` harus salah satu cabang di sesi mereka — kalau tidak → `403 FORBIDDEN`. Untuk `admin`, `branchId` boleh cabang mana pun; kalau tidak dikirim, dipakai `activeBranchId` dari sesi admin. Laporan Karyawan dibatasi ke `activeBranchId`.
 - **Cabang harus siap pakai.** `getBranch()` (`lib/google/branch-data.ts`) adalah satu-satunya cara kode menemukan spreadsheet/folder cabang. Cabang nonaktif → `404 NOT_FOUND`; cabang dengan `Provision_Status` bukan `ready` → `503 SHEETS_SETUP_REQUIRED` (pesannya menyebut status dan `retry-provision`). Tidak ada ID cabang yang di-hardcode atau dibaca dari env per cabang.
 - **Revalidasi sesi.** Token HMAC berlaku 12 jam, tapi tiap request dicek ulang ke registry: karyawan nonaktif atau role yang berubah langsung kehilangan akses (401), tanpa menunggu expiry.
 - **Idempotensi (§12).** POST yang menulis baris baru menolak duplikat (`409 DUPLICATE_SUBMIT`), dan POST log checklist/handover bersifat upsert (bukan append kedua).
@@ -53,7 +59,7 @@
 
 ### `POST /api/auth/login`
 Body: `{ "username": string, "pin": string }`
-Response 200: `{ "success": true, "data": { "employeeId": string, "nama": string, "role": "admin"|"kepala_cabang"|"karyawan", "branches": [{ "branchId", "nama" }] } }`
+Response 200: `{ "success": true, "data": { "employeeId": string, "nama": string, "role": "admin"|"karyawan", "branches": [{ "branchId", "nama" }] } }`
 Response 400: `error.code = "VALIDATION_ERROR"` (username/PIN kosong atau PIN bukan 4-8 digit)
 Response 401: `error.code = "INVALID_CREDENTIALS"`
 Response 423: `error.code = "ACCOUNT_LOCKED"` + `error.data.lockedUntil` (ISO 8601)
@@ -125,7 +131,7 @@ Drive yang lambat:
    Drive bridge Apps Script sebagai pemilik folder (service account tidak punya kuota Drive);
    `Spreadsheet_ID` ditulis ke baris **sebelum** verifikasi, supaya kegagalan berikutnya tidak
    meninggalkan spreadsheet yatim yang tidak dirujuk siapa pun.
-5. Verifikasi header 9 sheet terhadap `SHEETS-SCHEMA.md` §2 (`lib/google/template-verify.ts`).
+5. Verifikasi header 13 sheet terhadap `SHEETS-SCHEMA.md` §2 (`lib/google/template-verify.ts`).
    Menyimpang → `SHEETS_SETUP_REQUIRED`, `Provision_Status` tetap bukan `ready`.
 6. Update baris → `Spreadsheet_ID`, `Folder_Drive_ID`, `Provision_Status=ready`.
 
@@ -179,7 +185,7 @@ oleh endpoint ini — hanya cabang yang masih `pending`/`failed` yang diterima.
 ## 5. Schedules
 
 ### `GET /api/schedules?branchId=&startDate=&endDate=`
-Response 200: `{ "data": ScheduleEntry[] }`; `karyawan` difilter ke `employeeId` sendiri.
+Response 200: `{ "data": ScheduleEntry[] }`; `karyawan` difilter ke `employeeId` sendiri. Setiap `ScheduleEntry` diperkaya dengan `{ scheduleId, employeeId, shiftId, shiftName, startTime, endTime, date, status, startedAt, conflictWarning }`.
 
 ### `GET /api/schedules/:id?branchId=`
 Response 200: `{ "data": { scheduleId, employeeId, employeeName, shiftId, shiftName, date, status, startedAt, branchId } }`
@@ -230,22 +236,30 @@ Validasi: pemilik jadwal, status jadwal masih `scheduled`, kategori ada & aktif,
 
 ## 8. Checklist
 
-### `GET /api/checklist-templates?branchId=&type=opening|closing` (Admin, Kepala Cabang)
-### `POST /api/checklist-templates` (Admin, Kepala Cabang — scoped ke cabangnya)
-Body: `{ "type": "opening"|"closing", "description", "requiresPhoto": boolean }` → 201
-### `PATCH /api/checklist-templates/:id` — Body `{ description?, requiresPhoto?, active? }`
-### `DELETE /api/checklist-templates/:id`
+### `GET|POST /api/sop-categories?branchId=` (Admin)
+Category shape: `{ categoryId, name, order, active }`. POST body `{ name, order? }` → 201; IDs use
+`SOP-###`. PATCH `/api/sop-categories/:id` accepts `{ name?, order?, active? }`; DELETE
+soft-deactivates a category.
+
+### `GET|POST /api/checklist-points?branchId=` (Admin)
+Point shape: `{ pointId, categoryId, description, completionType, unit, min, max, options,
+appliesAllShifts, shiftIds, order, active }`. `completionType` ∈ `centang|centang_foto|angka|teks|pilihan`.
+POST accepts the shape without `pointId`/`active` → 201. PATCH
+`/api/checklist-points/:id` accepts editable fields; DELETE permanently removes points without
+logs and soft-deactivates points that already have logs.
 
 ### `GET /api/schedules/:scheduleId/checklist`
-Response 200: `{ "data": { "items": ChecklistItem[], "completed": number, "total": number } }` — hanya item `Aktif=TRUE`.
+Response 200: `{ "data": { "groups": [{ categoryId, categoryName, items }], "items": ChecklistPoint[],
+completed, total } }`. Only active points applicable to the schedule's `Shift_ID` are returned.
+Each item includes `value`, `photoUrl`, and `warning` for numeric values outside configured bounds.
 
-### `POST /api/schedules/:scheduleId/checklist` (Karyawan pemilik jadwal)
-Body: `{ "itemId": string, "photoUrl"?: string }`
-Response 200: `{ "data": { "checked": true, "alreadyChecked": boolean } }`
-- Item non-aktif ditolak (404), `photoUrl` harus URL http(s) kalau dikirim.
-- Idempotent: centang ulang tidak menambah baris log kedua (foto diganti kalau dikirim ulang).
-
-> Catatan: v1.0.0 menulis `POST /api/schedules/:sid/checklist/:itemId/check`. Path itu tidak dipakai frontend; kontrak diselaraskan ke bentuk aktual di atas (itemId di body).
+### `POST /api/schedules/:scheduleId/checklist` (Admin or schedule owner)
+Body `{ "pointId": string, "value": string, "photoUrl"?: string }`. Values are validated against
+the server-side point type/options; photo is required for `centang_foto`. Numeric bounds warn but
+do not block. Upsert current value per (`Schedule_ID`, `Point_ID`); edits after report generation
+are allowed and written to `Shift_Report_Audit`. The checklist UI autosaves to this endpoint;
+each write uses the authenticated employee as `Checked_By` and remains scoped to the authorized
+schedule, so progress is available after signing in to the same account on another device.
 
 ### `POST /api/schedules/:scheduleId/checklist/photo` (Karyawan pemilik jadwal)
 `multipart/form-data`, satu field `file`. Upload foto bukti sebelum dicentang di endpoint di atas.
@@ -267,8 +281,8 @@ Response 413: `FILE_TOO_LARGE`. Response 415: `UNSUPPORTED_FILE_TYPE`. Response 
 > `<Schedule_ID>_<Item_ID>_<timestamp>.<ext>` dan idempotent-by-name (retry tidak menggandakan foto).
 > Bridge belum terkonfigurasi → `503 SHEETS_SETUP_REQUIRED`.
 
-Shift yang sudah `completed` → 400 `VALIDATION_ERROR` via `assertShiftNotClosed`, sama seperti
-`POST /api/schedules/:scheduleId/checklist` (bukan 403: ini condition/state, bukan hak akses).
+Checklist/photo changes are allowed for the schedule owner and Admin even after shift completion
+or report generation; changes after report generation must be audited.
 
 Aturan upload (divalidasi backend, bukan hanya `accept` di `<input type=file>`):
 
@@ -287,11 +301,21 @@ Aturan upload (divalidasi backend, bukan hanya `accept` di `<input type=file>`):
 
 > Batas 5 MB dipilih supaya aman di bawah limit body Vercel (10 MB) tanpa perlu streaming.
 
-### `POST /api/schedules/:scheduleId/checklist/submit` (Karyawan)
+### `POST /api/schedules/:scheduleId/checklist/submit` (Admin or schedule owner)
 Menutup shift: `started`/`scheduled` → `completed`.
 Response 200: `{ "data": { "submitted": true, "status": "completed" } }` (submit ulang idempotent: `alreadyClosed: true`).
 Response 400 `error.code = "CHECKLIST_INCOMPLETE"` + `error.data.fields` (item kosong) — divalidasi backend.
 Response 400 `error.code = "REQUIRED_FIELD_MISSING"` + `error.data.fields` kalau ada field handover wajib yang belum diisi.
+
+### `GET|POST /api/schedules/:scheduleId/report` (Admin or schedule owner)
+GET returns report preview/current report with checklist, handover, and edit history. POST generates
+the report after backend validation: all applicable checklist points are complete and required
+handover fields are filled. It sets `Report_Generated_At` once and creates a permanent
+HMAC-signed `Report_Token`; repeated generation is idempotent and keeps the same public link.
+
+### `GET /api/public/reports/:token` (public, no login)
+Returns the read-only report for a valid stored token. The token has no expiry; access is scoped to
+the schedule embedded in the verified HMAC and the exact token stored on that schedule.
 
 ---
 
@@ -308,19 +332,47 @@ Response 200: `{ "data": { "fields": [{ fieldId, label, isRequired, order, value
 ### `GET /api/schedules/:scheduleId/handover/previous`
 Response 200: handover shift sebelumnya (read-only) atau `null`.
 
-### `POST /api/schedules/:scheduleId/handover` (Karyawan pemilik jadwal)
+### `POST /api/schedules/:scheduleId/handover` (Admin or schedule owner)
 Body: `{ "fields": [{ "fieldId", "value" }] }`
 - `isRequired` **selalu** diambil dari `Handover_Template` di server, bukan dari body.
 - `fieldId` yang tidak ada di template → 400 `VALIDATION_ERROR` + `error.data.fields`.
 - Field wajib kosong → 400 `REQUIRED_FIELD_MISSING` + `error.data.fields`.
-- Upsert per (`Schedule_ID`, `Field_ID`): submit ulang menimpa, tidak menambah baris ganda.
+- Upsert per (`Schedule_ID`, `Field_ID`): submit ulang menimpa, tidak menambah baris ganda. After
+  report generation, changed values are appended to `Shift_Report_Audit`.
 Response 200: `{ "data": { "submitted": true, "savedFields": number } }`
+
+---
+
+## 9b. Incident / Catatan Operasional
+
+### `GET /api/incidents?status=&severity=&categoryId=&branchId=` (semua role)
+Response 200: `{ "data": Incident[] }` — `Incident = { incidentId, categoryId, deskripsi, severity, fotoUrl, status, resolvedBy, resolvedAt, createdBy, createdAt }`.
+- Filter opsional: `status=open|resolved`, `severity=low|medium|high`, `categoryId=KIC-###`.
+
+### `POST /api/incidents` (semua role) — Body `{ "categoryId", "deskripsi", "severity", "fotoUrl"? }` → 201
+Validasi: kategori ada & aktif, `deskripsi` min. 10 karakter, `severity` ∈ `low|medium|high`, `fotoUrl` harus URL valid kalau dikirim.
+`createdBy` diisi otomatis dari session, `status` selalu `open`.
+
+### `GET /api/incidents/:id?branchId=` (semua role)
+Response 200: `{ "data": Incident }` atau 404.
+
+### `PATCH /api/incidents/:id` (Admin) — Body `{ }` (resolve)
+Set `status=resolved`, `resolvedBy=session.employeeId`, `resolvedAt=nowIso()`.
+Response 400 `VALIDATION_ERROR` kalau sudah `resolved`.
+
+### `GET /api/incident-categories?branchId=` (semua role)
+Response 200: `{ "data": IncidentCategory[] }` — `IncidentCategory = { id, label, aktif }`.
+
+### `POST /api/incident-categories` (Admin) — Body `{ "label" }` → 201
+ID format `KIC-###`, `aktif` selalu `true`.
+
+### `DELETE /api/incident-categories/:id?branchId=` (Admin) — soft delete (`Aktif=FALSE`)
 
 ---
 
 ## 10. Dashboard & Laporan
 
-### `GET /api/dashboard?branchId=` (Admin, Kepala Cabang)
+### `GET /api/dashboard?branchId=` (Admin)
 Response 200: `{ "data": DashboardBranch[] }` dengan
 `DashboardBranch = { branchId, branchName, shiftsToday, shiftsStarted, shiftsCompleted, checklistPercent, handoverCount, pendingSwaps, pendingIzins }`.
 - `checklistPercent` = item tercentang / (jumlah shift hari ini × item checklist aktif), bukan "shift yang punya ≥1 centang".
@@ -328,10 +380,13 @@ Response 200: `{ "data": DashboardBranch[] }` dengan
 - Cabang yang spreadsheetnya bermasalah di-skip (dicatat di log server) supaya tidak mematikan seluruh dashboard.
 - Cabang yang belum `ready` (atau nonaktif) juga di-skip oleh `usableBranches()`, dengan alasan tertulis di log server.
 
-### `GET /api/laporan?branchId=&startDate=&endDate=&format=json|csv` (Admin, Kepala Cabang)
+### `GET /api/laporan?branchId=&startDate=&endDate=&format=json|csv` (Admin, Karyawan)
 ### `POST /api/laporan?branchId=&startDate=&endDate=` — Body `{ "format": "json"|"csv" }`
 Response 200 `format=json` (default): `{ "data": LaporanRow[] }` dengan
-`LaporanRow = { type, id, date, employeeId, employeeName, details, status }` (rekap jadwal/swap/izin).
+`LaporanRow = { type, id, date, employeeId, employeeName, details, status }` (rekap jadwal, swap,
+izin, progres checklist, handover, dan incident). Admin dapat meminta semua cabang atau satu cabang;
+Karyawan selalu dibatasi ke cabang aktif dan dapat melihat ringkasan operasional seluruh karyawan
+di cabang tersebut. Meminta cabang lain sebagai Karyawan → `403 FORBIDDEN`.
 Response 200 `format=csv`: file CSV (`text/csv`, CRLF, kutip sesuai RFC 4180, nilai yang diawali `= + - @` dinetralisasi, `employeeName` terisi).
 Response 400 `error.code = "VALIDATION_ERROR"` untuk format lain (mis. `xlsx` belum tersedia — lebih baik gagal jelas daripada mengirim JSON dengan ekstensi `.csv`).
 

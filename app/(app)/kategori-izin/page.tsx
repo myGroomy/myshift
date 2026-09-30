@@ -79,7 +79,7 @@ export default function KategoriIzinPage() {
       title="Kelola Kategori Izin"
       lead="Daftar opsi izin yang dapat dipilih karyawan saat mengajukan ketidakhadiran."
     >
-      <form onSubmit={submit} className="mb-6 flex max-w-lg items-end gap-3">
+      <form onSubmit={submit} className="mb-6 flex max-w-2xl items-end gap-3">
         <div className="flex-1">
           <Label htmlFor="kategori-label">Nama Kategori Baru</Label>
           <Input

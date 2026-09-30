@@ -1,10 +1,11 @@
 import { fail, handleRouteError, ok } from "@/lib/api-response";
-import { assertScheduleOwner } from "@/lib/domain/ops-validation";
+import { assertScheduleAccess } from "@/lib/domain/ops-validation";
+import { checklistPointComplete } from "@/lib/domain/checklist-spec-validation";
 import { nowIso } from "@/lib/domain/date";
 import { evaluateShiftClosure, SHIFT_STATUS } from "@/lib/domain/shift-lifecycle";
 import {
   loadChecklistLogs,
-  loadChecklistTemplates,
+  loadChecklistPoints,
   loadHandoverLogs,
   loadHandoverTemplates,
   loadSchedules,
@@ -27,19 +28,28 @@ export async function POST(request: NextRequest, context: Context) {
     const { spreadsheetId, records: schedules } = await loadSchedules(branchId);
     const schedule = schedules.find((entry) => entry.scheduleId === scheduleId);
     if (!schedule) return fail("NOT_FOUND", "Jadwal tidak ditemukan");
-    assertScheduleOwner(schedule.employeeId, auth.employeeId);
+    assertScheduleAccess({ role: auth.role, scheduleEmployeeId: schedule.employeeId, actorId: auth.employeeId });
 
-    const [{ records: templates }, { records: logs }, { records: handoverTemplates }, { records: handoverLogs }] =
+    const [{ records: points }, { records: logs }, { records: handoverTemplates }, { records: handoverLogs }] =
       await Promise.all([
-        loadChecklistTemplates(branchId),
+        loadChecklistPoints(branchId),
         loadChecklistLogs(branchId, scheduleId),
         loadHandoverTemplates(branchId),
         loadHandoverLogs(branchId, scheduleId),
       ]);
 
     const closure = evaluateShiftClosure({
-      activeChecklistItemIds: templates.filter((item) => item.active).map((item) => item.itemId),
-      checkedChecklistItemIds: logs.map((log) => log.itemId),
+      activeChecklistItemIds: points
+        .filter((point) => point.active && (point.appliesAllShifts || point.shiftIds.includes(schedule.shiftId)))
+        .map((point) => point.pointId),
+      checkedChecklistItemIds: points
+        .filter((point) => {
+          const log = logs.find((entry) => entry.pointId === point.pointId);
+          return point.active
+            && (point.appliesAllShifts || point.shiftIds.includes(schedule.shiftId))
+            && checklistPointComplete(point, log?.value ?? "", log?.photoUrl ?? "");
+        })
+        .map((point) => point.pointId),
       requiredHandoverFieldIds: handoverTemplates.filter((field) => field.isRequired).map((field) => field.fieldId),
       filledHandoverFieldIds: handoverLogs.filter((log) => log.isi.trim()).map((log) => log.fieldId),
     });

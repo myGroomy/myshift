@@ -42,7 +42,7 @@ function seedId(prefix: string, ordinal: number): string {
   return `${prefix}${String(ordinal).padStart(3, "0")}`;
 }
 
-// Schedules, Shift_Swaps, Izin, Checklist_Log and Handover_Log stay header-only: the app appends
+// Schedules, Shift_Swaps, Izin, Checklist_Log, Shift_Report_Audit and Handover_Log stay header-only: the app appends
 // to them, and any row seeded here would be indistinguishable from real shift data.
 const SEED: Record<BranchSheetName, SheetSeed> = {
   Shifts: [
@@ -58,15 +58,17 @@ const SEED: Record<BranchSheetName, SheetSeed> = {
     [seedId(ID_PREFIX.category, 2), "Ijin", "TRUE"],
     [seedId(ID_PREFIX.category, 3), "Alpha", "TRUE"],
   ],
-  Checklist_Template: [
-    [seedId(ID_PREFIX.checklistItem, 1), "opening", "Cek ketersediaan stok bahan", "TRUE", 1, "TRUE"],
-    [seedId(ID_PREFIX.checklistItem, 2), "opening", "Cek kondisi peralatan dapur", "TRUE", 2, "TRUE"],
-    [seedId(ID_PREFIX.checklistItem, 3), "opening", "Cuci tangan & sanitasi", "FALSE", 3, "TRUE"],
-    [seedId(ID_PREFIX.checklistItem, 4), "closing", "Hitung uang kasir", "TRUE", 1, "TRUE"],
-    [seedId(ID_PREFIX.checklistItem, 5), "closing", "Backup data penjualan", "TRUE", 2, "TRUE"],
-    [seedId(ID_PREFIX.checklistItem, 6), "closing", "Matikan peralatan listrik", "FALSE", 3, "TRUE"],
+  SOP_Kategori: [[seedId(ID_PREFIX.sopCategory, 1), "Operasional Umum", 1, "TRUE"]],
+  Checklist_Point: [
+    [seedId(ID_PREFIX.checklistItem, 1), seedId(ID_PREFIX.sopCategory, 1), "Cek ketersediaan stok bahan", "centang_foto", "", "", "", "", "FALSE", seedId(ID_PREFIX.shift, 1), 1, "TRUE"],
+    [seedId(ID_PREFIX.checklistItem, 2), seedId(ID_PREFIX.sopCategory, 1), "Cek kondisi peralatan dapur", "centang_foto", "", "", "", "", "FALSE", seedId(ID_PREFIX.shift, 1), 2, "TRUE"],
+    [seedId(ID_PREFIX.checklistItem, 3), seedId(ID_PREFIX.sopCategory, 1), "Cuci tangan & sanitasi", "centang", "", "", "", "", "FALSE", seedId(ID_PREFIX.shift, 1), 3, "TRUE"],
+    [seedId(ID_PREFIX.checklistItem, 4), seedId(ID_PREFIX.sopCategory, 1), "Hitung uang kasir", "centang_foto", "", "", "", "", "FALSE", seedId(ID_PREFIX.shift, 3), 1, "TRUE"],
+    [seedId(ID_PREFIX.checklistItem, 5), seedId(ID_PREFIX.sopCategory, 1), "Backup data penjualan", "centang_foto", "", "", "", "", "FALSE", seedId(ID_PREFIX.shift, 3), 2, "TRUE"],
+    [seedId(ID_PREFIX.checklistItem, 6), seedId(ID_PREFIX.sopCategory, 1), "Matikan peralatan listrik", "centang", "", "", "", "", "FALSE", seedId(ID_PREFIX.shift, 3), 3, "TRUE"],
   ],
   Checklist_Log: [],
+  Shift_Report_Audit: [],
   Handover_Template: [
     [seedId(ID_PREFIX.handoverField, 1), "Stok bahan apa saja yang tinggal", "TRUE", 1],
     [seedId(ID_PREFIX.handoverField, 2), "Kondisi mesin/perlengkapan", "TRUE", 2],
@@ -74,13 +76,36 @@ const SEED: Record<BranchSheetName, SheetSeed> = {
     [seedId(ID_PREFIX.handoverField, 4), "Uang kasir", "TRUE", 4],
   ],
   Handover_Log: [],
+  Kategori_Incident: [
+    [seedId(ID_PREFIX.incidentCategory, 1), "Mesin Rusak", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 2), "Komplain Customer", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 3), "Barang Rusak", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 4), "Stok Habis", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 5), "Kesalahan Order", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 6), "Kebersihan", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 7), "Keamanan", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 8), "Karyawan Berhalangan", "TRUE"],
+    [seedId(ID_PREFIX.incidentCategory, 9), "Lainnya", "TRUE"],
+  ],
+  Incidents: [],
 };
 
 /** Columns kept numeric; everything else is text so the import cannot coerce it. */
-const NUMERIC_COLUMNS = new Set(["Urutan"]);
+const NUMERIC_COLUMNS = new Set(["Urutan", "Batas_Min", "Batas_Max"]);
 
 /** Columns holding sentences or links, widened so admins do not have to reformat by hand. */
-const WIDE_COLUMNS = new Set(["Deskripsi", "Label", "Isi", "Keterangan", "Alasan", "Reject_Reason", "Foto_URL", "Nama"]);
+const WIDE_COLUMNS = new Set([
+  "Deskripsi",
+  "Label",
+  "Isi",
+  "Keterangan",
+  "Alasan",
+  "Reject_Reason",
+  "Foto_URL",
+  "Nama",
+  "Nilai_Lama",
+  "Nilai_Baru",
+]);
 
 const DEFAULT_WIDTH = 18;
 const WIDE_WIDTH = 42;

@@ -1,8 +1,8 @@
 # MYSHIFT — Product Requirements Document (Full / Production)
 
-> **Versi:** 1.0.0
-> **Tanggal:** 2026-09-26
-> **Status:** Draft — PRD Awal
+> **Versi:** 1.3.0
+> **Tanggal:** 2026-09-29
+> **Status:** Draft — PRD Awal + Incident Feature
 > **Bagian dari:** Ekosistem MOCHIKIN-APPS (F&B UMKM internal operational apps)
 
 ---
@@ -27,7 +27,7 @@ MYSHIFT menjawab: **"Siapa yang bekerja, kapan, di mana, dan apa yang harus dila
 
 Tujuan utama:
 1. Memudahkan admin pusat membuat & mengelola jadwal kerja mingguan lintas cabang
-2. Memberi karyawan visibilitas jadwal mereka sendiri
+2. Memberi karyawan visibilitas jadwal sendiri dan ringkasan operasional cabang aktif
 3. Memfasilitasi pertukaran shift & pengajuan izin dengan alur approval yang jelas
 4. Memastikan checklist operasional (opening/closing) benar-benar dikerjakan sebelum shift ditutup
 5. Menjaga kontinuitas informasi antar shift lewat handover terstruktur
@@ -39,10 +39,11 @@ Tujuan utama:
 | Role | Cakupan | Kewenangan |
 |---|---|---|
 | **Admin (Pusat)** | Semua cabang | Membuat/edit jadwal semua cabang, approve swap & izin, kelola master data (cabang, shift, checklist template), kelola karyawan |
-| **Kepala Cabang** | 1 cabang | Kelola checklist template cabangnya, lihat jadwal & laporan cabangnya (detail kewenangan approval swap/izin: default tetap terpusat ke Admin kecuali diputuskan lain saat implementasi) |
 | **Karyawan** | 1 cabang (bisa berpindah) | Lihat jadwal sendiri, ajukan swap/izin, isi checklist opening/closing, isi handover, tandai mulai shift |
 
-Catatan: karyawan bisa ditugaskan pindah-pindah cabang (tidak terikat 1 cabang permanen).
+Role `kepala_cabang` dihapus dan akun lama dimigrasikan menjadi `karyawan`; pengelolaan data dan
+template hanya tersedia bagi Admin. Karyawan bisa ditugaskan ke beberapa cabang dan memilih cabang
+aktif.
 
 ---
 
@@ -73,7 +74,7 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 | Sheet | Kolom |
 |---|---|
 | `Daftar_Cabang` | `Cabang_ID`, `Nama_Cabang`, `Spreadsheet_ID`, `Aktif` |
-| `Employees` | `Employee_ID`, `Username`, `PIN_Hash`, `Nama`, `Role` (admin/kepala_cabang/karyawan), `Cabang_Aktif`, `Aktif` |
+| `Employees` | `Employee_ID`, `Username`, `PIN_Hash`, `Nama`, `Role` (admin/karyawan), `Cabang_Aktif`, `Aktif` |
 | `Settings_Global` | `Key`, `Value` |
 
 ### 5.2 Per-Cabang Spreadsheet (1 file per cabang)
@@ -84,10 +85,15 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 | `Schedules` | `Schedule_ID`, `Employee_ID`, `Shift_ID`, `Tanggal`, `Status` (scheduled/started/completed) |
 | `Shift_Swaps` | `Swap_ID`, `Schedule_ID`, `Requested_By`, `Requested_With`, `Alasan`, `Status` (pending/approved/rejected), `Approved_By` |
 | `Izin` | `Izin_ID`, `Employee_ID`, `Tanggal`, `Kategori`, `Keterangan`, `Status`, `Approved_By` |
-| `Checklist_Template` | `Item_ID`, `Tipe` (opening/closing), `Deskripsi`, `Wajib_Foto` (bool), `Aktif` |
-| `Checklist_Log` | `Log_ID`, `Schedule_ID`, `Item_ID`, `Checked_By`, `Checked_At`, `Foto_URL` (opsional) |
+| `Schedules` (tambahan) | `Report_Generated_At`, `Report_Token` |
+| `SOP_Kategori` | `Kategori_ID` (`SOP-###`), `Nama`, `Urutan`, `Aktif` |
+| `Checklist_Point` | `Point_ID`, `Kategori_ID`, `Deskripsi`, `Tipe_Penyelesaian`, `Satuan`, `Batas_Min`, `Batas_Max`, `Opsi_Pilihan`, `Berlaku_Semua_Shift`, `Shift_IDs`, `Urutan`, `Aktif` |
+| `Checklist_Log` | `Log_ID`, `Schedule_ID`, `Point_ID`, `Nilai`, `Foto_URL`, `Checked_By`, `Checked_At` |
+| `Shift_Report_Audit` | `Audit_ID`, `Schedule_ID`, `Bagian`, `Record_ID`, `Field`, `Nilai_Lama`, `Nilai_Baru`, `Actor_ID`, `Changed_At` |
 | `Handover_Template` | `Field_ID`, `Label`, `Wajib` (bool) |
 | `Handover_Log` | `Log_ID`, `Schedule_ID`, `Field_ID`, `Isi`, `Created_By`, `Created_At` |
+| `Kategori_Incident` | `Kategori_ID`, `Label`, `Aktif` |
+| `Incidents` | `Incident_ID`, `Kategori_ID`, `Deskripsi`, `Severity`, `Foto_URL`, `Status`, `Resolved_By`, `Resolved_At`, `Created_By`, `Created_At` |
 
 **Format ID:** ikut pola prefix bermakna ala STOKIS (contoh: `EMP-CBG01-001`, `SCH-20260401-001`) supaya lebih mudah dipetakan manual ke MYLAUNCHER saat integrasi SSO nanti dilakukan.
 
@@ -122,10 +128,13 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 - Kategori izin dapat dikonfigurasi oleh admin (admin-configurable, bukan hardcoded)
 - Approval oleh Admin (terpusat)
 
-### 6.6 Checklist Opening/Closing
-- Template dasar sama untuk semua cabang, tapi **customizable per cabang** oleh Admin atau Kepala Cabang
-- Tiap item: checkbox, dengan opsi tambahan foto (tidak semua item wajib foto)
-- **Shift/laporan tidak bisa disubmit kalau checklist belum 100% selesai**
+### 6.6 Checklist SOP per Shift
+- Admin membuat kategori SOP dan Checklist Point per cabang; setiap point dapat berlaku untuk semua shift atau shift tertentu.
+- Tipe penyelesaian per point: centang, centang + foto, angka (satuan/batas), teks, atau pilihan.
+- Isian checklist otomatis disimpan per jadwal dengan identitas akun karyawan; teks/angka memakai jeda singkat agar pengetikan tidak menghasilkan request per karakter.
+- Nilai angka di luar batas memberi warning dan tidak memblokir penyelesaian.
+- Checklist yang disajikan pada jadwal hanya berisi point aktif yang cocok dengan Shift_ID-nya; seluruh point tersebut wajib lengkap sebelum laporan dibuat.
+- Perubahan checklist setelah laporan dibuat tetap diperbolehkan oleh Admin dan pemilik jadwal serta dicatat pada `Shift_Report_Audit`.
 
 ### 6.7 Handover
 - **Wajib diisi setiap akhir shift** — tidak bisa diskip
@@ -138,8 +147,63 @@ Mengikuti pola aplikasi sibling di ekosistem (STOKIS, MYCUSTOMER, MYLAUNCHER):
 
 ### 6.9 Dashboard & Laporan
 - Dashboard admin: jadwal hari ini per cabang, status checklist, status handover
-- Laporan: rekap jadwal, swap, izin per periode
+- Laporan Admin: rekap jadwal, swap, izin, checklist, handover, dan incident lintas cabang
+- Laporan Karyawan: ringkasan operasional yang sama, dibatasi ke cabang aktif
 - Export CSV/XLSX
+
+### 6.10 Incident / Catatan Operasional
+
+Fitur untuk mencatat kejadian abnormal selama operasi yang tidak cocok masuk checklist (tugas rutin) atau handover (info antar shift).
+
+**Contoh penggunaan:** mesin rusak, komplain customer, barang rusak, stok mendadak habis, kesalahan order, masalah kebersihan, masalah keamanan, karyawan berhalangan, kejadian lain.
+
+#### 6.10.1 Kategori Incident (Admin-Configurable)
+- Kategori dikelola admin per cabang (pola sama dengan `Kategori_Izin`)
+- CRUD kategori: tambah, edit label, nonaktifkan
+- Kategori default saat provisioning: Mesin Rusak, Komplain Customer, Barang Rusak, Stok Habis, Kesalahan Order, Kebersihan, Keamanan, Karyawan Berhalangan, Lainnya
+
+#### 6.10.2 Field per Incident
+
+| Field | Tipe | Wajib | Keterangan |
+|---|---|---|---|
+| `Incident_ID` | text (auto) | — | Format `INC-###` |
+| `Kategori_ID` | text | ✅ | FK ke `Kategori_Incident` |
+| `Deskripsi` | text | ✅ | Penjelasan kejadian |
+| `Severity` | enum | ✅ | `low` / `medium` / `high` |
+| `Foto_URL` | text | ❌ | Bukti foto (upload via Drive bridge) |
+| `Status` | enum | ✅ | `open` / `resolved` |
+| `Resolved_By` | text | ❌ | Employee_ID admin yang resolve |
+| `Resolved_At` | timestamp | ❌ | Waktu resolve |
+| `Created_By` | text | ✅ | Employee_ID pelapor |
+| `Created_At` | timestamp | ✅ | Auto timestamp |
+
+#### 6.10.3 Hak Akses
+
+| Role | Aksi |
+|---|---|
+| **Karyawan** | Buat incident, lihat incident cabang sendiri, filter by kategori/status/severity |
+| **Admin** | Lihat semua incident semua cabang, kelola kategori, resolve incident, export |
+
+#### 6.10.4 Validasi
+- Kategori wajib dipilih
+- Deskripsi wajib, min 10 karakter
+- Severity wajib dipilih
+- Foto opsional, maks 1 foto per incident
+- Hanya admin yang bisa resolve incident
+- Karyawan hanya bisa lihat incident cabangnya sendiri
+
+#### 6.10.5 Integrasi
+- Dashboard admin: widget "Incident hari ini" per cabang (count by severity)
+- Laporan: rekap incident per periode, filter by kategori/severity/status
+- Notifikasi (fase mendatang): incident severity `high` trigger notifikasi ke admin
+
+### 6.11 Laporan Shift
+- Admin atau pemilik jadwal dapat membuat laporan per shift setelah seluruh checklist applicable dan handover wajib lengkap.
+- Laporan menampilkan konteks shift, ringkasan checklist per SOP, handover, nama pengisi, dan riwayat koreksi.
+- Setelah generate, checklist dan handover tetap dapat diedit Admin/pemilik jadwal; setiap perubahan dicatat dengan nilai lama/baru, aktor, dan waktu.
+- Link publik tanpa login menggunakan token HMAC tanpa masa kedaluwarsa; token diverifikasi terhadap nilai yang tersimpan pada jadwal.
+- Tombol Share membuka `wa.me/?text=` dengan template hardcode; pengguna memilih penerima dan mengirim secara manual.
+- Fitur ini terpisah dari `/laporan`, yaitu rekap periodik admin/karyawan.
 
 ---
 

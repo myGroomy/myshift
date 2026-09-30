@@ -11,11 +11,12 @@ import { AdminShell } from "@/components/shell";
 import { KaryawanShell } from "@/components/karyawan-shell";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shell";
+import { LogOut, User, Store } from "lucide-react";
 
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   activeBranchId: string;
   branches: { branchId: string; nama: string }[];
 };
@@ -54,7 +55,7 @@ export default function ProfilPage() {
   return (
     <Shell title="Profil Saya" lead="Informasi akun dan akses cabang operasional Anda.">
       {loading ? (
-        <div className="max-w-xl">
+        <div className="max-w-4xl">
           <SkeletonCard />
         </div>
       ) : (
@@ -62,9 +63,10 @@ export default function ProfilPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="max-w-xl space-y-6"
+          className="grid gap-6 lg:grid-cols-3"
         >
-          <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+          {/* Profile Card */}
+          <div className="lg:col-span-2 rounded-lg border border-border bg-card p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -76,7 +78,7 @@ export default function ProfilPage() {
                 </div>
               </div>
               <div className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                <span className="material-symbols-outlined text-2xl">person</span>
+                <User size={28} />
               </div>
             </div>
 
@@ -105,9 +107,9 @@ export default function ProfilPage() {
 
             {session?.branches && session.branches.length > 1 && (
               <div className="mt-4 pt-2">
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full sm:w-auto">
                   <Link href="/pilih-cabang">
-                    <span className="material-symbols-outlined text-sm">storefront</span>
+                    <Store size={14} />
                     Ganti Cabang Kerja
                   </Link>
                 </Button>
@@ -115,7 +117,8 @@ export default function ProfilPage() {
             )}
           </div>
 
-          <div className="rounded-lg border border-border bg-card p-6">
+          {/* Session Card */}
+          <div className="rounded-lg border border-border bg-card p-6 shadow-sm h-fit">
             <h3 className="mb-2 text-base font-semibold text-foreground">Sesi Akun</h3>
             <p className="mb-4 text-xs text-muted-foreground">
               Akhiri sesi kerja Anda saat bertukar perangkat atau selesai shift.
@@ -124,9 +127,9 @@ export default function ProfilPage() {
               variant="destructive"
               disabled={loggingOut}
               onClick={handleLogout}
-              className="w-full sm:w-auto"
+              className="w-full"
             >
-              <span className="material-symbols-outlined text-base">logout</span>
+              <LogOut size={16} />
               {loggingOut ? "Mengakhiri sesi..." : "Keluar dari Akun"}
             </Button>
           </div>

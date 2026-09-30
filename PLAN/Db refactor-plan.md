@@ -92,7 +92,7 @@ Cek juga: hasil copy harus bisa dibuka admin manusia (PRD mengharuskan admin bis
 >
 > **Step 4 (acceptance) — LOLOS** lewat `pnpm check:provisioning`: reserve baris `pending`;
 > provisioning lewat bridge (folder + copy template, ID ditulis sebelum verifikasi); header salinan
-> sesuai §2 (9 sheet, urutan kolom); `getBranch()` resolve spreadsheet + folder; salinan bisa dibuka
+> sesuai §2 (11 sheet, urutan kolom); `getBranch()` resolve spreadsheet + folder; salinan bisa dibuka
 > admin manusia (`taufikalwan47@gmail.com=owner` + 3 service account `writer`); retry saat `failed`
 > reuse folder & salinan tanpa baris/salinan kedua; foto checklist masuk `<folder>/Checklist Foto/`;
 > cabang `pending` → 503 `SHEETS_SETUP_REQUIRED`, nonaktif → 404 `NOT_FOUND`; cabang uji + folder-nya

@@ -9,6 +9,7 @@ import { SkeletonCard } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { RefreshCw, AlertCircle } from "lucide-react";
 
 type DashboardItem = {
   branchId: string;
@@ -20,6 +21,8 @@ type DashboardItem = {
   handoverCount: number;
   pendingSwaps: number;
   pendingIzins: number;
+  openIncidents?: number;
+  highIncidents?: number;
 };
 
 export default function DashboardPage() {
@@ -54,7 +57,7 @@ export default function DashboardPage() {
       lead="Ringkasan aktivitas shift, SOP checklist, dan permohonan persetujuan hari ini."
       actions={
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <span className="material-symbols-outlined text-sm">refresh</span>
+          <RefreshCw size={14} />
           Refresh
         </Button>
       }
@@ -67,7 +70,7 @@ export default function DashboardPage() {
         </div>
       ) : errorMsg ? (
         <div className="rounded-lg border border-destructive-wash bg-destructive-wash p-6 text-center">
-          <span className="material-symbols-outlined text-4xl text-destructive-foreground">error</span>
+          <AlertCircle size={36} className="text-destructive-foreground" />
           <p className="mt-2 text-sm text-destructive-foreground">{errorMsg}</p>
           <Button variant="outline" size="sm" onClick={load} className="mt-3">
             Coba Lagi
@@ -135,6 +138,20 @@ export default function DashboardPage() {
                     <span className="text-muted-foreground">Log Handover</span>
                     <span className="font-medium text-foreground">{item.handoverCount} catatan</span>
                   </div>
+
+                  {(item.openIncidents ?? 0) > 0 && (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-muted-foreground">Incident Open</span>
+                      <span
+                        className={`font-semibold ${
+                          (item.highIncidents ?? 0) > 0 ? "text-destructive" : "text-warning"
+                        }`}
+                      >
+                        {item.openIncidents}
+                        {(item.highIncidents ?? 0) > 0 && ` (${item.highIncidents} high)`}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -150,6 +167,11 @@ export default function DashboardPage() {
                 {item.pendingIzins > 0 && (
                   <Button asChild size="sm" variant="secondary" className="text-xs">
                     <Link href="/approval?tab=izin">Izin ({item.pendingIzins})</Link>
+                  </Button>
+                )}
+                {(item.openIncidents ?? 0) > 0 && (
+                  <Button asChild size="sm" variant="secondary" className="text-xs">
+                    <Link href="/incident">Incident ({item.openIncidents})</Link>
                   </Button>
                 )}
               </div>

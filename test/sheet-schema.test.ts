@@ -49,14 +49,18 @@ const REGISTRY_SCHEMA: Array<[keyof typeof REGISTRY_HEADERS, string[]]> = [
 
 const BRANCH_SCHEMA: Array<[keyof typeof BRANCH_HEADERS, string[]]> = [
   ["Shifts", ["Shift_ID", "Nama", "Jam_Mulai", "Jam_Selesai"]],
-  ["Schedules", ["Schedule_ID", "Employee_ID", "Shift_ID", "Tanggal", "Status", "Started_At", "Updated_Via"]],
+  ["Schedules", ["Schedule_ID", "Employee_ID", "Shift_ID", "Tanggal", "Status", "Started_At", "Updated_Via", "Report_Generated_At", "Report_Token"]],
   ["Shift_Swaps", ["Swap_ID", "Schedule_ID", "Requested_By", "Requested_With", "Alasan", "Status", "Approved_By", "Reject_Reason"]],
   ["Izin", ["Izin_ID", "Employee_ID", "Schedule_ID", "Kategori_ID", "Keterangan", "Status", "Approved_By", "Reject_Reason"]],
   ["Kategori_Izin", ["Kategori_ID", "Label", "Aktif"]],
-  ["Checklist_Template", ["Item_ID", "Tipe", "Deskripsi", "Wajib_Foto", "Urutan", "Aktif"]],
-  ["Checklist_Log", ["Log_ID", "Schedule_ID", "Item_ID", "Checked_By", "Checked_At", "Foto_URL"]],
+  ["SOP_Kategori", ["Kategori_ID", "Nama", "Urutan", "Aktif"]],
+  ["Checklist_Point", ["Point_ID", "Kategori_ID", "Deskripsi", "Tipe_Penyelesaian", "Satuan", "Batas_Min", "Batas_Max", "Opsi_Pilihan", "Berlaku_Semua_Shift", "Shift_IDs", "Urutan", "Aktif"]],
+  ["Checklist_Log", ["Log_ID", "Schedule_ID", "Point_ID", "Nilai", "Foto_URL", "Checked_By", "Checked_At"]],
+  ["Shift_Report_Audit", ["Audit_ID", "Schedule_ID", "Bagian", "Record_ID", "Field", "Nilai_Lama", "Nilai_Baru", "Actor_ID", "Changed_At"]],
   ["Handover_Template", ["Field_ID", "Label", "Wajib", "Urutan"]],
   ["Handover_Log", ["Log_ID", "Schedule_ID", "Field_ID", "Isi", "Created_By", "Created_At"]],
+  ["Kategori_Incident", ["Kategori_ID", "Label", "Aktif"]],
+  ["Incidents", ["Incident_ID", "Kategori_ID", "Deskripsi", "Severity", "Foto_URL", "Status", "Resolved_By", "Resolved_At", "Created_By", "Created_At"]],
 ];
 
 test("registry headers match SHEETS-SCHEMA.md", () => {
@@ -76,7 +80,7 @@ test("branch headers match SHEETS-SCHEMA.md", () => {
 });
 
 test("ranges are derived from the header width", () => {
-  assert.equal(branchSheetRange("Schedules"), "Schedules!A:G");
+  assert.equal(branchSheetRange("Schedules"), "Schedules!A:I");
   assert.equal(branchSheetRange("Shifts"), "Shifts!A:D");
   assert.equal(registrySheetRange("Employees"), "Employees!A:J");
   assert.equal(registrySheetRange("Daftar_Cabang"), "Daftar_Cabang!A:F");

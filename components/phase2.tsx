@@ -1,5 +1,6 @@
 "use client";
 
+import { History } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -23,7 +24,7 @@ function msg(error: unknown): string {
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   activeBranchId: string;
   branches: Branch[];
 };
@@ -35,7 +36,11 @@ type SwapPartner = {
   branchId: string;
 };
 
-export function SwapAjukanPage() {
+/**
+ * Isi form Ajukan Swap TANPA shell — sekarang jadi tab "Swap" di `/jadwal-saya`
+ * (`components/jadwal-saya.tsx`), bukan halaman tersendiri.
+ */
+export function SwapAjukanContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
@@ -87,7 +92,7 @@ export function SwapAjukanPage() {
         }),
       });
       toast("Pengajuan swap terkirim", "success");
-      router.push("/riwayat");
+      router.push("/jadwal-saya?tab=riwayat");
     } catch (e) {
       toast(msg(e), "error");
     } finally {
@@ -100,11 +105,8 @@ export function SwapAjukanPage() {
   );
 
   return (
-    <KaryawanShell
-      title="Ajukan Tukar Shift (Swap)"
-      lead="Pilih jadwal Anda dan rekan yang bertugas di tanggal yang sama untuk saling bertukar."
-    >
-      <form onSubmit={submit} className="mb-6 grid max-w-xl gap-4">
+    <>
+      <form onSubmit={submit} className="mb-6 grid max-w-2xl gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="jadwal-swap">Jadwal Saya yang Ingin Ditukar</Label>
           <Select
@@ -148,7 +150,7 @@ export function SwapAjukanPage() {
           </Select>
         </div>
 
-        <div>
+        <div className="sm:col-span-2">
           <Label htmlFor="alasan-swap">Alasan Tukar Shift</Label>
           <Input
             id="alasan-swap"
@@ -160,20 +162,22 @@ export function SwapAjukanPage() {
           />
         </div>
 
-        <Button
-          type="submit"
-          size="lg"
-          disabled={loading || !scheduleId || !partnerId || !reason.trim()}
-          className="h-11"
-        >
-          {loading ? "Mengajukan..." : "Kirim Permohonan Swap"}
-        </Button>
+        <div className="sm:col-span-2">
+          <Button
+            type="submit"
+            size="lg"
+            disabled={loading || !scheduleId || !partnerId || !reason.trim()}
+            className="h-11 w-full sm:w-auto"
+          >
+            {loading ? "Mengajukan..." : "Kirim Permohonan Swap"}
+          </Button>
+        </div>
       </form>
-    </KaryawanShell>
+    </>
   );
 }
 
-export function RiwayatPage() {
+export function RiwayatContent() {
   const { toast } = useToast();
   const [tab, setTab] = useState<"swap" | "izin">("swap");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -197,10 +201,7 @@ export function RiwayatPage() {
       : rawList.filter((item) => item.status === statusFilter);
 
   return (
-    <KaryawanShell
-      title="Riwayat Pengajuan"
-      lead="Pantau status persetujuan permohonan tukar shift dan izin Anda."
-    >
+    <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div role="tablist" aria-label="Kategori pengajuan" className="flex rounded-lg border border-border p-1 bg-card">
           <button
@@ -250,7 +251,7 @@ export function RiwayatPage() {
         <SkeletonTable rows={4} />
       ) : filteredList.length === 0 ? (
         <EmptyState
-          icon="history"
+          icon={<History size={40} />}
           title={`Belum ada pengajuan ${tab}`}
           description={
             statusFilter === "all"
@@ -258,7 +259,7 @@ export function RiwayatPage() {
               : `Tidak ada riwayat ${tab} dengan status ${statusFilter}.`
           }
           actionLabel={tab === "swap" ? "Ajukan Swap" : "Ajukan Izin"}
-          actionHref={tab === "swap" ? "/swap/ajukan" : "/izin/ajukan"}
+          actionHref={tab === "swap" ? "/jadwal-saya?tab=swap" : "/jadwal-saya?tab=izin"}
         />
       ) : tab === "swap" ? (
         <DataTable columns={["ID", "Jadwal", "Rekan Tukar", "Alasan", "Status", "Keterangan"]}>
@@ -325,7 +326,7 @@ export function RiwayatPage() {
           ))}
         </DataTable>
       )}
-    </KaryawanShell>
+    </>
   );
 }
 
@@ -510,7 +511,11 @@ export function SwapApprovalPage() {
   );
 }
 
-export function IzinAjukanPage() {
+/**
+ * Isi form Ajukan Izin TANPA shell — sekarang jadi tab "Izin" di `/jadwal-saya`
+ * (`components/jadwal-saya.tsx`), bukan halaman tersendiri.
+ */
+export function IzinAjukanContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
@@ -548,7 +553,7 @@ export function IzinAjukanPage() {
         body: JSON.stringify({ scheduleId, categoryId, note: note.trim() }),
       });
       toast("Pengajuan izin terkirim", "success");
-      router.push("/riwayat");
+      router.push("/jadwal-saya?tab=riwayat");
     } catch (e) {
       toast(msg(e), "error");
     } finally {
@@ -562,11 +567,12 @@ export function IzinAjukanPage() {
   const activeCategories = categories.filter((c) => c.aktif);
 
   return (
-    <KaryawanShell
-      title="Ajukan Izin Tidak Masuk"
-      lead="Pilih jadwal shift dan alasan ketidakhadiran untuk diteruskan ke Admin."
-    >
-      <form onSubmit={submit} className="mb-6 grid max-w-lg gap-4">
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold tracking-tight text-slate-900">Ajukan Izin Tidak Masuk</h2>
+        <p className="text-sm text-slate-500">Pilih jadwal shift dan alasan ketidakhadiran untuk diteruskan ke Admin.</p>
+      </div>
+      <form onSubmit={submit} className="mb-6 grid max-w-2xl gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="jadwal-izin">Jadwal Shift yang Ditinggalkan</Label>
           <Select
@@ -603,7 +609,7 @@ export function IzinAjukanPage() {
           </Select>
         </div>
 
-        <div>
+        <div className="sm:col-span-2">
           <Label htmlFor="catatan-izin">Keterangan / Alasan</Label>
           <Input
             id="catatan-izin"
@@ -615,16 +621,18 @@ export function IzinAjukanPage() {
           />
         </div>
 
-        <Button
-          type="submit"
-          size="lg"
-          disabled={loading || !scheduleId || !categoryId || !note.trim()}
-          className="h-11"
-        >
-          {loading ? "Mengajukan..." : "Kirim Permohonan Izin"}
-        </Button>
+        <div className="sm:col-span-2">
+          <Button
+            type="submit"
+            size="lg"
+            disabled={loading || !scheduleId || !categoryId || !note.trim()}
+            className="h-11 w-full sm:w-auto"
+          >
+            {loading ? "Mengajukan..." : "Kirim Permohonan Izin"}
+          </Button>
+        </div>
       </form>
-    </KaryawanShell>
+    </div>
   );
 }
 

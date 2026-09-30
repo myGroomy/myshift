@@ -86,18 +86,18 @@ async function main() {
       });
 
       const checklistRows = [
-        ["CHK-001", "opening", "Nyalakan mesin kopi", "FALSE", "1", "TRUE"],
-        ["CHK-002", "opening", "Cek stok bahan baku", "TRUE", "2", "TRUE"],
-        ["CHK-003", "opening", "Bersihkan area kasir", "FALSE", "3", "TRUE"],
-        ["CHK-004", "opening", "Nyalakan lampu dan AC", "FALSE", "4", "TRUE"],
-        ["CHK-005", "closing", "Hitung kasir dan catat omzet", "TRUE", "1", "TRUE"],
-        ["CHK-006", "closing", "Bersihkan area dapur", "TRUE", "2", "TRUE"],
-        ["CHK-007", "closing", "Matikan semua peralatan", "FALSE", "3", "TRUE"],
-        ["CHK-008", "closing", "Kunci pintu dan alarm", "FALSE", "4", "TRUE"],
+        ["CHK-007", "SOP-001", "Nyalakan mesin kopi", "centang", "", "", "", "", "FALSE", "SFT-001", "1", "TRUE"],
+        ["CHK-008", "SOP-001", "Cek stok bahan baku", "centang_foto", "", "", "", "", "FALSE", "SFT-001", "2", "TRUE"],
+        ["CHK-009", "SOP-001", "Bersihkan area kasir", "centang", "", "", "", "", "TRUE", "", "3", "TRUE"],
+        ["CHK-010", "SOP-001", "Ukur suhu chiller", "angka", "°C", "0", "5", "", "TRUE", "", "4", "TRUE"],
+        ["CHK-011", "SOP-001", "Hitung kasir dan catat omzet", "centang_foto", "", "", "", "", "FALSE", "SFT-003", "1", "TRUE"],
+        ["CHK-012", "SOP-001", "Bersihkan area dapur", "centang_foto", "", "", "", "", "FALSE", "SFT-003", "2", "TRUE"],
+        ["CHK-013", "SOP-001", "Catatan penutupan", "teks", "", "", "", "", "FALSE", "SFT-003", "3", "TRUE"],
+        ["CHK-014", "SOP-001", "Kunci pintu dan alarm", "centang", "", "", "", "", "FALSE", "SFT-003", "4", "TRUE"],
       ];
       await sheets.spreadsheets.values.append({
         spreadsheetId: branchSsId,
-        range: "Checklist_Template!A:F",
+        range: "Checklist_Point!A:L",
         valueInputOption: "RAW",
         requestBody: { values: checklistRows },
       });
@@ -143,13 +143,13 @@ async function main() {
   const existingUsernames = new Set(existingEmployees.slice(1).map((r) => r[1]));
 
   const employees = [
-    { id: "EMP-002", username: "budi", name: "Budi Santoso", role: "kepala_cabang", branch: "CBG001" },
+    { id: "EMP-002", username: "budi", name: "Budi Santoso", role: "karyawan", branch: "CBG001" },
     { id: "EMP-003", username: "siti", name: "Siti Rahayu", role: "karyawan", branch: "CBG001" },
     { id: "EMP-004", username: "agus", name: "Agus Wijaya", role: "karyawan", branch: "CBG001" },
-    { id: "EMP-005", username: "dewi", name: "Dewi Lestari", role: "kepala_cabang", branch: "CBG002" },
+    { id: "EMP-005", username: "dewi", name: "Dewi Lestari", role: "karyawan", branch: "CBG002" },
     { id: "EMP-006", username: "rudi", name: "Rudi Hartono", role: "karyawan", branch: "CBG002" },
     { id: "EMP-007", username: "nina", name: "Nina Putri", role: "karyawan", branch: "CBG002" },
-    { id: "EMP-008", username: "joko", name: "Joko Prasetyo", role: "kepala_cabang", branch: "CBG003" },
+    { id: "EMP-008", username: "joko", name: "Joko Prasetyo", role: "karyawan", branch: "CBG003" },
     { id: "EMP-009", username: "maya", name: "Maya Sari", role: "karyawan", branch: "CBG003" },
     { id: "EMP-010", username: "bambang", name: "Bambang Sutrisno", role: "karyawan", branch: "CBG003" },
   ];

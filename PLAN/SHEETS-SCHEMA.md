@@ -1,7 +1,7 @@
 # MYSHIFT — Sheets Schema (Source of Truth)
 
-> **Versi:** 1.1.0
-> **Tanggal:** 2026-09-28
+> **Versi:** 1.3.0
+> **Tanggal:** 2026-09-29
 > **Turunan dari:** `FULL-PRD.md`
 > **Tujuan:** Karena admin bisa edit data langsung lewat spreadsheet, dokumen ini adalah kontrak PASTI struktur tiap sheet — nama, urutan kolom, tipe data, dan mana yang boleh diedit manual vs auto-generate oleh sistem. **Jangan ubah struktur di spreadsheet tanpa update dokumen ini juga.**
 
@@ -50,7 +50,7 @@ Tepat **satu baris data** (baris 2). Nilai kosong di salah satu kolom → provis
 | `Username` | string, unique | ✏️ Manual OK | |
 | `PIN_Hash` | string (scrypt hash) | 🔒 Auto | **Jangan pernah isi manual dalam bentuk plaintext** |
 | `Nama` | string | ✏️ Manual OK | |
-| `Role` | enum: `admin` \| `kepala_cabang` \| `karyawan` | ⚠️ Manual hati-hati | Salah ketik = user kehilangan akses fitur |
+| `Role` | enum: `admin` \| `karyawan` | ⚠️ Manual hati-hati | Salah ketik = user kehilangan akses fitur |
 | `Cabang_Aktif` | string, referensi `Cabang_ID` | ⚠️ Manual hati-hati | Harus cocok dengan ID valid di `Daftar_Cabang` |
 | `Cabang_Terafiliasi` | string, comma-separated `Cabang_ID` | ⚠️ Manual hati-hati | Untuk karyawan yang bisa pindah-pindah cabang |
 | `Aktif` | boolean | ✏️ Manual OK | |
@@ -77,16 +77,16 @@ pnpm template:branch   # -> PLAN/templates/MYSHIFT-Template-Cabang.xlsx
 ```
 
 - Generator: `scripts/build-branch-template.ts`. Header dibaca dari `BRANCH_HEADERS` dan ID seed dari `ID_PREFIX`, jadi template tidak mungkin melenceng dari `lib/google/sheet-schema.ts` / `lib/ids.ts`.
-- Isi file: 9 sheet pada urutan `BRANCH_SHEET_NAMES`, baris header di baris 1, freeze pane di baris 2.
-- **Sheet ber-seed** (master data, boleh diubah admin): `Shifts` (3 shift), `Kategori_Izin` (3 kategori), `Checklist_Template` (6 item), `Handover_Template` (4 field).
-- **Sheet header-only** (log/permintaan, ditulis aplikasi): `Schedules`, `Shift_Swaps`, `Izin`, `Checklist_Log`, `Handover_Log`.
+- Isi file: 13 sheet pada urutan `BRANCH_SHEET_NAMES`, baris header di baris 1, freeze pane di baris 2.
+- **Sheet ber-seed** (master data, boleh diubah admin): `Shifts` (3 shift), `Kategori_Izin` (3 kategori), `SOP_Kategori` (1 kategori), `Checklist_Point` (6 point), `Handover_Template` (4 field), `Kategori_Incident` (9 kategori).
+- **Sheet header-only** (log/permintaan, ditulis aplikasi): `Schedules`, `Shift_Swaps`, `Izin`, `Checklist_Log`, `Shift_Report_Audit`, `Handover_Log`, `Incidents`.
 - Semua kolom diformat sebagai teks (`@`) kecuali `Urutan` yang numerik — app membaca `FORMATTED_VALUE`, dan `validDate` butuh literal `YYYY-MM-DD` serta `timeOverlaps` butuh literal `HH:mm` (bukan serial number Sheets).
 
 Alur pasang template (sekali, manual):
 
 1. `pnpm template:branch`
 2. `pnpm template:import` — meng-import `.xlsx` ke folder induk **lewat Drive bridge**
-   (`gas/Code.js`, `uploadType`-konversi setara) lalu menulis ulang header 9 sheet. **Bukan** upload
+   (`gas/Code.js`, `uploadType`-konversi setara) lalu menulis ulang header 13 sheet. **Bukan** upload
    manual lalu "Save as Google Sheets" — upload `.xlsx` mentah menghasilkan file `.xlsx`, dan
    `files.copy` memang tidak bisa dipakai untuk template `.xlsx`. (Konversi harus lewat bridge:
    service account tidak punya kuota Drive untuk membuat file. Paksa jalur lama dengan
@@ -95,7 +95,7 @@ Alur pasang template (sekali, manual):
 4. Tulis ID hasil import ke `TEMPLATES.Template_Spreadsheet_ID` dan folder induk ke
    `TEMPLATES.Parent_Folder_ID` (lihat §1). Env var `TEMPLATE_SPREADSHEET_ID` / `MYSHIFT_FOLDER`
    sudah dihapus — sheet `TEMPLATES` yang jadi sumber config.
-5. Verifikasi: `pnpm verify:template` harus melaporkan header 9 sheet sesuai §2 sebelum cabang
+5. Verifikasi: `pnpm verify:template` harus melaporkan header 13 sheet sesuai §2 sebelum cabang
    pertama dibuat.
 
 > **Prasyarat Drive (keputusan user 2026-09-29): Drive bridge Apps Script.** Service account aplikasi
@@ -144,6 +144,8 @@ service account, jadi mewarisi permission folder induk.
 | `Status` | enum: `scheduled` \| `started` \| `completed` | 🔒 Auto | Diupdate sistem saat karyawan mulai/selesai shift |
 | `Started_At` | datetime ISO 8601 | 🔒 Auto | Diisi saat tombol "mulai shift" ditekan |
 | `Updated_Via` | string (nama app: `myshift`) | 🔒 Auto | Untuk jejak integrasi nanti dengan MYLAUNCHER |
+| `Report_Generated_At` | datetime ISO 8601, nullable | 🔒 Auto | Waktu laporan shift dibuat; checklist dan handover tetap dapat diedit, dengan audit perubahan |
+| `Report_Token` | string, nullable | 🔒 Auto | HMAC-signed, akses publik tanpa kedaluwarsa; token tetap tersimpan pada jadwal |
 
 > ⚠️ Sheet ini sebaiknya **tidak diedit manual** untuk baris yang sudah ada (buat/ubah jadwal lewat aplikasi, bukan langsung di spreadsheet) — kolom `Status`/`Started_At` bisa jadi tidak konsisten kalau diedit manual. Menambah baris manual untuk migrasi data awal masih aman selama format ID diikuti persis.
 
@@ -181,16 +183,31 @@ service account, jadi mewarisi permission folder induk.
 | `Label` | string (misal "Sakit", "Cuti", "Keperluan pribadi") | ✏️ Manual OK |
 | `Aktif` | boolean | ✏️ Manual OK |
 
-### Sheet: `Checklist_Template`
+### Sheet: `SOP_Kategori`
 
 | Kolom | Tipe | Sumber |
 |---|---|---|
-| `Item_ID` | string, format `CHK-###` | 🔒 Auto |
-| `Tipe` | enum: `opening` \| `closing` | ✏️ Manual OK |
-| `Deskripsi` | string | ✏️ Manual OK |
-| `Wajib_Foto` | boolean | ✏️ Manual OK |
-| `Urutan` | number (untuk sorting tampilan) | ✏️ Manual OK |
+| `Kategori_ID` | string, format `SOP-###` | 🔒 Auto |
+| `Nama` | string | ✏️ Manual OK |
+| `Urutan` | number | ✏️ Manual OK |
 | `Aktif` | boolean | ✏️ Manual OK |
+
+### Sheet: `Checklist_Point`
+
+| Kolom | Tipe | Sumber | Keterangan |
+|---|---|---|---|
+| `Point_ID` | string, format `CHK-###` | 🔒 Auto | Primary key |
+| `Kategori_ID` | string, referensi `SOP_Kategori` | ⚠️ Manual hati-hati | |
+| `Deskripsi` | string | ✏️ Manual OK | |
+| `Tipe_Penyelesaian` | enum `centang` \| `centang_foto` \| `angka` \| `teks` \| `pilihan` | ✏️ Manual OK | Per point |
+| `Satuan` | string, nullable | ✏️ Manual OK | Hanya `angka` |
+| `Batas_Min` | number, nullable | ✏️ Manual OK | Hanya `angka`; di luar batas memberi warning, tidak memblokir |
+| `Batas_Max` | number, nullable | ✏️ Manual OK | Hanya `angka`; di luar batas memberi warning, tidak memblokir |
+| `Opsi_Pilihan` | string comma-separated, nullable | ✏️ Manual OK | Hanya `pilihan` |
+| `Berlaku_Semua_Shift` | boolean | ✏️ Manual OK | |
+| `Shift_IDs` | string comma-separated `Shift_ID`, nullable | ⚠️ Manual hati-hati | Diisi hanya jika tidak berlaku untuk semua shift |
+| `Urutan` | number | ✏️ Manual OK | Urutan dalam kategori |
+| `Aktif` | boolean | ✏️ Manual OK | Point dengan log dinonaktifkan, bukan dihapus |
 
 ### Sheet: `Checklist_Log`
 
@@ -198,10 +215,28 @@ service account, jadi mewarisi permission folder induk.
 |---|---|---|
 | `Log_ID` | string, format `CLG-###` | 🔒 Auto |
 | `Schedule_ID` | string | 🔒 Auto |
-| `Item_ID` | string | 🔒 Auto |
+| `Point_ID` | string | 🔒 Auto |
+| `Nilai` | string | 🔒 Auto | `TRUE`, angka, teks, atau opsi sesuai tipe point |
+| `Foto_URL` | string, nullable | 🔒 Auto |
 | `Checked_By` | string, `Employee_ID` | 🔒 Auto |
 | `Checked_At` | datetime ISO 8601 | 🔒 Auto |
-| `Foto_URL` | string, nullable (URL http/https) | 🔒 Auto | Diisi dari `POST /api/schedules/:id/checklist/photo`. Untuk foto yang diunggah app, nilainya URL viewer Drive `https://drive.google.com/uc?id=<fileId>`. Field URL manual di UI tetap diterima, jadi nilainya tidak selalu URL viewer Drive |
+
+Satu row menyimpan nilai terbaru per (`Schedule_ID`, `Point_ID`). Perubahan setelah laporan dibuat
+dicatat append-only di `Shift_Report_Audit`.
+
+### Sheet: `Shift_Report_Audit`
+
+| Kolom | Tipe | Sumber |
+|---|---|---|
+| `Audit_ID` | string, format `AUD-###` | 🔒 Auto |
+| `Schedule_ID` | string, referensi `Schedules` | 🔒 Auto |
+| `Bagian` | enum `checklist` \| `handover` | 🔒 Auto |
+| `Record_ID` | string, `Point_ID` atau `Field_ID` | 🔒 Auto |
+| `Field` | string | 🔒 Auto |
+| `Nilai_Lama` | string | 🔒 Auto |
+| `Nilai_Baru` | string | 🔒 Auto |
+| `Actor_ID` | string, `Employee_ID` | 🔒 Auto |
+| `Changed_At` | datetime ISO 8601 | 🔒 Auto |
 
 ### Sheet: `Handover_Template`
 
@@ -223,6 +258,31 @@ service account, jadi mewarisi permission folder induk.
 | `Created_By` | string, `Employee_ID` | 🔒 Auto |
 | `Created_At` | datetime ISO 8601 | 🔒 Auto |
 
+### Sheet: `Kategori_Incident`
+
+| Kolom | Tipe | Sumber |
+|---|---|---|
+| `Kategori_ID` | string, format `KIC-###` | 🔒 Auto |
+| `Label` | string | ✏️ Manual OK |
+| `Aktif` | boolean (`TRUE`/`FALSE`) | ✏️ Manual OK |
+
+> 9 kategori default di-seed: Mesin Rusak, Komplain Customer, Barang Rusak, Stok Habis, Kesalahan Order, Kebersihan, Keamanan, Karyawan Berhalangan, Lainnya.
+
+### Sheet: `Incidents`
+
+| Kolom | Tipe | Sumber |
+|---|---|---|
+| `Incident_ID` | string, format `INC-###` | 🔒 Auto |
+| `Kategori_ID` | string, `KIC-###` reference | 🔒 Auto |
+| `Deskripsi` | string (min. 10 karakter) | 🔒 Auto (dari form) |
+| `Severity` | enum: `low` \| `medium` \| `high` | ⚠️ Manual hati-hati |
+| `Foto_URL` | string (URL, opsional) | 🔒 Auto |
+| `Status` | enum: `open` \| `resolved` | ⚠️ Manual hati-hati |
+| `Resolved_By` | string, `Employee_ID` | 🔒 Auto |
+| `Resolved_At` | datetime ISO 8601 | 🔒 Auto |
+| `Created_By` | string, `Employee_ID` | 🔒 Auto |
+| `Created_At` | datetime ISO 8601 | 🔒 Auto |
+
 ---
 
 ## 3. Format ID — Ringkasan
@@ -239,9 +299,13 @@ Semua ID pakai prefix bermakna + nomor urut (konsisten dengan pola STOKIS, bukan
 | Izin | `IZN-###` | `IZN-007` |
 | Kategori izin | `KTG-###` | `KTG-002` |
 | Checklist item | `CHK-###` | `CHK-005` |
+| Kategori SOP | `SOP-###` | `SOP-001` |
 | Checklist log | `CLG-###` | `CLG-102` |
+| Laporan shift audit | `AUD-###` | `AUD-018` |
 | Handover field | `HOF-###` | `HOF-003` |
 | Handover log | `HLG-###` | `HLG-088` |
+| Incident | `INC-###` | `INC-001` |
+| Kategori incident | `KIC-###` | `KIC-002` |
 
 ---
 
@@ -253,6 +317,13 @@ Karena data awal (karyawan, cabang, shift) rencananya diinput langsung ke spread
 2. **PIN tidak boleh diisi plaintext** — kalau migrasi manual, PIN harus di-hash dulu lewat script kecil (scrypt) sebelum dimasukkan ke kolom `PIN_Hash`, atau isi lewat form aplikasi (bukan langsung spreadsheet) untuk baris karyawan
 3. **Baru isi per-cabang spreadsheet**: `Shifts` dulu, baru `Schedules` kalau mau migrasi jadwal existing
 4. Sheet yang murni log/auto (`Checklist_Log`, `Handover_Log`) **tidak perlu** diisi manual — biarkan kosong, terisi otomatis begitu aplikasi jalan
+
+### Migrasi role `kepala_cabang`
+
+Role yang didukung aplikasi adalah `admin` dan `karyawan`. Untuk mengubah seluruh akun lama
+`kepala_cabang` menjadi `karyawan`, jalankan `pnpm migrate:employee-roles` untuk pratinjau jumlah
+baris yang terdampak, lalu `pnpm migrate:employee-roles -- --apply` untuk menulis perubahan ke
+Registry. Script hanya mengganti kolom `Role`; ID, PIN hash, cabang, dan status akun dipertahankan.
 
 ---
 
@@ -272,7 +343,7 @@ Semua hal di atas dipatok oleh satu modul kode (`lib/google/sheet-schema.ts`) da
 - **`Failed_Login_Attempts` / `Locked_Until`** — ditulis aplikasi pada `POST /api/auth/login`: bertambah 1 tiap kegagalan, akun terkunci 15 menit setelah 5 kegagalan berturut-turut, direset saat login sukses / reset PIN / lock berakhir. Jangan diisi manual.
 - **`Spreadsheet_ID`** — diisi otomatis oleh provisioning saat `POST /api/branches`: spreadsheet
   cabang dibuat dengan `drive.files.copy` dari `TEMPLATES.Template_Spreadsheet_ID` (bukan
-  `spreadsheets.create`, yang kena kuota Drive), header 9 sheet **diverifikasi** terhadap
+  `spreadsheets.create`, yang kena kuota Drive), header 13 sheet **diverifikasi** terhadap
   `lib/google/sheet-schema.ts` — bukan ditulis ulang — lalu baris `Daftar_Cabang` dibuat. Kalau
   header hasil copy menyimpang, provisioning berhenti dengan `SHEETS_SETUP_REQUIRED` dan menyebut
   sheet yang bermasalah; perbaikannya di template, bukan di salinan.
@@ -281,3 +352,4 @@ Semua hal di atas dipatok oleh satu modul kode (`lib/google/sheet-schema.ts`) da
   (otomatis, terhadap tiap salinan). Sheet tambahan yang tidak dikenal hanya diperingatkan.
 - **ID log** (`CLG-###`, `HLG-###`) dan **ID master** (`CHK-###`, `HOF-###`) memakai penomoran urut sesuai §3 — bukan UUID. Nomor berikutnya dihitung dari nilai maksimum yang ada di sheet.
 - **`Status` jadwal** hanya boleh berubah lewat aplikasi: `scheduled` → `started` (`start-shift`) → `completed` (`checklist/submit`, hanya jika checklist 100% dan semua field handover wajib terisi).
+- **Migrasi checklist cabang lama**: jalankan `pnpm migrate:checklist` untuk preview (default read-only), lalu tinjau jumlah point/log. `pnpm migrate:checklist -- --branch=CBG### --apply` menerapkan satu cabang; `--apply` tanpa `--branch` menerapkan semua cabang ready. Sheet lama dipertahankan sebagai `Checklist_Template_Legacy` dan `Checklist_Log_Legacy`; data diproyeksikan ke struktur baru tanpa menghapus arsip.

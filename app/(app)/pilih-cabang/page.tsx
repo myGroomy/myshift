@@ -10,11 +10,12 @@ import { AdminShell } from "@/components/shell";
 import { KaryawanShell } from "@/components/karyawan-shell";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   activeBranchId: string;
   branches: { branchId: string; nama: string }[];
 };
@@ -32,7 +33,7 @@ export default function PilihCabangPage() {
         setSession(s);
         // If user only has 1 branch, auto forward
         if (s.branches.length <= 1) {
-          router.replace(s.role === "admin" || s.role === "kepala_cabang" ? "/dashboard" : "/jadwal-saya");
+          router.replace(s.role === "admin" ? "/dashboard" : "/jadwal-saya");
         }
       })
       .catch((e: unknown) => {
@@ -98,7 +99,7 @@ export default function PilihCabangPage() {
                     </span>
                     {isActive && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-success-wash px-2 py-0.5 text-xs font-medium text-success">
-                        <span className="material-symbols-outlined text-sm">check</span>
+                        <Check size={14} />
                         Aktif
                       </span>
                     )}

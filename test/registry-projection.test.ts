@@ -29,10 +29,10 @@ test("toPublicEmployee drops pinHash from the API projection", () => {
   assert.ok(!JSON.stringify(projection).includes("c0ffee"));
 });
 
-test("parseRole falls back to karyawan for unknown values", () => {
+test("parseRole maps only admin to admin and migrates every other stored role to karyawan", () => {
   assert.equal(parseRole("admin"), "admin");
-  assert.equal(parseRole(" kepala_cabang "), "kepala_cabang");
   assert.equal(parseRole("karyawan"), "karyawan");
+  assert.equal(parseRole(" kepala_cabang "), "karyawan");
   assert.equal(parseRole("kepala-cabang"), "karyawan");
   assert.equal(parseRole(""), "karyawan");
 });

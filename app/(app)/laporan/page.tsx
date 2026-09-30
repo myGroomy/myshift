@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { DataTable, tdClass } from "@/components/ui/table";
 import { request } from "@/lib/api";
 import { AdminShell, StatusBadge } from "@/components/shell";
+import { KaryawanShell } from "@/components/karyawan-shell";
 import { useToast } from "@/components/ui/toast";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { controlClass } from "@/lib/ui";
 import { todayInWIB } from "@/lib/domain/date";
+import { Search, Download } from "lucide-react";
 import type { Branch } from "@/lib/types";
 
 type LaporanRow = {
@@ -26,7 +28,7 @@ type LaporanRow = {
 };
 
 type Session = {
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   activeBranchId: string;
   branches: Branch[];
 };
@@ -44,6 +46,7 @@ export default function LaporanPage() {
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const PageShell = session?.role === "admin" ? AdminShell : KaryawanShell;
 
   useEffect(() => {
     Promise.all([
@@ -121,9 +124,13 @@ export default function LaporanPage() {
   }
 
   return (
-    <AdminShell
+    <PageShell
       title="Laporan Operasional"
-      lead="Rekap jadwal terlaksana, riwayat tukar shift, dan izin staf per periode."
+      lead={
+        session?.role === "admin"
+          ? "Rekap jadwal, swap, izin, checklist, handover, dan incident per cabang."
+          : "Ringkasan operasional seluruh tim di cabang aktif."
+      }
     >
       <div className="mb-6 grid max-w-4xl gap-3 sm:grid-cols-2 md:grid-cols-4">
         {session?.role === "admin" && (
@@ -169,7 +176,7 @@ export default function LaporanPage() {
 
         <div className="flex items-end gap-2">
           <Button onClick={load} disabled={loading} size="lg" className="h-11 flex-1">
-            <span className="material-symbols-outlined text-sm">search</span>
+            <Search size={14} />
             {loading ? "Mencari..." : "Tampilkan"}
           </Button>
 
@@ -181,7 +188,7 @@ export default function LaporanPage() {
             className="h-11"
             title="Download file CSV spreadsheet"
           >
-            <span className="material-symbols-outlined text-sm">download</span>
+            <Download size={14} />
             CSV
           </Button>
         </div>
@@ -195,7 +202,7 @@ export default function LaporanPage() {
           title={searched ? "Tidak ada catatan laporan" : "Belum memuat laporan"}
           description={
             searched
-              ? "Tidak ada aktivitas jadwal, swap, atau izin di rentang filter ini."
+              ? "Tidak ada aktivitas operasional di rentang filter ini."
               : "Atur tanggal atau klik Tampilkan untuk melihat data operasional."
           }
           actionLabel="Tampilkan Hari Ini"
@@ -236,6 +243,6 @@ export default function LaporanPage() {
           ))}
         </DataTable>
       )}
-    </AdminShell>
+    </PageShell>
   );
 }

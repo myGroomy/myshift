@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import { AnimatePresence, usePresence } from "motion/react";
 
 interface SandTransitionImageProps {
@@ -13,7 +13,8 @@ export function SandTransitionImage({ src, alt, className = "" }: SandTransition
   const [isPresent, safeToRemove] = usePresence();
   const [displayedSrc, setDisplayedSrc] = useState(src);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const filterId = useRef(`sand-${Math.random().toString(36).slice(2, 9)}`);
+  const reactId = useId();
+  const filterId = useRef(`sand-${reactId.replace(/[^a-zA-Z0-9]/g, "")}`);
   const rafRef = useRef<number | null>(null);
   const progressRef = useRef(0);
 

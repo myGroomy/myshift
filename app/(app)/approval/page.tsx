@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 type Session = {
   employeeId: string;
   nama: string;
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   activeBranchId: string;
   branches: Branch[];
 };

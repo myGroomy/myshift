@@ -7,10 +7,14 @@ export const ID_PREFIX = {
   swap: "SWP-",
   izin: "IZN-",
   category: "KTG-",
+  sopCategory: "SOP-",
   checklistItem: "CHK-",
   checklistLog: "CLG-",
+  shiftReportAudit: "AUD-",
   handoverField: "HOF-",
   handoverLog: "HLG-",
+  incident: "INC-",
+  incidentCategory: "KIC-",
 } as const;
 
 export function nextSequentialId(ids: readonly string[], prefix: string, width = 3): string {

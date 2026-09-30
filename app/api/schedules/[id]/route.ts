@@ -62,6 +62,7 @@ export async function GET(request: NextRequest, context: Context) {
       status: values[4] ?? "scheduled",
       startedAt: values[5] ?? "",
       branchId: match.branchId,
+      reportGeneratedAt: values[7] ?? "",
     });
   } catch (error) {
     return handleRouteError(error, "Gagal memuat jadwal");

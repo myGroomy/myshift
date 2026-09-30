@@ -1,2 +1,5 @@
-import { RiwayatPage } from "@/components/phase2";
-export default function Page() { return <RiwayatPage />; }
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/jadwal-saya?tab=riwayat");
+}

@@ -17,7 +17,10 @@
     "check:bridge": "tsx scripts/check-drive-bridge.ts",
     "probe:bridge": "tsx scripts/probe-bridge.ts",
     "check:provisioning": "tsx scripts/check-provisioning.ts",
-    "provision:branch": "tsx scripts/provision-branch.ts"
+    "provision:branch": "tsx scripts/provision-branch.ts",
+    "migrate:employee-roles": "tsx scripts/migrate-employee-roles.ts",
+    "migrate:checklist": "tsx scripts/migrate-checklist-spec.ts",
+    "update:users": "tsx scripts/update-users.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

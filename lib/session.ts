@@ -10,7 +10,7 @@ export const SESSION_TTL_SECONDS = 12 * 60 * 60;
 export type SessionPayload = {
   employeeId: string;
   nama: string;
-  role: "admin" | "kepala_cabang" | "karyawan";
+  role: "admin" | "karyawan";
   branches: { branchId: string; nama: string }[];
   activeBranchId: string;
   iat?: number;

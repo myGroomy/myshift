@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
+import { CheckCircle2, AlertCircle, Info } from "lucide-react";
 
 type ToastType = "success" | "error" | "info";
 
@@ -41,10 +42,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }, 3500);
   }, []);
 
-  const icons: Record<ToastType, string> = {
-    success: "check_circle",
-    error: "error",
-    info: "info",
+  const icons: Record<ToastType, React.ReactNode> = {
+    success: <CheckCircle2 size={18} />,
+    error: <AlertCircle size={18} />,
+    info: <Info size={18} />,
   };
 
   const colors: Record<ToastType, string> = {
@@ -77,7 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     colors[t.type]
                   )}
                 >
-                  <span className="material-symbols-outlined text-lg">{icons[t.type]}</span>
+                  {icons[t.type]}
                   <span>{t.message}</span>
                 </motion.div>
               ))}
