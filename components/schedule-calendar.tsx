@@ -98,7 +98,7 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1">
         {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day) => (
-          <div key={day} className="py-1 text-center text-xs font-medium text-muted-foreground">
+          <div key={day} className="py-2 text-center text-sm font-medium text-muted-foreground">
             {day}
           </div>
         ))}
@@ -117,7 +117,7 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
               key={cell.date}
               type="button"
               onClick={() => hasItems && setSelectedDate(cell.date)}
-              className={`relative flex min-h-[60px] flex-col items-center rounded-md border p-1 text-sm transition-colors ${
+              className={`relative flex min-h-[72px] flex-col items-center justify-center rounded-md border p-2 text-base transition-colors ${
                 !cell.isCurrentMonth
                   ? "border-transparent text-muted-foreground/40"
                   : isSelected
@@ -127,15 +127,15 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
                       : "border-border hover:bg-accent"
               } ${hasItems ? "cursor-pointer" : "cursor-default"}`}
             >
-              <span className={`text-xs ${isToday ? "font-bold text-primary" : ""}`}>
+              <span className={`text-lg font-medium ${isToday ? "font-bold text-primary" : ""}`}>
                 {cell.day}
               </span>
               {hasItems && (
-                <div className="mt-0.5 flex gap-0.5">
+                <div className="mt-1 flex gap-0.5">
                   {dayItems.slice(0, 3).map((item) => (
                     <span
                       key={item.scheduleId}
-                      className={`h-1.5 w-1.5 rounded-full ${
+                      className={`h-2 w-2 rounded-full ${
                         item.status === "completed"
                           ? "bg-green-500"
                           : item.status === "started"
@@ -145,7 +145,7 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
                     />
                   ))}
                   {dayItems.length > 3 && (
-                    <span className="text-[8px] text-muted-foreground">+{dayItems.length - 3}</span>
+                    <span className="text-[10px] text-muted-foreground">+{dayItems.length - 3}</span>
                   )}
                 </div>
               )}
@@ -165,6 +165,54 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
         <span className="flex items-center gap-1">
           <span className="h-2 w-2 rounded-full bg-green-500" /> Completed
         </span>
+      </div>
+
+      {/* Stacked schedule list below calendar */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-semibold text-foreground">
+          {selectedDate ? `Jadwal ${selectedDate}` : "Semua Jadwal Bulan Ini"}
+        </h4>
+        {(selectedDate ? selectedItems : items).length === 0 ? (
+          <p className="text-sm text-muted-foreground">Tidak ada jadwal.</p>
+        ) : (
+          <div className="space-y-2">
+            {(selectedDate ? selectedItems : items).map((item) => (
+              <motion.div
+                key={item.scheduleId}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`flex items-center justify-between rounded-md border p-3 ${
+                  item.conflictWarning
+                    ? "border-destructive-wash bg-destructive-wash/20"
+                    : "border-border bg-card"
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {shiftMap.get(item.shiftId) || item.shiftId}
+                    </p>
+                    <StatusBadge status={item.status} />
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {item.date} • {empMap.get(item.employeeId) || item.employeeId}
+                  </p>
+                  {item.conflictWarning && (
+                    <p className="mt-1 text-xs font-medium text-destructive-foreground">
+                      ⚠️ Bentrok dengan shift lain
+                    </p>
+                  )}
+                </div>
+                <Button asChild variant="outline" size="sm" className="ml-2 shrink-0 text-xs">
+                  <Link href={`/shift/${item.scheduleId}${item.branchId ? `?branchId=${encodeURIComponent(item.branchId)}` : ""}`}>
+                    Detail →
+                  </Link>
+                </Button>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modal detail jadwal */}

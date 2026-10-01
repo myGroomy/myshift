@@ -38,6 +38,7 @@ test("navigasi Admin memakai empat tab kerja yang sama dan mengelompokkan fitur 
     "/approval",
     "/laporan",
     "/jadwal",
+    "/jadwal-petugas",
     "/handover",
     "/shift-template",
     "/cabang",
@@ -51,7 +52,7 @@ test("navigasi Admin memakai empat tab kerja yang sama dan mengelompokkan fitur 
   ]);
   assert.equal(
     new Set([...ADMIN_DESKTOP_PRIMARY, ...flatten(ADMIN_SETTINGS_GROUPS)].map((item) => item.href)).size,
-    14,
+    15,
   );
 });
 
@@ -107,7 +108,7 @@ test("groupsWithoutTabs membuang tab dock dari 'Lainnya' supaya tidak tampil dua
     assert.equal(hrefs.includes(tab.href), false, `${tab.href} masih muncul di Lainnya`);
   }
   // Sisa yang harusnya masih terjangkau lewat sheet.
-  for (const href of ["/cabang", "/karyawan", "/shift-template", "/kategori-izin", "/kategori-incident", "/checklist-template", "/handover-template"]) {
+  for (const href of ["/jadwal-petugas", "/cabang", "/karyawan", "/shift-template", "/kategori-izin", "/kategori-incident", "/checklist-template", "/handover-template"]) {
     assert.equal(hrefs.includes(href), true, `${href} hilang dari Lainnya jadi tidak terjangkau`);
   }
   assert.deepEqual(

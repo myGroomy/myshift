@@ -14,6 +14,7 @@ export type NavGroup = { label: string; items: NavItem[]; adminOnly?: boolean };
 const OPERASIONAL: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard", adminOnly: true },
   { href: "/jadwal", label: "Jadwal", icon: "event_note", adminOnly: true },
+  { href: "/jadwal-petugas", label: "Jadwal Petugas", icon: "event_note", adminOnly: true },
   { href: "/checklist", label: "Checklist", icon: "checklist" },
   { href: "/handover", label: "Handover", icon: "swap_calls" },
   { href: "/incident", label: "Incident", icon: "report" },
@@ -38,23 +39,28 @@ const APPROVAL: NavItem[] = [{ href: "/approval", label: "Approval Hub", icon: "
 export const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     label: "Monitoring & Laporan",
-    items: [OPERASIONAL[0], OPERASIONAL[5], APPROVAL[0]],
+    items: [OPERASIONAL[0], OPERASIONAL[6], APPROVAL[0]],
   },
-  { label: "KELOLA SHIFT", items: [OPERASIONAL[1], OPERASIONAL[3], MASTER_DATA[2]] },
+  { label: "KELOLA SHIFT", items: [OPERASIONAL[1], OPERASIONAL[2], OPERASIONAL[4], MASTER_DATA[2]] },
   { label: "KELOLA PETUGAS", adminOnly: true, items: [MASTER_DATA[0], MASTER_DATA[1], MASTER_DATA[3]] },
-  { label: "KELOLA INCIDENT", items: [OPERASIONAL[4], MASTER_DATA[4]] },
-  { label: "KELOLA CHECKLIST", items: [OPERASIONAL[2], TEMPLATE[0], TEMPLATE[1]] },
+  { label: "KELOLA INCIDENT", items: [OPERASIONAL[5], MASTER_DATA[4]] },
+  { label: "KELOLA CHECKLIST", items: [OPERASIONAL[3], TEMPLATE[0], TEMPLATE[1]] },
 ];
 
 /** Dashboard, approval, laporan, dan pengaturan khusus Admin dikelompokkan di luar tab kerja. */
-export const ADMIN_DESKTOP_PRIMARY: NavItem[] = [OPERASIONAL[1], OPERASIONAL[2], OPERASIONAL[3], OPERASIONAL[4]];
+export const ADMIN_DESKTOP_PRIMARY: NavItem[] = [
+  { href: "/jadwal", label: "Jadwal", icon: "event_note", adminOnly: true },
+  { href: "/checklist", label: "Checklist", icon: "checklist" },
+  { href: "/handover", label: "Handover", icon: "swap_calls" },
+  { href: "/incident", label: "Incident", icon: "report" },
+];
 
 export const ADMIN_SETTINGS_GROUPS: NavGroup[] = [
-  { label: "Monitoring & Laporan", items: [OPERASIONAL[0], APPROVAL[0], OPERASIONAL[5]] },
-  { label: "KELOLA SHIFT", items: [OPERASIONAL[1], OPERASIONAL[3], MASTER_DATA[2]] },
+  { label: "Monitoring & Laporan", items: [OPERASIONAL[0], APPROVAL[0], OPERASIONAL[6]] },
+  { label: "KELOLA SHIFT", items: [OPERASIONAL[1], OPERASIONAL[2], OPERASIONAL[4], MASTER_DATA[2]] },
   { label: "KELOLA PETUGAS", items: [MASTER_DATA[0], MASTER_DATA[1], MASTER_DATA[3]] },
-  { label: "KELOLA INCIDENT", items: [OPERASIONAL[4], MASTER_DATA[4]] },
-  { label: "KELOLA CHECKLIST", items: [OPERASIONAL[2], TEMPLATE[0], TEMPLATE[1]] },
+  { label: "KELOLA INCIDENT", items: [OPERASIONAL[5], MASTER_DATA[4]] },
+  { label: "KELOLA CHECKLIST", items: [OPERASIONAL[3], TEMPLATE[0], TEMPLATE[1]] },
 ];
 
 /**
@@ -63,10 +69,10 @@ export const ADMIN_SETTINGS_GROUPS: NavGroup[] = [
  * yang juga dapat dipakai Admin untuk memeriksa atau mengoreksi data operasional.
  */
 export const ADMIN_DOCK_TABS: NavItem[] = [
-  OPERASIONAL[1],
-  OPERASIONAL[2],
-  OPERASIONAL[3],
-  OPERASIONAL[4],
+  { href: "/jadwal", label: "Jadwal", icon: "event_note", adminOnly: true },
+  { href: "/checklist", label: "Checklist", icon: "checklist" },
+  { href: "/handover", label: "Handover", icon: "swap_calls" },
+  { href: "/incident", label: "Incident", icon: "report" },
 ];
 
 /** Ekstra di sheet "Lainnya" untuk admin. Profil & Keluar tetap di header, jadi tidak diulang. */
