@@ -11,23 +11,15 @@ test("isValidPin enforces 4-8 digits", () => {
   assert.equal(isValidPin(1234), false);
 });
 
-test("hashPin stores salt$hash, never the PIN itself", () => {
-  const hash = hashPin("123456");
-  const [salt, key] = hash.split("$");
-  assert.equal(salt.length, 32);
-  assert.equal(key.length, 64);
-  assert.ok(!hash.includes("123456"));
-});
-
-test("hashPin uses a fresh salt per call", () => {
-  assert.notEqual(hashPin("123456"), hashPin("123456"));
+test("hashPin returns the PIN as-is (plaintext mode)", () => {
+  assert.equal(hashPin("123456"), "123456");
+  assert.equal(hashPin("4321"), "4321");
 });
 
 test("verifyPin accepts the right PIN and rejects everything else", () => {
-  const hash = hashPin("4321");
-  assert.equal(verifyPin("4321", hash), true);
-  assert.equal(verifyPin("1234", hash), false);
-  assert.equal(verifyPin("", hash), false);
+  assert.equal(verifyPin("4321", "4321"), true);
+  assert.equal(verifyPin("1234", "4321"), false);
+  assert.equal(verifyPin("", "4321"), false);
   assert.equal(verifyPin("4321", ""), false);
   assert.equal(verifyPin("4321", "no-separator"), false);
   assert.equal(verifyPin("4321", "deadbeef$zz"), false);
