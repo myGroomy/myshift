@@ -467,11 +467,12 @@ function ShiftTerpaduContent({ params }: { params: Promise<{ id: string }> }) {
                 {canStart && (
                   <Button
                     onClick={startShift}
+                    loading={starting}
                     disabled={starting}
                     size="lg"
                     className="h-11 flex-1"
                   >
-                    <Play size={18} />
+                    {!starting && <Play size={18} />}
                     {starting ? "Memulai Shift..." : "Mulai Shift (Timestamp)"}
                   </Button>
                 )}

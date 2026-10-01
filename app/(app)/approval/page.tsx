@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DataTable, tdClass } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -64,6 +64,9 @@ function UnifiedApprovalContent() {
   const [izins, setIzins] = useState<Izin[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [batchApproving, setBatchApproving] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -121,16 +124,20 @@ function UnifiedApprovalContent() {
   }
 
   async function approveSwap(swapId: string) {
+    setProcessingId(swapId);
     try {
       await request(`/api/swaps/${swapId}/approve?branchId=${branchId}`, { method: "POST" });
       toast("Permohonan Swap disetujui", "success");
       loadData(branchId, statusFilter);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menyetujui Swap", "error");
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function rejectSwap(swapId: string, reason: string) {
+    setProcessingId(swapId);
     try {
       await request(`/api/swaps/${swapId}/reject?branchId=${branchId}`, {
         method: "POST",
@@ -140,20 +147,26 @@ function UnifiedApprovalContent() {
       loadData(branchId, statusFilter);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menolak Swap", "error");
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function approveIzin(izinId: string) {
+    setProcessingId(izinId);
     try {
       await request(`/api/izin/${izinId}/approve?branchId=${branchId}`, { method: "POST" });
       toast("Permohonan Izin disetujui", "success");
       loadData(branchId, statusFilter);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menyetujui Izin", "error");
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function rejectIzin(izinId: string, reason: string) {
+    setProcessingId(izinId);
     try {
       await request(`/api/izin/${izinId}/reject?branchId=${branchId}`, {
         method: "POST",
@@ -163,6 +176,34 @@ function UnifiedApprovalContent() {
       loadData(branchId, statusFilter);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal menolak Izin", "error");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function approveAllPending(itemsToApprove: UnifiedApprovalItem[]) {
+    const pendings = itemsToApprove.filter((item) => item.status === "pending");
+    if (pendings.length === 0) return;
+    if (!confirm(`Setujui sekaligus ${pendings.length} permohonan yang berstatus pending?`)) return;
+
+    setBatchApproving(true);
+    let successCount = 0;
+    try {
+      for (const item of pendings) {
+        if (item.type === "swap") {
+          await request(`/api/swaps/${item.id}/approve?branchId=${branchId}`, { method: "POST" });
+        } else {
+          await request(`/api/izin/${item.id}/approve?branchId=${branchId}`, { method: "POST" });
+        }
+        successCount++;
+      }
+      toast(`Berhasil menyetujui ${successCount} permohonan!`, "success");
+      loadData(branchId, statusFilter);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal menyelesaikan sebagian persetujuan", "error");
+      loadData(branchId, statusFilter);
+    } finally {
+      setBatchApproving(false);
     }
   }
 
@@ -204,10 +245,46 @@ function UnifiedApprovalContent() {
   const pendingSwapCount = swaps.filter((s) => s.status === "pending").length;
   const pendingIzinCount = izins.filter((i) => i.status === "pending").length;
 
+  const filteredItems = unifiedItems.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.id.toLowerCase().includes(q) ||
+      item.scheduleId.toLowerCase().includes(q) ||
+      item.applicant.toLowerCase().includes(q) ||
+      item.target.toLowerCase().includes(q) ||
+      item.reason.toLowerCase().includes(q)
+    );
+  });
+
+  const pendingCount = unifiedItems.filter((i) => i.status === "pending").length;
+
   return (
     <AdminShell
       title="Unified Approval Hub"
       lead="Pusat persetujuan permohonan Tukar Shift (Swap) dan Izin Tidak Masuk dalam satu pintu."
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          {pendingCount > 0 && (
+            <Button
+              size="sm"
+              onClick={() => approveAllPending(unifiedItems)}
+              disabled={batchApproving}
+              loading={batchApproving}
+            >
+              Setujui Semua Pending ({pendingCount})
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData(branchId, statusFilter)}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </div>
+      }
     >
       {/* Top Filter Controls */}
       <FilterPanel
@@ -229,7 +306,7 @@ function UnifiedApprovalContent() {
               )}
             >
               <span>Semua</span>
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] text-primary">
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
                 {pendingSwapCount + pendingIzinCount}
               </span>
             </button>
@@ -246,7 +323,7 @@ function UnifiedApprovalContent() {
               )}
             >
               <span>Swap Shift</span>
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] text-primary">
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
                 {pendingSwapCount}
               </span>
             </button>
@@ -263,7 +340,7 @@ function UnifiedApprovalContent() {
               )}
             >
               <span>Izin Tidak Masuk</span>
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] text-primary">
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
                 {pendingIzinCount}
               </span>
             </button>
@@ -304,6 +381,15 @@ function UnifiedApprovalContent() {
               </Select>
             </div>
         </div>
+
+        <div className="w-full lg:col-span-2 pt-2">
+          <Input
+            placeholder="Cari ID tiket, jadwal, nama pemohon, rekan, atau alasan..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={controlClass}
+          />
+        </div>
       </FilterPanel>
 
       {loading ? (
@@ -315,19 +401,21 @@ function UnifiedApprovalContent() {
             Coba Lagi
           </Button>
         </div>
-      ) : unifiedItems.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <EmptyState
           icon="check_circle"
-          title="Tidak Ada Permohonan"
+          title={searchQuery ? "Tidak ditemukan permohonan" : "Tidak Ada Permohonan"}
           description={
-            statusFilter === "pending"
-              ? "Tidak ada permohonan yang membutuhkan persetujuan saat ini."
+            searchQuery
+              ? `Tidak ada tiket yang cocok dengan "${searchQuery}". Coba kata kunci lain.`
+              : statusFilter === "pending"
+              ? "Semua permohonan swap dan izin sudah selesai ditinjau. Tidak ada antrean pending."
               : `Tidak ada permohonan dengan status ${statusFilter}.`
           }
         />
       ) : (
         <DataTable columns={["Tipe", "ID", "Jadwal", "Pemohon", "Detail / Rekan", "Alasan / Keterangan", "Status", "Aksi"]}>
-          {unifiedItems.map((item) => (
+          {filteredItems.map((item) => (
             <tr key={`${item.type}-${item.id}`} className="border-t border-border">
               <td className={tdClass}>
                 <span
@@ -358,6 +446,7 @@ function UnifiedApprovalContent() {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
+                      loading={processingId === item.id}
                       onClick={() => (item.type === "swap" ? approveSwap(item.id) : approveIzin(item.id))}
                     >
                       Setuju

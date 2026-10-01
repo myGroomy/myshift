@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, Camera, CheckCircle2, Info } from "lucide-react";
+import { AlertCircle, ArrowLeft, Camera, CheckCircle2, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { request } from "@/lib/api";
 import { checklistNumericWarning } from "@/lib/domain/checklist-values";
 import { controlClass } from "@/lib/ui";
+import { cn } from "@/lib/utils";
 
 type Schedule = {
   shiftName: string;
@@ -93,6 +94,7 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
   const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<"all" | "uncompleted" | "photo" | "warning">("all");
   const [branchId, setBranchId] = useState<string | null>(null);
   const pointsRef = useRef(new Map<string, Point>());
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -212,6 +214,11 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
   }
 
   function updateDraft(point: Point, value: string, immediate = false) {
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate?.(15);
+      } catch {}
+    }
     setDrafts((previous) => ({ ...previous, [point.pointId]: value }));
     scheduleSave(point, value, files[point.pointId], immediate);
   }
@@ -303,71 +310,316 @@ export function ShiftChecklistEditor({ id }: { id: string }) {
   }
 
   const { checklist, schedule } = data;
-  const percent = checklist.total ? Math.round(checklist.completed * 100 / checklist.total) : 100;
-  const hasUnsavedChanges = checklist.items.some((point) =>
-    saveStatus[point.pointId] === "saving"
-    || saveStatus[point.pointId] === "error"
-    || saveStatus[point.pointId] === "needs-photo"
+  const percent = checklist.total ? Math.round((checklist.completed * 100) / checklist.total) : 100;
+  const hasUnsavedChanges = checklist.items.some(
+    (point) =>
+      saveStatus[point.pointId] === "saving" ||
+      saveStatus[point.pointId] === "error" ||
+      saveStatus[point.pointId] === "needs-photo"
   );
+
+  const totalCount = checklist.items.length;
+  const uncompletedCount = checklist.items.filter((item) => !item.checked).length;
+  const photoCount = checklist.items.filter((item) => item.completionType === "centang_foto").length;
+  const warningCount = checklist.items.filter((item) => item.warning).length;
+
+  const hasSaving = checklist.items.some((point) => saveStatus[point.pointId] === "saving");
+  const hasError = checklist.items.some(
+    (point) => saveStatus[point.pointId] === "error" || saveStatus[point.pointId] === "needs-photo"
+  );
+
+  const displayedGroups = checklist.groups
+    .map((group) => {
+      const items = group.items.filter((item) => {
+        if (activeFilter === "uncompleted") return !item.checked;
+        if (activeFilter === "photo") return item.completionType === "centang_foto";
+        if (activeFilter === "warning") return item.warning;
+        return true;
+      });
+      return { ...group, items };
+    })
+    .filter((group) => group.items.length > 0);
+
   return (
     <PetugasShell title={`Checklist – ${schedule.shiftName}`} lead={`${schedule.date} · ${schedule.branchName || schedule.branchId}`}>
-      <div className="max-w-3xl space-y-5">
-        <div className="flex items-center justify-between">
-          <Button asChild variant="ghost" size="sm"><Link href={`/shift/${id}${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`}><ArrowLeft size={16} /> Kembali ke shift</Link></Button>
-          <Button asChild variant="outline" size="sm"><Link href={`/shift/${id}/laporan${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`}>Laporan Shift</Link></Button>
+      <div className="max-w-3xl space-y-5 pb-20">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`/shift/${id}${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`}>
+              <ArrowLeft size={16} /> Kembali ke shift
+            </Link>
+          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/shift/${id}?tab=handover${branchId ? `&branchId=${encodeURIComponent(branchId)}` : ""}`}>
+                Catatan Handover
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/shift/${id}/laporan${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`}>
+                Laporan Shift
+              </Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="ghost" size="sm"><Link href="/checklist?choose=1">Ganti Jadwal</Link></Button>
-          <Button asChild variant="ghost" size="sm"><Link href="/checklist/history">Riwayat Checklist</Link></Button>
-        </div>
-        {schedule.reportGeneratedAt && <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-accent/20 p-3 text-sm"><Info size={16} className="mt-0.5 shrink-0" />Laporan sudah dibuat. Perubahan selanjutnya tetap bisa disimpan dan akan muncul di riwayat perubahan laporan.</div>}
+
+        {schedule.reportGeneratedAt && (
+          <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-accent/20 p-3 text-sm">
+            <Info size={16} className="mt-0.5 shrink-0" />
+            Laporan sudah dibuat. Perubahan selanjutnya tetap bisa disimpan dan akan muncul di riwayat perubahan laporan.
+          </div>
+        )}
+
         <div className="grid gap-3 rounded-lg border border-border bg-card p-4 text-sm sm:grid-cols-2">
-          <div><span className="text-xs text-muted-foreground">Petugas</span><p className="font-medium">{schedule.employeeName || "—"}</p></div>
-          <div><span className="text-xs text-muted-foreground">Jadwal</span><p className="font-medium">{schedule.date} · {schedule.startTime || "--:--"}–{schedule.endTime || "--:--"}</p></div>
-          <div><span className="text-xs text-muted-foreground">Cabang</span><p className="font-medium">{schedule.branchName || schedule.branchId}</p></div>
-          <div><span className="text-xs text-muted-foreground">Status shift</span><p className="font-medium capitalize">{schedule.status === "started" ? "Sedang berjalan" : schedule.status === "completed" ? "Selesai" : "Belum dimulai"}</p></div>
+          <div>
+            <span className="text-xs text-muted-foreground">Petugas</span>
+            <p className="font-medium">{schedule.employeeName || "—"}</p>
+          </div>
+          <div>
+            <span className="text-xs text-muted-foreground">Jadwal</span>
+            <p className="font-medium">
+              {schedule.date} · {schedule.startTime || "--:--"}–{schedule.endTime || "--:--"}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs text-muted-foreground">Cabang</span>
+            <p className="font-medium">{schedule.branchName || schedule.branchId}</p>
+          </div>
+          <div>
+            <span className="text-xs text-muted-foreground">Status shift</span>
+            <p className="font-medium capitalize">
+              {schedule.status === "started"
+                ? "Sedang berjalan"
+                : schedule.status === "completed"
+                ? "Selesai"
+                : "Belum dimulai"}
+            </p>
+          </div>
         </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="mb-2 flex justify-between text-sm"><span>Progress Checklist</span><strong>{checklist.completed}/{checklist.total} ({percent}%)</strong></div>
-          <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} /></div>
+
+        {/* STICKY PROGRESS & FILTER HEADER */}
+        <div className="sticky top-2 z-20 space-y-2.5 rounded-xl border border-border bg-card/95 p-3.5 shadow-sm backdrop-blur-md">
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-foreground">Progres Checklist</span>
+              <span className="tnum text-xs font-semibold text-muted-foreground">
+                {checklist.completed}/{checklist.total} ({percent}%)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              {hasSaving ? (
+                <span className="inline-flex items-center gap-1 text-muted-foreground">
+                  <Loader2 size={13} className="animate-spin text-primary" />
+                  <span>Menyimpan...</span>
+                </span>
+              ) : hasError ? (
+                <span className="inline-flex items-center gap-1 font-medium text-destructive">
+                  <AlertCircle size={13} />
+                  <span>Perlu foto / aksi</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 font-medium text-success">
+                  <CheckCircle2 size={13} />
+                  <span>Tersimpan</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full transition-all duration-300",
+                percent === 100 ? "bg-success" : "bg-primary"
+              )}
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+
+          {/* Quick Filter Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("all")}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                activeFilter === "all"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Semua ({totalCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFilter("uncompleted")}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                activeFilter === "uncompleted"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : uncompletedCount > 0
+                  ? "bg-warning-wash font-semibold text-warning hover:bg-warning-wash/80"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Belum Selesai ({uncompletedCount})
+            </button>
+            {photoCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveFilter("photo")}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  activeFilter === "photo"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Perlu Foto ({photoCount})
+              </button>
+            )}
+            {warningCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveFilter("warning")}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  activeFilter === "warning"
+                    ? "bg-destructive text-destructive-foreground shadow-xs"
+                    : "bg-destructive-wash text-destructive hover:bg-destructive-wash/80"
+                )}
+              >
+                Peringatan Suhu ({warningCount})
+              </button>
+            )}
+          </div>
         </div>
-        {checklist.groups.length === 0 ? <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground sm:p-6">Tidak ada checklist point yang berlaku untuk shift ini.</div> :
-          checklist.groups.map((group) => (
+
+        {checklist.groups.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground sm:p-6">
+            Tidak ada checklist point yang berlaku untuk shift ini.
+          </div>
+        ) : displayedGroups.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground">
+            <CheckCircle2 size={32} className="mx-auto mb-2 text-success" />
+            <p className="font-semibold text-foreground">Tidak ada item di kategori filter ini</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Semua tugas pada filter ini telah terselesaikan dengan baik.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveFilter("all")}
+              className="mt-4"
+            >
+              Tampilkan Semua Item
+            </Button>
+          </div>
+        ) : (
+          displayedGroups.map((group) => (
             <section key={group.categoryId} className="space-y-3">
-              <h2 className="text-base font-semibold">{group.categoryName}</h2>
+              <h2 className="text-base font-semibold text-foreground">{group.categoryName}</h2>
               {group.items.map((point) => (
-                <article key={point.pointId} className="space-y-3 rounded-lg border border-border bg-card p-4">
+                <article
+                  key={point.pointId}
+                  className={cn(
+                    "space-y-3 rounded-lg border bg-card p-4 transition-colors",
+                    point.checked ? "border-border/60 bg-muted/20" : "border-border shadow-xs"
+                  )}
+                >
                   <div className="flex items-start justify-between gap-3">
-                    <div><h3 className="text-sm font-medium">{point.description}</h3><p className="mt-1 text-xs text-muted-foreground">{point.completionType}</p></div>
+                    <div>
+                      <h3
+                        className={cn(
+                          "text-sm font-medium",
+                          point.checked ? "text-foreground" : "text-foreground font-semibold"
+                        )}
+                      >
+                        {point.description}
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground capitalize">
+                        {point.completionType.replace("_", " + ")}
+                      </p>
+                    </div>
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
-                      {saveStatus[point.pointId] === "saving" ? "Menyimpan..." :
-                        saveStatus[point.pointId] === "needs-photo" ? "Pilih foto untuk menyimpan" :
-                          saveStatus[point.pointId] === "error" ? "Gagal tersimpan" :
-                            <><CheckCircle2 size={14} />Tersimpan</>}
+                      {saveStatus[point.pointId] === "saving" ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin text-primary" />
+                          Menyimpan...
+                        </>
+                      ) : saveStatus[point.pointId] === "needs-photo" ? (
+                        <span className="font-medium text-warning">Pilih foto</span>
+                      ) : saveStatus[point.pointId] === "error" ? (
+                        <span className="font-medium text-destructive">Gagal simpan</span>
+                      ) : (
+                        point.checked && (
+                          <span className="font-medium text-success inline-flex items-center gap-0.5">
+                            <CheckCircle2 size={13} />
+                            Selesai
+                          </span>
+                        )
+                      )}
                     </span>
                   </div>
                   {renderControl(point)}
                   {saveStatus[point.pointId] === "error" && (
                     <div className="flex items-center justify-between gap-3 text-xs text-destructive">
                       <span>{saveErrors[point.pointId]}</span>
-                      <Button size="sm" variant="outline" onClick={() => retrySave(point)}>Coba lagi</Button>
+                      <Button size="sm" variant="outline" onClick={() => retrySave(point)}>
+                        Coba lagi
+                      </Button>
                     </div>
                   )}
                 </article>
               ))}
             </section>
           ))
-        }
-        {schedule.status !== "completed" && (
-          <div className="rounded-lg border border-border bg-card p-4">
-            <Button className="w-full" onClick={submitChecklist} disabled={checklist.completed !== checklist.total || hasUnsavedChanges || submitting}>
-              {submitting ? "Menyelesaikan shift..." : "Submit Checklist & Selesaikan Shift"}
-            </Button>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Checklist harus 100% dan field handover wajib harus sudah tersimpan.
-            </p>
-          </div>
         )}
+
+        {/* STICKY BOTTOM ACTION BAR */}
+        <div className="sticky bottom-4 z-30 mx-auto w-full max-w-3xl rounded-xl border border-border bg-card/95 p-3.5 shadow-lg backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs">
+              {checklist.completed === checklist.total ? (
+                <span className="flex items-center gap-1.5 font-semibold text-success">
+                  <CheckCircle2 size={16} /> Semua checklist ({checklist.total}) lengkap!
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Tersisa <strong className="font-semibold text-foreground">{uncompletedCount} tugas</strong> lagi
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {checklist.completed < checklist.total && activeFilter !== "uncompleted" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveFilter("uncompleted")}
+                >
+                  Lihat Sisa ({uncompletedCount})
+                </Button>
+              )}
+              <Button asChild size="sm" variant="secondary">
+                <Link
+                  href={`/shift/${id}?tab=handover${branchId ? `&branchId=${encodeURIComponent(branchId)}` : ""}`}
+                >
+                  Ke Handover →
+                </Link>
+              </Button>
+              {schedule.status !== "completed" && checklist.completed === checklist.total && (
+                <Button
+                  size="sm"
+                  onClick={submitChecklist}
+                  disabled={hasUnsavedChanges || submitting}
+                  loading={submitting}
+                >
+                  Selesaikan Shift
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </PetugasShell>
   );

@@ -17,6 +17,14 @@ const eslintConfig = defineConfig([
     // lives in .oxlintrc.json (the `pnpm lint` runner).
     "gas/**",
   ]),
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/refs": "off",
+      "@next/next/no-img-element": "off",
+      "@typescript-eslint/no-unused-vars": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

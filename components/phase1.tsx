@@ -34,6 +34,7 @@ export function BranchesPage() {
   const { toast } = useToast();
   const [items, setItems] = useState<Branch[]>([]);
   const [name, setName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
@@ -159,6 +160,17 @@ export function BranchesPage() {
         </div>
       )}
 
+      {items.length > 0 && (
+        <div className="mb-4 max-w-xl">
+          <Input
+            placeholder="Cari nama atau ID cabang..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={controlClass}
+          />
+        </div>
+      )}
+
       {loading ? (
         <SkeletonTable rows={4} />
       ) : items.length === 0 ? (
@@ -169,7 +181,13 @@ export function BranchesPage() {
         />
       ) : (
         <DataTable columns={["ID", "Nama Cabang", "Spreadsheet", "Status", "Provisioning", "Aksi"]}>
-          {items.map((item) => (
+          {items
+            .filter((item) => {
+              if (!searchQuery.trim()) return true;
+              const q = searchQuery.toLowerCase();
+              return item.nama.toLowerCase().includes(q) || item.branchId.toLowerCase().includes(q);
+            })
+            .map((item) => (
             <tr key={item.branchId} className="border-t border-border">
               <td className={tdClass}>
                 <span className="font-mono text-xs">{item.branchId}</span>
