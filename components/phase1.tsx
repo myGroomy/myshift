@@ -1199,7 +1199,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
       {!mine && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Label htmlFor="date-filter" className="text-xs text-muted-foreground">Filter tanggal:</Label>
+            <Label htmlFor="date-filter" className="text-xs text-muted-foreground">Tanggal:</Label>
             <Input
               id="date-filter"
               type="date"
@@ -1212,7 +1212,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
               variant="ghost"
               size="sm"
               onClick={() => setDateFilter(todayInWIB())}
-              className="text-xs"
+              className="h-9 px-2 text-xs"
             >
               Hari ini
             </Button>
