@@ -57,6 +57,12 @@ Tepat **satu baris data** (baris 2). Nilai kosong di salah satu kolom → provis
 | `Failed_Login_Attempts` | number | 🔒 Auto | Reset otomatis setelah lock berakhir |
 | `Locked_Until` | datetime ISO 8601 | 🔒 Auto | |
 
+Pembacaan dan penulisan `Employees` mengacu pada **nama header**, bukan posisi kolom. Ini menjaga
+Registry lama yang belum memiliki kolom tambahan tetap terbaca tanpa salah mengartikan `Cabang_Aktif`
+sebagai `Role`; `setup:sheets` juga menolak menimpa header Registry berisi data jika skemanya berbeda.
+Untuk menyamakan Registry lama ke tabel di atas, migrasikan kolom berdasarkan nama header—jangan
+hanya mengganti header atau menggeser kolom tanpa memindahkan nilainya.
+
 ### Sheet: `Settings_Global`
 
 | Kolom | Tipe | Sumber |

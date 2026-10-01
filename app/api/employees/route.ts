@@ -2,9 +2,7 @@ import { handleRouteError, ok } from "@/lib/api-response";
 import { hashPin } from "@/lib/domain/pin";
 import { requiredText, validPin, validRole } from "@/lib/domain/master-validation";
 import { adminSession, isResponse } from "@/lib/route-auth";
-import { EMPLOYEE_ROLE_VALUES, getBranches, getEmployees, toPublicEmployee } from "@/lib/google/registry";
-import { appendRow } from "@/lib/google/sheets-data";
-import { REGISTRY_SHEETS, registrySheetRange } from "@/lib/google/sheet-schema";
+import { appendEmployee, EMPLOYEE_ROLE_VALUES, getBranches, getEmployees, toPublicEmployee } from "@/lib/google/registry";
 import { ID_PREFIX, nextSequentialId } from "@/lib/ids";
 import { DomainError } from "@/lib/error-codes";
 import type { NextRequest } from "next/server";
@@ -47,18 +45,23 @@ export async function POST(request: NextRequest) {
     }
 
     const employeeId = nextSequentialId(employees.map((employee) => employee.employeeId), ID_PREFIX.employee);
-    await appendRow(process.env.REGISTRY_SPREADSHEET_ID!, registrySheetRange(REGISTRY_SHEETS.employees), [
-      employeeId,
-      username,
-      hashPin(pin),
-      name,
-      role,
-      branchId,
-      branchId,
-      "TRUE",
-      "0",
-      "",
-    ]);
+    const now = new Date().toISOString();
+    await appendEmployee({
+      Employee_ID: employeeId,
+      Username: username,
+      Normalized_Username: username,
+      PIN_Hash: hashPin(pin),
+      Nama: name,
+      Role: role,
+      Cabang_Aktif: branchId,
+      Cabang_Terafiliasi: branchId,
+      Aktif: "TRUE",
+      Failed_Login_Attempts: "0",
+      Locked_Until: "",
+      Created_At: now,
+      Updated_At: now,
+      Deactivated_At: "",
+    });
     return ok({ employeeId, username, name, role, branchId, isActive: true }, { status: 201 });
   } catch (error) {
     return handleRouteError(error, "Data karyawan tidak valid");

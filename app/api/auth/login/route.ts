@@ -9,9 +9,7 @@ import {
   resetLoginFailure,
   type LockState,
 } from "@/lib/domain/login-lockout";
-import { getBranches, getEmployeeRows } from "@/lib/google/registry";
-import { replaceRow } from "@/lib/google/sheets-data";
-import { EMPLOYEE_ROW_WIDTH, REGISTRY_SHEETS, padRow } from "@/lib/google/sheet-schema";
+import { getBranches, getEmployeeRows, replaceEmployeeRow } from "@/lib/google/registry";
 import { createSessionToken, sessionCookieHeader } from "@/lib/session";
 
 export async function POST(request: Request) {
@@ -39,7 +37,7 @@ export async function POST(request: Request) {
 
     if (!credentialsValid) {
       const next = registerLoginFailure(lock);
-      await writeLockState(row.rowNumber, row.values, next);
+      await writeLockState(row, next);
       await loginFailureDelay();
       if (isLockActive(next.lockedUntil)) {
         return fail("ACCOUNT_LOCKED", lockMessage(next.lockedUntil), { data: { lockedUntil: next.lockedUntil } });
@@ -48,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     if (lock.attempts > 0 || lock.lockedUntil) {
-      await writeLockState(row.rowNumber, row.values, resetLoginFailure());
+      await writeLockState(row, resetLoginFailure());
     }
 
     const activeBranches = (await getBranches()).filter((branch) => branch.aktif);
@@ -85,9 +83,13 @@ export async function POST(request: Request) {
   }
 }
 
-async function writeLockState(rowNumber: number, values: string[], state: LockState) {
-  const next = padRow(values, EMPLOYEE_ROW_WIDTH);
-  next[8] = String(state.attempts);
-  next[9] = state.lockedUntil;
-  await replaceRow(process.env.REGISTRY_SPREADSHEET_ID!, REGISTRY_SHEETS.employees, rowNumber, next);
+async function writeLockState(
+  row: Awaited<ReturnType<typeof getEmployeeRows>>[number],
+  state: LockState,
+) {
+  await replaceEmployeeRow(row, {
+    Failed_Login_Attempts: String(state.attempts),
+    Locked_Until: state.lockedUntil,
+    Updated_At: new Date().toISOString(),
+  });
 }

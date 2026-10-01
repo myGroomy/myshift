@@ -107,7 +107,31 @@ async function ensureRegistrySheets(spreadsheetId: string) {
   }
   if (requests.length) await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
 
+  await assertRegistryHeadersSafeToWrite(spreadsheetId);
   await writeHeaders(spreadsheetId, REGISTRY_HEADERS);
+}
+
+async function assertRegistryHeadersSafeToWrite(spreadsheetId: string) {
+  const mismatches: string[] = [];
+  for (const [sheetName, expected] of Object.entries(REGISTRY_HEADERS)) {
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A1:Z`,
+    });
+    const rows = result.data.values ?? [];
+    const actual = (rows[0] ?? []).map((value) => String(value).trim());
+    const hasData = rows.slice(1).some((row) => row.some((value) => String(value).trim() !== ""));
+    const emptySheet = actual.every((value) => !value) && !hasData;
+    if (!emptySheet && actual.join("|") !== expected.join("|")) {
+      mismatches.push(`${sheetName}: [${actual.join(", ")}]`);
+    }
+  }
+  if (mismatches.length) {
+    throw new Error(
+      "Header Registry tidak cocok dengan skema aplikasi; setup dibatalkan agar data tidak bergeser. " +
+        `${mismatches.join("; ")}. Migrasikan kolom berdasarkan nama header sebelum setup.`,
+    );
+  }
 }
 
 async function seedAdminIfRequested(registrySheetId: string) {
@@ -117,18 +141,34 @@ async function seedAdminIfRequested(registrySheetId: string) {
   const initBranch = process.env.MYSHIFT_INIT_BRANCH || "CBG001";
   await sheets.spreadsheets.values.append({
     spreadsheetId: registrySheetId,
-    range: `Employees!A:J`,
+    range: `Employees!A:${columnLetter(REGISTRY_HEADERS.Employees.length)}`,
     valueInputOption: "RAW",
-    requestBody: { values: [["EMP-001", "admin", hashPin(initPin), initName, "admin", initBranch, initBranch, "TRUE", "0", ""]] },
+    requestBody: {
+      values: [[
+        "EMP-001",
+        "admin",
+        "admin",
+        hashPin(initPin),
+        initName,
+        "admin",
+        initBranch,
+        initBranch,
+        "TRUE",
+        "0",
+        "",
+        new Date().toISOString(),
+        new Date().toISOString(),
+        "",
+      ]],
+    },
   });
-  // 6 columns per SHEETS-SCHEMA §1. A branch starts `pending` with no spreadsheet: POST
-  // /api/branches provisions Drive and flips it to `ready`, and this row is created here
-  // before any template exists, so claiming `ready` here would be a lie.
   await sheets.spreadsheets.values.append({
     spreadsheetId: registrySheetId,
     range: `Daftar_Cabang!A:${columnLetter(REGISTRY_HEADERS.Daftar_Cabang.length)}`,
     valueInputOption: "RAW",
-    requestBody: { values: [[initBranch, initName, "", "", "pending", "TRUE"]] },
+    requestBody: {
+      values: [[initBranch, initName, "", "", "pending", "TRUE", "Asia/Jakarta", new Date().toISOString(), new Date().toISOString()]],
+    },
   });
   console.log("Seeded admin account: admin");
 }

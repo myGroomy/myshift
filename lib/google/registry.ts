@@ -1,5 +1,6 @@
-import { readRows, type SheetRow } from "@/lib/google/sheets-data";
-import { REGISTRY_SHEETS, registrySheetRange } from "@/lib/google/sheet-schema";
+import { appendRow, readRows, replaceRow, type SheetRow } from "@/lib/google/sheets-data";
+import { sheets } from "@/lib/google/client";
+import { REGISTRY_SHEETS, columnLetter, registrySheetRange } from "@/lib/google/sheet-schema";
 import { parseAttempts } from "@/lib/domain/login-lockout";
 import { EMPLOYEE_ROLE_VALUES, normalizeEmployeeRole, type EmployeeRole } from "@/lib/domain/employee-role";
 
@@ -44,7 +45,12 @@ export function parseProvisionStatus(value: string | undefined): ProvisionStatus
   return PROVISION_STATUS_VALUES.find((status) => status === normalized) ?? "pending";
 }
 
-export type EmployeeRow = SheetRow & { employee: Employee; attempts: number; lockedUntil: string };
+export type EmployeeRow = SheetRow & {
+  employee: Employee;
+  attempts: number;
+  lockedUntil: string;
+  headers: string[];
+};
 
 export { EMPLOYEE_ROLE_VALUES };
 
@@ -70,24 +76,85 @@ export function toPublicEmployee(employee: Employee): PublicEmployee {
   };
 }
 
-function toEmployee(values: string[]): Employee {
+export function employeeFromRow(headers: readonly string[], values: readonly string[]): Employee {
+  const indexByHeader = new Map(headers.map((header, index) => [header.trim(), index]));
+  const value = (header: string) => {
+    const index = indexByHeader.get(header);
+    return index === undefined ? "" : (values[index] ?? "").trim();
+  };
+  const username = value("Username").toLowerCase();
+
   return {
-    employeeId: (values[0] ?? "").trim(),
-    username: (values[1] ?? "").trim().toLowerCase(),
-    normalizedUsername: (values[2] ?? "").trim().toLowerCase(),
-    pinHash: (values[3] ?? "").trim(),
-    nama: (values[4] ?? "").trim(),
-    role: parseRole(values[5] ?? ""),
-    cabangAktif: (values[6] ?? "").trim(),
-    cabangTerafiliasi: (values[7] ?? "")
+    employeeId: value("Employee_ID"),
+    username,
+    normalizedUsername: (value("Normalized_Username") || username).toLowerCase(),
+    pinHash: value("PIN_Hash"),
+    nama: value("Nama"),
+    role: parseRole(value("Role")),
+    cabangAktif: value("Cabang_Aktif"),
+    cabangTerafiliasi: value("Cabang_Terafiliasi")
       .split(",")
       .map((entry) => entry.trim())
       .filter(Boolean),
-    aktif: parseAktif(values[8] ?? ""),
-    createdAt: (values[11] ?? "").trim(),
-    updatedAt: (values[12] ?? "").trim(),
-    deactivatedAt: (values[13] ?? "").trim(),
+    aktif: parseAktif(value("Aktif")),
+    createdAt: value("Created_At"),
+    updatedAt: value("Updated_At"),
+    deactivatedAt: value("Deactivated_At"),
   };
+}
+
+export function employeeColumnIndex(headers: readonly string[], name: string): number {
+  return headers.findIndex((header) => header.trim() === name);
+}
+
+function rowValuesByHeaders(
+  headers: readonly string[],
+  values: Readonly<Record<string, string>>,
+): string[] {
+  return headers.map((header) => values[header.trim()] ?? "");
+}
+
+export async function appendEmployee(values: Readonly<Record<string, string>>) {
+  const headers = await readEmployeeHeaders();
+  const width = headers.length;
+  const row = rowValuesByHeaders(headers, values);
+  await appendRow(
+    registryId(),
+    `Employees!A:${columnLetter(width)}`,
+    row,
+  );
+}
+
+export async function replaceEmployeeRow(row: EmployeeRow, values: Readonly<Record<string, string>>) {
+  const updated = [...row.values];
+  const width = Math.max(row.headers.length, updated.length);
+  updated.length = width;
+  for (let index = 0; index < width; index += 1) {
+    const header = row.headers[index];
+    if (header && Object.hasOwn(values, header.trim())) {
+      updated[index] = values[header.trim()];
+    } else {
+      updated[index] ??= "";
+    }
+  }
+  await replaceRow(registryId(), REGISTRY_SHEETS.employees, row.rowNumber, updated);
+}
+
+async function readEmployeeHeaders(): Promise<string[]> {
+  const result = await sheets.spreadsheets.values.get({
+    spreadsheetId: registryId(),
+    range: `${REGISTRY_SHEETS.employees}!1:1`,
+  });
+  const headers = (result.data.values?.[0] ?? []).map((value) => String(value).trim());
+  for (const required of ["Employee_ID", "Username", "PIN_Hash", "Nama", "Role", "Aktif"]) {
+    if (!headers.includes(required)) {
+      throw new Error(`Header ${required} tidak ditemukan di sheet ${REGISTRY_SHEETS.employees}`);
+    }
+  }
+  if (new Set(headers).size !== headers.length) {
+    throw new Error(`Header duplikat di sheet ${REGISTRY_SHEETS.employees}`);
+  }
+  return headers;
 }
 
 function toBranch(values: string[]): Branch {
@@ -138,15 +205,17 @@ function registryId() {
   return process.env.REGISTRY_SPREADSHEET_ID!;
 }
 
-// Positional reads are safe because lib/google/sheet-schema.ts is the single source of
-// column order and test/sheet-schema.test.ts pins it to PLAN/SHEETS-SCHEMA.md.
+// Registry rows are projected by header name so an older live sheet cannot shift Role into
+// Cabang_Aktif (or vice versa) while it is being migrated to the current schema.
 export async function getEmployeeRows(): Promise<EmployeeRow[]> {
-  const rows = await readRows(registryId(), registrySheetRange(REGISTRY_SHEETS.employees));
+  const headers = await readEmployeeHeaders();
+  const rows = await readRows(registryId(), `${REGISTRY_SHEETS.employees}!A:${columnLetter(headers.length)}`);
   return rows.map((row) => ({
     ...row,
-    employee: toEmployee(row.values),
-    attempts: parseAttempts(row.values[9]),
-    lockedUntil: (row.values[10] ?? "").trim(),
+    employee: employeeFromRow(headers, row.values),
+    attempts: parseAttempts(row.values[employeeColumnIndex(headers, "Failed_Login_Attempts")]),
+    lockedUntil: (row.values[employeeColumnIndex(headers, "Locked_Until")] ?? "").trim(),
+    headers,
   }));
 }
 

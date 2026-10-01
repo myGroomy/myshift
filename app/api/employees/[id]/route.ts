@@ -1,9 +1,13 @@
 import { fail, handleRouteError, ok } from "@/lib/api-response";
-import { mergeBranchAffiliation, optionalBoolean, optionalText, optionalBranchIdList, validRole, validUsername } from "@/lib/domain/master-validation";
+import { mergeBranchAffiliation, optionalBoolean, optionalText, validRole, validUsername } from "@/lib/domain/master-validation";
 import { adminSession, isResponse } from "@/lib/route-auth";
-import { EMPLOYEE_ROLE_VALUES, getBranchRows, getEmployeeRows } from "@/lib/google/registry";
-import { replaceRowById } from "@/lib/google/sheets-data";
-import { EMPLOYEE_ROW_WIDTH, REGISTRY_SHEETS, padRow, registrySheetRange } from "@/lib/google/sheet-schema";
+import {
+  EMPLOYEE_ROLE_VALUES,
+  employeeColumnIndex,
+  getBranchRows,
+  getEmployeeRows,
+  replaceEmployeeRow,
+} from "@/lib/google/registry";
 import { DomainError } from "@/lib/error-codes";
 import type { NextRequest } from "next/server";
 
@@ -19,48 +23,64 @@ export async function PATCH(request: NextRequest, context: Context) {
     const row = rows.find((entry) => entry.employee.employeeId === id);
     if (!row) return fail("NOT_FOUND", "Karyawan tidak ditemukan");
 
-    const values = padRow(row.values, EMPLOYEE_ROW_WIDTH);
-    const currentName = (values[3] ?? "").trim();
+    const value = (header: string) => {
+      const index = employeeColumnIndex(row.headers, header);
+      return index < 0 ? "" : (row.values[index] ?? "").trim();
+    };
+    const currentName = row.employee.nama;
     const currentRole = row.employee.role;
-    const currentAffiliation = optionalBranchIdList(values[6]);
-    const currentActive = (values[7] ?? "").trim().toUpperCase() === "TRUE";
+    const currentAffiliation = row.employee.cabangTerafiliasi;
+    const currentActive = row.employee.aktif;
 
-    values[3] = optionalText(body.name, "name", currentName);
+    const name = optionalText(body.name, "name", currentName);
+    let username = row.employee.username;
     if (body.username !== undefined) {
-      const username = validUsername(body.username, values[1] ?? "");
-      if (rows.some((entry) => entry.employee.employeeId !== id && entry.employee.username.toLowerCase() === username)) {
+      username = validUsername(body.username, username);
+      if (rows.some((entry) => entry.employee.employeeId !== id && entry.employee.username === username)) {
         throw new DomainError("VALIDATION_ERROR", "Username sudah digunakan", {
           data: { fields: ["username"] },
         });
       }
-      values[1] = username;
     }
-    values[4] = validRole(body.role === undefined ? currentRole : body.role, EMPLOYEE_ROLE_VALUES);
+    const role = validRole(body.role === undefined ? currentRole : body.role, EMPLOYEE_ROLE_VALUES);
+    let branchId = row.employee.cabangAktif;
+    let affiliatedBranches = currentAffiliation;
 
     if (body.branchId !== undefined) {
-      const branchId = String(body.branchId).trim();
+      branchId = String(body.branchId).trim();
       const branch = (await getBranchRows()).find((entry) => entry.branch.branchId === branchId);
       if (!branch || !branch.branch.aktif) {
         throw new DomainError("VALIDATION_ERROR", "Cabang tidak valid", { data: { fields: ["branchId"] } });
       }
-      values[5] = branchId;
       // Cabang_Terafiliasi is a comma-separated list; moving a branch must not drop the
       // other affiliations the employee already has (SHEETS-SCHEMA §1).
-      values[6] = mergeBranchAffiliation(currentAffiliation, branchId).join(",");
+      affiliatedBranches = mergeBranchAffiliation(currentAffiliation, branchId);
     }
 
-    values[7] = String(optionalBoolean(body.isActive, "isActive", currentActive)).toUpperCase();
+    const aktif = optionalBoolean(body.isActive, "isActive", currentActive);
+    const now = new Date().toISOString();
+    const deactivatedAt = aktif ? "" : value("Deactivated_At") || now;
 
-    await replaceRowById(process.env.REGISTRY_SPREADSHEET_ID!, REGISTRY_SHEETS.employees, registrySheetRange(REGISTRY_SHEETS.employees), id, values);
+    await replaceEmployeeRow(row, {
+      Username: username,
+      Normalized_Username: username,
+      Nama: name,
+      Role: role,
+      Cabang_Aktif: branchId,
+      Cabang_Terafiliasi: affiliatedBranches.join(","),
+      Aktif: String(aktif).toUpperCase(),
+      Updated_At: now,
+      Deactivated_At: deactivatedAt,
+    });
 
     return ok({
-      employeeId: values[0],
-      username: values[1],
-      name: values[3],
-      role: values[4],
-      branchId: values[5],
-      affiliatedBranches: optionalBranchIdList(values[6]),
-      isActive: values[7] === "TRUE",
+      employeeId: row.employee.employeeId,
+      username,
+      name,
+      role,
+      branchId,
+      affiliatedBranches,
+      isActive: aktif,
     });
   } catch (error) {
     return handleRouteError(error, "Data karyawan tidak valid");
