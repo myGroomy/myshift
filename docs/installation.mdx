@@ -1,0 +1,77 @@
+# Installation Guide
+
+## Prerequisites
+
+- **Node.js** (v20.x) and **pnpm** (v9.x) installed.
+- **Google Cloud project** with the Sheets API enabled and a service account JSON key.
+- Access to the Mochikin Google Workspace (for the Drive bridge script).
+- **Git** installed and remote repository configured.
+
+## Clone the Repository
+
+```bash
+git clone https://github.com/your-org/MOCHIKIN-APPS.git
+cd MOCHIKIN-APPS/myshift
+```
+
+## Install Dependencies
+
+```bash
+pnpm install
+```
+
+## Configure Environment Variables
+
+Create a `.env.local` file at the project root:
+
+```env
+# Next.js runtime
+NEXT_PUBLIC_APP_NAME=MyShift
+
+# Google authentication (service‑account)
+GOOGLE_APPLICATION_CREDENTIALS=./secrets/service-account.json
+
+# Session secret (use a strong random string)
+SESSION_SECRET=$(openssl rand -hex 32)
+
+# PIN hash salt (generated once)
+PIN_SALT=$(openssl rand -hex 16)
+```
+
+> **Tip**: keep `service-account.json` out of version control (`.gitignore` already includes it).
+
+## Initialise Google Sheets
+
+Run the setup script to create the required spreadsheet templates if they do not exist:
+
+```bash
+pnpm run setup-sheets
+```
+
+The script will:
+1. Create a new spreadsheet based on `PLAN/templates/MYSHIFT-Template-Cabang.xlsx`.
+2. Populate the **registry**, **employees**, **branches**, **schedules**, etc.
+3. Store the spreadsheet IDs in `lib/google/sheet-schema.ts` (auto‑generated).
+
+## Run Locally
+
+```bash
+pnpm dev
+```
+
+Open <http://localhost:3000> – the app will redirect to the login page. Use a PIN created via the admin UI or run:
+
+```bash
+pnpm run set-pin <employee-id> <new-pin>
+```
+
+## Deploy to Vercel
+
+1. Push the repo to your remote.
+2. Connect the repo in the Vercel dashboard.
+3. Add the same environment variables in Vercel → Settings → Environment Variables.
+4. Deploy – Vercel automatically builds with `pnpm run build`.
+
+---
+
+*This MDX file lives at `docs/installation.mdx` and provides a step‑by‑step guide for setting up MyShift from a fresh machine.*

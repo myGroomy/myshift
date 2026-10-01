@@ -22,6 +22,8 @@ import type { EmployeeRole } from "@/lib/domain/employee-role";
 import { KanbanBoard } from "@/components/schedule-kanban";
 import { CalendarView } from "@/components/schedule-calendar";
 import { ScheduleViewToggle, type ScheduleViewMode } from "@/components/schedule-view-toggle";
+import { ShiftStatusBanner } from "@/components/ShiftStatusBanner";
+
 
 function msg(error: unknown): string {
   return error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -940,6 +942,8 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
   const [duplicating, setDuplicating] = useState(false);
   const [viewMode, setViewMode] = useState<ScheduleViewMode>(mine ? "calendar" : "kanban");
   const [dateFilter, setDateFilter] = useState<string>(todayInWIB());
+  const [activeShift, setActiveShift] = useState<{ scheduleId: string; branchId: string; branchName: string; startedAt: string } | null>(null);
+
 
   const load = (id: string) => {
     if (!mine && !id) {
@@ -1062,13 +1066,16 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
       await request(`/api/schedules/${scheduleId}/start-shift?branchId=${encodeURIComponent(scheduleBranchId)}`, {
         method: "POST",
       });
+      const startedAt = new Date().toISOString();
       setItems((prev) =>
         prev.map((item) =>
           item.scheduleId === scheduleId && item.branchId === scheduleBranchId
-            ? { ...item, status: "started", startedAt: new Date().toISOString() }
+            ? { ...item, status: "started", startedAt }
             : item
         )
       );
+      const branchName = branches.find((b) => b.branchId === scheduleBranchId)?.nama || scheduleBranchId;
+      setActiveShift({ scheduleId, branchId: scheduleBranchId, branchName, startedAt });
       toast("Shift berhasil dimulai!", "success");
     } catch (e) {
       toast(msg(e), "error");
@@ -1076,6 +1083,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
       setStartingId(null);
     }
   }
+
 
   const today = todayInWIB();
 
@@ -1116,7 +1124,16 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
 
   return (
     <>
+      {activeShift && mine && (
+        <ShiftStatusBanner
+          startedAt={activeShift.startedAt}
+          branchName={activeShift.branchName}
+          scheduleId={activeShift.scheduleId}
+          onClose={() => setActiveShift(null)}
+        />
+      )}
       {!mine && (
+
         <form
           onSubmit={submit}
           className="mb-8 grid max-w-4xl gap-4 rounded-lg border border-border bg-card p-4 shadow-sm sm:grid-cols-4 sm:p-5"

@@ -27,7 +27,9 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-wash: var(--destructive-wash);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-success-wash: var(--success-wash);
+
   --color-warning: var(--warning);
   --color-warning-wash: var(--warning-wash);
   --color-inverse-surface: var(--inverse-surface);
@@ -46,24 +48,25 @@
   --radius-lg: 8px;
   --radius-xl: 24px;
 
-  --background: #fcfcfc;
-  --foreground: #111111;
-  --card: #ffffff;
-  --card-foreground: #111111;
-  --popover: #ffffff;
-  --popover-foreground: #111111;
+  /* Corporate palette from atlassian‑DESIGN.md */
+  --background: #f8f8f8; /* off‑white */
+  --foreground: #292a2e; /* near‑black text */
+  --card: #cfe1fd;      /* surface */
+  --card-foreground: #292a2e;
+  --popover: #cfe1fd;
+  --popover-foreground: #292a2e;
 
-  --muted: #f4f4f4;
-  --muted-foreground: #666666;
-  --subtle-foreground: #888888;
+  --muted: #e9e7ed;    /* surface‑container‑high */
+  --muted-foreground: #75777a;
+  --subtle-foreground: #454749;
 
-  --primary: #1c2b42;
+  --primary: #101214;  /* primary (near‑black) */
   --primary-foreground: #ffffff;
   --secondary: #505f78;
   --secondary-foreground: #ffffff;
 
-  --accent: #e9e7ed;
-  --accent-foreground: #1c2b42;
+  --accent: #1c2b42;   /* accent (muted navy) */
+  --accent-foreground: #ffffff;
 
   --info-wash: #d1e0ff;
   --info-foreground: #54637d;
@@ -73,7 +76,9 @@
   --destructive-wash: #ffdad6;
 
   --success: #1a7f4b;
+  --success-foreground: #065728;
   --success-wash: #e6f4ec;
+
   --warning: #8a5a00;
   --warning-wash: #fbf3e3;
 
@@ -113,7 +118,9 @@
   --destructive-wash: #2d1a19;
 
   --success: #5fd39a;
+  --success-foreground: #a8f0c8;
   --success-wash: #16261d;
+
   --warning: #e0a83c;
   --warning-wash: #2b2314;
 

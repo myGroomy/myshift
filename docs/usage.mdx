@@ -1,0 +1,29 @@
+# Usage Guide
+
+## For Employees (End‑User)
+
+1. **Login** – Open the app (`/login`). Enter your employee ID and PIN. The PIN is stored as an **scrypt hash**; never plain text.
+2. **Dashboard** – Shows today's shift, branch, and status.
+3. **Start Shift** – Tap **`Mulai Shift`**. A banner appears confirming the start time.
+4. **Swap / Izin** – Navigate to the **Swap** or **Izin** tabs. Fill the form, submit, and you’ll see an inline success banner with **`Lihat Riwayat`** and **`Ajukan Lagi`** buttons.
+5. **Checklist** – Before ending a shift, open the checklist, complete each SOP item, and optionally upload a photo (handled by the Drive bridge script). Completed groups show a green badge.
+6. **Handover** – Once the checklist is finished, the **Handover** button becomes active. Confirm to submit the handover report.
+7. **History** – Access **Riwayat** to see past shifts, swaps, and izin requests.
+
+## For Administrators
+
+- **Schedule Management** – Go to **Jadwal** → **Create Schedule**. Define branch, date range, and shift times.
+- **Approve Requests** – Open **Approval** → **Swap** or **Izin**. Review details and click **Approve** or **Reject**.
+- **Branch Management** – In **Cabang**, add or edit branch information. The Drive bridge script will copy the template sheet into the branch folder.
+- **Reports** – Use **Laporan** to generate operational reports. Export options are available as CSV.
+
+## Common UI Patterns (Atlassian Design Tokens)
+
+- Primary buttons use the token `primary` color.
+- Success banners use `bg-success-foreground`.
+- Spacing, typography, and radius follow `PLAN/atlassian-DESIGN.md`.
+- All interactive elements provide clear affordance and feedback (loading spinners, success/error banners).
+
+---
+
+*This MDX file lives at `docs/usage.mdx` and walks through everyday tasks for both employees and admins.*

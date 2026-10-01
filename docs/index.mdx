@@ -1,23 +1,16 @@
-# MyShift Documentation
+# MyShift Documentation Index
 
-Welcome to the **MyShift** project documentation.
+Welcome to the **MyShift** documentation hub. Use the links below to navigate to the sections that suit your role.
 
-## Overview
-MyShift is a standalone shift management application for Mochikin, built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui. It uses Google Sheets as its data store and implements PIN‑based authentication.
+## 📖 Table of Contents
 
-## Getting Started
-```bash
-npm install          # install dependencies
-npm run dev          # start development server
-npm run build && npm start   # production build
-```
-
-## Architecture
-- **Frontend** – Next.js App Router, React components under `app/` and `components/`.
-- **Backend** – API Routes (`app/api/**`) that talk to Google Sheets via the `lib/google/` client.
-- **Auth** – PIN hashed with scrypt, stored in Sheets, session cookie signed with HMAC.
-- **Design** – UI follows Atlassian design tokens defined in `PLAN/atlassian-DESIGN.md`.
+| Section | Audience | Description |
+|---------|----------|-------------|
+| [Overview](/docs/overview.mdx) | Everyone | High‑level overview of the app, its concepts, and workflow.
+| [Installation](/docs/installation.mdx) | Developers & Ops | Step‑by‑step guide to set up the project from scratch (clone, env, Sheets, deploy).
+| [Usage Guide](/docs/usage.mdx) | End‑users & Admins | Walk‑through of the UI – how to log in, start a shift, submit swaps/izin, handle checklists, and admin actions.
+| [Developer Guide](/docs/developer.mdx) | Future programmers | Architecture overview, tech stack details, how to add new pages/APIs, testing, and contribution workflow.
 
 ---
 
-**Note**: All styling should use token classes, not hard‑coded hex values.
+*All paths are relative to the repository root. The MDX files live under `docs/`.*

@@ -31,7 +31,7 @@ function JadwalSayaInner() {
       title="Jadwal & Permohonan Saya"
       lead="Lihat jadwal shift, ajukan tukar shift atau izin, dan cek riwayat permohonan."
     >
-      <div role="group" aria-label="Halaman jadwal dan permohonan" className="mb-5 flex min-w-0 gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1 sm:mb-6">
+      <div role="group" aria-label="Halaman jadwal dan permohonan" className="mb-5 flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2 sm:mb-6">
         {TABS.map((t) => {
           const Icon = t.icon;
           const isActive = activeTab === t.key;

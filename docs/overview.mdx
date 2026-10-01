@@ -1,0 +1,31 @@
+# MyShift Documentation
+
+## Overview
+
+MyShift is a **stand‑alone shift‑management app** for Mochikin‑Apps. It lets employees:
+
+- View their schedule for the day
+- Start a shift with a single tap
+- Submit swap requests, leave (izin) requests, and handover checklists
+- Administrators can create schedules, manage branches, and view operational reports.
+
+The app follows the **Atlassian design system** (tokens defined in `PLAN/atlassian-DESIGN.md`) and uses **Next.js (App Router)**, **React**, **TypeScript**, **Tailwind CSS**, and **shadcn/ui** for the UI. The backend lives in **Next.js API routes**, persisting data to **Google Sheets v4**.
+
+## Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Shift** | A work period defined by a start‑time and end‑time for a specific branch.
+| **Schedule** | Collection of shifts for a branch and date range.
+| **Swap / Izin** | Requests for shift exchange or leave, requiring admin approval.
+| **Checklist** | A set of SOP items that must be completed before handing over a shift.
+
+## Audience
+
+- **End‑users** (employees) – use the mobile/web UI to manage their shifts.
+- **Admins** – create schedules, approve requests, view reports.
+- **Future developers** – extend the app, add new features, or integrate with other Mochikin services.
+
+---
+
+*This file is part of the MDX documentation under `/docs/`. It provides a high‑level overview for all readers.*

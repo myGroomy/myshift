@@ -202,7 +202,6 @@ function requireId(value, field) {
   return id;
 }
 
-/** Drive caps names at 60 chars-ish and rejects a few characters; the app sanitizes, this is a backstop. */
 function requireName(value) {
   var name = String(value || "").replace(/[/\\?*:<>|]/g, "-").trim().slice(0, 200);
   if (!name) throw new Error("name wajib diisi");

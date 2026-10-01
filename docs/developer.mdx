@@ -1,0 +1,44 @@
+# Developer Guide
+
+## Architecture Overview
+
+- **Frontend** – Next.js (App Router) with React, TypeScript, Tailwind CSS, and shadcn/ui components. All UI follows Atlassian design tokens (`PLAN/atlassian-DESIGN.md`).
+- **Backend** – Next.js API Routes. Business logic lives in `lib/domain/` (validation) and `lib/google/` (Google Sheets client, Drive bridge). Authentication is a simple PIN + scrypt hash stored in Sheets; sessions use an HMAC‑signed httpOnly cookie (`lib/auth.ts`).
+- **Data Store** – Google Sheets v4; schema defined in `PLAN/SHEETS-SCHEMA.md`. No relational DB.
+- **Deploy** – Vercel; environment variables set in Vercel dashboard.
+
+## Adding a New Page / Feature
+1. Create a route under `app/(app)/<your-section>/page.tsx` (or nested folder for dynamic routes).
+2. Add any required API routes under `app/api/.../route.ts`.
+3. Write domain validation in `lib/domain/<module>-validation.ts` and export from `lib/domain/index.ts` if needed.
+4. Use existing UI components (`components/ui/*`) or create a new shadcn component in `components/`.
+5. Update the navigation config in `components/nav.tsx` and `components/nav-config.ts`.
+6. Write unit tests in `test/` – follow existing Jest setup.
+7. Run `pnpm test` and `pnpm build` locally before PR.
+
+## Testing
+
+```bash
+pnpm test          # runs all unit tests
+pnpm test:e2e      # (currently no E2E tests – placeholder)
+```
+
+Tests are located in `test/` and cover API responses, domain validation, and Google Sheets interactions (mocked).
+
+## Contributing
+
+1. Fork the repo and create a feature branch.
+2. Follow the commit style used in the history (short, imperative). Avoid “cline checkpoint” commits – run `git commit --no-verify` if necessary.
+3. Push and open a PR. CI will run `pnpm lint`, `pnpm test`, and `pnpm build`.
+4. When merging, squash commits to keep history clean.
+
+## Common Scripts
+
+- `pnpm dev` – start dev server.
+- `pnpm build` – production build.
+- `pnpm lint` – run ESLint.
+- `pnpm setup-sheets` – initialise Google Sheets (see Installation guide).
+
+---
+
+*File location:* `docs/developer.mdx`

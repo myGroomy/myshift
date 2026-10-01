@@ -15,9 +15,9 @@ export function FilterPanel({
   return (
     <section
       aria-label={label}
-      className={cn("mb-4 rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4", className)}
+      className={cn("mb-4 rounded-lg border border-border bg-card px-2 py-1.5 sm:px-3", className)}
     >
-      <div className={cn("grid min-w-0 grid-cols-1 items-end gap-2 sm:grid-cols-2", contentClassName)}>
+      <div className={cn("grid min-w-0 grid-cols-2 gap-2", contentClassName)}>
         {children}
       </div>
     </section>

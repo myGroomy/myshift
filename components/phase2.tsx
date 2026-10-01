@@ -51,6 +51,8 @@ export function SwapAjukanContent() {
   const [reason, setReason] = useState("");
   const [partners, setPartners] = useState<SwapPartner[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
 
   useEffect(() => {
     request<Session>("/api/auth/session")
@@ -105,7 +107,8 @@ export function SwapAjukanContent() {
         }),
       });
       toast("Pengajuan swap terkirim", "success");
-      router.push("/jadwal-saya?tab=riwayat");
+      setSubmitted(true);
+
     } catch (e) {
       toast(msg(e), "error");
     } finally {
@@ -118,7 +121,31 @@ export function SwapAjukanContent() {
   );
   return (
     <>
+      {submitted && (
+        <div className="mb-5 flex items-center justify-between rounded-md border border-success/30 bg-success/5 p-3">
+          <div className="text-sm text-success-foreground">
+            ✓ Permohonan tukar shift berhasil dikirim. Menunggu persetujuan Admin.
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="text-xs text-primary underline-offset-2 hover:underline"
+              onClick={() => router.push("/jadwal-saya?tab=riwayat")}
+            >
+              Lihat Riwayat
+            </button>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+              onClick={() => { setSubmitted(false); setScheduleId(""); setPartnerId(""); setReason(""); }}
+            >
+              Ajukan Lagi
+            </button>
+          </div>
+        </div>
+      )}
       <form onSubmit={submit} className="mb-6 grid max-w-2xl gap-4 sm:grid-cols-2">
+
         <div>
           <Label htmlFor="jadwal-swap">Jadwal Saya yang Ingin Ditukar</Label>
           <Select
@@ -545,6 +572,8 @@ export function IzinAjukanContent() {
   const [categoryId, setCategoryId] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
 
   useEffect(() => {
     request<Session>("/api/auth/session")
@@ -596,7 +625,8 @@ export function IzinAjukanContent() {
         }),
       });
       toast("Pengajuan izin terkirim", "success");
-      router.push("/jadwal-saya?tab=riwayat");
+      setSubmitted(true);
+
     } catch (e) {
       toast(msg(e), "error");
     } finally {
@@ -612,6 +642,30 @@ export function IzinAjukanContent() {
         <h2 className="text-xl font-bold tracking-tight text-foreground">Ajukan Izin Tidak Masuk</h2>
         <p className="text-sm text-muted-foreground">Pilih jadwal shift dan alasan ketidakhadiran untuk diteruskan ke Admin.</p>
       </div>
+      {submitted && (
+        <div className="mb-5 flex items-center justify-between rounded-md border border-success/30 bg-success/5 p-3">
+          <div className="text-sm text-success-foreground">
+            ✓ Permohonan izin berhasil dikirim. Menunggu persetujuan Admin.
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="text-xs text-primary underline-offset-2 hover:underline"
+              onClick={() => router.push("/jadwal-saya?tab=riwayat")}
+            >
+              Lihat Riwayat
+            </button>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+              onClick={() => { setSubmitted(false); setScheduleId(""); setCategoryId(""); setNote(""); }}
+            >
+              Ajukan Lagi
+            </button>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={submit} className="mb-6 grid max-w-2xl gap-4 rounded-lg border border-border bg-card p-4 sm:grid-cols-2 sm:p-5">
         <div>
           <Label htmlFor="jadwal-izin">Jadwal Shift yang Ditinggalkan</Label>

@@ -134,7 +134,7 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
                 <div className="mt-1 flex gap-0.5">
                   {dayItems.slice(0, 3).map((item) => (
                     <span
-                      key={item.scheduleId}
+                      key={`${item.branchId ?? branchId}:${item.scheduleId}:${item.date}`}
                       className={`h-2 w-2 rounded-full ${
                         item.status === "completed"
                           ? "bg-green-500"
@@ -178,7 +178,7 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
           <div className="space-y-2">
             {(selectedDate ? selectedItems : items).map((item) => (
               <motion.div
-                key={item.scheduleId}
+                key={`${item.branchId ?? branchId}:${item.scheduleId}:${item.date}`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
@@ -247,7 +247,7 @@ export function CalendarView({ items, empMap, shiftMap, branchId }: CalendarView
                 <div className="space-y-3">
                   {selectedItems.map((item) => (
                     <div
-                      key={item.scheduleId}
+                      key={`${item.branchId ?? branchId}:${item.scheduleId}:${item.date}`}
                       className="rounded-md border border-border bg-background p-3"
                     >
                       <div className="flex items-start justify-between">
