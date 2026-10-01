@@ -1,7 +1,7 @@
 # MYSHIFT API Contract
 
-> **Versi:** 1.7.0
-> **Tanggal:** 2026-09-30
+> **Versi:** 1.8.0
+> **Tanggal:** 2026-10-01
 > **Turunan dari:** `FULL-PRD.md`
 > **Base URL:** `/api`
 > **Format response standar (ikut pola STOKIS):**
@@ -52,6 +52,11 @@
 > **Perubahan v1.7.0** (role kanonis): enum role aplikasi dan Registry adalah `admin` dan `petugas`.
 > Nilai legacy `karyawan`/`kepala_cabang` dibaca sebagai `petugas` selama migrasi; role baru selain
 > dua nilai kanonis ditolak.
+>
+> **Perubahan v1.8.0** (kuota Sheets): preview dan submit laporan shift membaca data Registry dalam
+> satu `batchGet` dan seluruh sheet laporan cabang dalam satu `batchGet`; submit memperbarui hanya
+> kolom token/waktu laporan tanpa membaca ulang jadwal. Kuota Google Sheets yang mencapai batas
+> dikembalikan sebagai `429 SHEETS_RATE_LIMITED` dengan `Retry-After: 60`.
 
 ---
 
@@ -426,6 +431,7 @@ Response 400 `error.code = "VALIDATION_ERROR"` untuk format lain (mis. `xlsx` be
 | `CHECKLIST_INCOMPLETE` | 400 | Submit checklist ditolak, ada item belum selesai (+ `error.data.fields`) |
 | `REQUIRED_FIELD_MISSING` | 400 | Handover submit ditolak, field wajib kosong (+ `error.data.fields`) |
 | `SHEETS_SETUP_REQUIRED` | 503 | `TEMPLATES` belum terisi, template bukan Google Sheet, header hasil copy menyimpang dari skema, atau cabang yang dipanggil belum `ready` |
+| `SHEETS_RATE_LIMITED` | 429 | Kuota permintaan Google Sheets tercapai; tunggu sesuai `Retry-After` sebelum mencoba ulang |
 | `PROVISION_FAILED` | 502 | Gagal membuat folder/spreadsheet/foto cabang (+ `error.data.orphans` kalau ada objek Drive yang tertinggal) |
 | `FILE_TOO_LARGE` | 413 | Unggahan foto melebihi 5 MB |
 | `UNSUPPORTED_FILE_TYPE` | 415 | MIME file foto tidak dalam allowlist gambar |

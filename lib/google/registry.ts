@@ -223,6 +223,33 @@ export async function getEmployees(): Promise<Employee[]> {
   return (await getEmployeeRows()).map((row) => row.employee);
 }
 
+export async function getShiftReportRegistryData(branchId: string): Promise<{
+  branch: Branch | undefined;
+  employees: Employee[];
+}> {
+  const result = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: registryId(),
+    ranges: [
+      `${REGISTRY_SHEETS.branches}!A1:Z`,
+      `${REGISTRY_SHEETS.employees}!A1:Z`,
+    ],
+  });
+  const [branchValues, employeeValues] = result.data.valueRanges ?? [];
+  const branches = (branchValues?.values ?? []).slice(1).map((values) =>
+    toBranch(values.map(String)),
+  );
+  const employeeRows = employeeValues?.values ?? [];
+  const employeeHeaders = (employeeRows[0] ?? []).map((value) => String(value).trim());
+  const employees = employeeRows.slice(1).map((values) =>
+    employeeFromRow(employeeHeaders, values.map(String)),
+  );
+
+  return {
+    branch: branches.find((branch) => branch.branchId === branchId),
+    employees,
+  };
+}
+
 export async function getBranchRows(): Promise<Array<SheetRow & { branch: Branch }>> {
   const rows = await readRows(registryId(), registrySheetRange(REGISTRY_SHEETS.branches));
   return rows.map((row) => ({ ...row, branch: toBranch(row.values) }));

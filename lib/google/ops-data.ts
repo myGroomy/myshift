@@ -1,4 +1,5 @@
 import { branchSpreadsheet } from "@/lib/google/branch-data";
+import { sheets } from "@/lib/google/client";
 import { appendRow, readRows, replaceRow, replaceRowById } from "@/lib/google/sheets-data";
 import { branchSheetRange } from "@/lib/google/sheet-schema";
 import { ID_PREFIX, nextSequentialId } from "@/lib/ids";
@@ -789,6 +790,20 @@ export async function saveSchedule(spreadsheetId: string, record: ScheduleRecord
     await replaceRowById(spreadsheetId, "Schedules", branchSheetRange("Schedules"), record.scheduleId, scheduleValues(record)),
     "Jadwal tidak ditemukan"
   );
+}
+
+export async function saveScheduleReportFields(
+  spreadsheetId: string,
+  rowNumber: number,
+  reportGeneratedAt: string,
+  reportToken: string,
+) {
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `Schedules!L${rowNumber}:M${rowNumber}`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[reportGeneratedAt, reportToken]] },
+  });
 }
 
 export async function saveSwap(spreadsheetId: string, record: SwapRecord) {

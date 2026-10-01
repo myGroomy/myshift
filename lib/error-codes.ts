@@ -11,6 +11,7 @@ export const ERROR_STATUS = {
   CHECKLIST_INCOMPLETE: 400,
   REQUIRED_FIELD_MISSING: 400,
   SHEETS_SETUP_REQUIRED: 503,
+  SHEETS_RATE_LIMITED: 429,
   // Drive/Sheets refused the work (quota, permissions, malformed name). 502, not 500: the
   // request was fine, an upstream dependency was not. `data.orphans` lists Drive file IDs
   // created before the failure so they can be cleaned up (API-CONTRACT.md §3).

@@ -22,7 +22,6 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
         (err as { status?: number })?.status;
       // Retry only on transient errors: rate-limit (429), server errors (500/503), network reset
       const isTransient =
-        status === 429 ||
         status === 500 ||
         status === 503 ||
         (err instanceof Error && /ECONNRESET|ETIMEDOUT/i.test(err.message));

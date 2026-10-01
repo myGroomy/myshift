@@ -13,6 +13,7 @@ const CONTRACT_CODES = [
   "VALIDATION_ERROR",
   "CHECKLIST_INCOMPLETE",
   "REQUIRED_FIELD_MISSING",
+  "SHEETS_RATE_LIMITED",
 ] as const;
 
 test("every contract code exists with its documented status", () => {
@@ -22,6 +23,7 @@ test("every contract code exists with its documented status", () => {
   assert.equal(statusForCode("FORBIDDEN"), 403);
   assert.equal(statusForCode("UNAUTHORIZED"), 401);
   assert.equal(statusForCode("NOT_FOUND"), 404);
+  assert.equal(statusForCode("SHEETS_RATE_LIMITED"), 429);
 });
 
 test("DomainError carries code, status and data", () => {

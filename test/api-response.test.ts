@@ -54,3 +54,19 @@ test("handleRouteError maps unknown errors to INTERNAL_ERROR", async () => {
   assert.equal(body.error.message, "Login gagal");
   assert.ok(!JSON.stringify(body).includes("secret"));
 });
+
+test("handleRouteError returns a retryable 429 for Google Sheets quota errors", async () => {
+  const res = handleRouteError(
+    { code: 429, message: "Quota exceeded for quota metric Read requests" },
+    "Gagal membuat laporan",
+  );
+  assert.equal(res.status, 429);
+  assert.equal(res.headers.get("retry-after"), "60");
+  assert.deepEqual(await res.json(), {
+    success: false,
+    error: {
+      code: "SHEETS_RATE_LIMITED",
+      message: "Google Sheets sedang membatasi permintaan. Tunggu sekitar satu menit lalu coba lagi.",
+    },
+  });
+});

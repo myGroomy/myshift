@@ -19,6 +19,9 @@ import { controlClass } from "@/lib/ui";
 import { FilterPanel } from "@/components/ui/filter-panel";
 import { Copy, FolderOpen, Pencil, Sheet } from "lucide-react";
 import type { EmployeeRole } from "@/lib/domain/employee-role";
+import { KanbanBoard } from "@/components/schedule-kanban";
+import { CalendarView } from "@/components/schedule-calendar";
+import { ScheduleViewToggle, type ScheduleViewMode } from "@/components/schedule-view-toggle";
 
 function msg(error: unknown): string {
   return error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -917,6 +920,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [startingId, setStartingId] = useState<string | null>(null);
   const [duplicating, setDuplicating] = useState(false);
+  const [viewMode, setViewMode] = useState<ScheduleViewMode>(mine ? "calendar" : "kanban");
 
   const load = (id: string) => {
     if (!mine && !id) {
@@ -1065,6 +1069,19 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
     if (item.shiftName) shiftMap.set(item.shiftId, item.shiftName);
   }
 
+  async function moveSchedule(scheduleId: string, newDate: string) {
+    try {
+      await request(`/api/schedules/${scheduleId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ date: newDate }),
+      });
+      toast("Jadwal berhasil dipindahkan", "success");
+      load(branchId);
+    } catch (e) {
+      toast(msg(e), "error");
+    }
+  }
+
   return (
     <>
       {!mine && (
@@ -1164,6 +1181,13 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
         </form>
       )}
 
+      {/* View toggle for admin */}
+      {!mine && (
+        <div className="mb-4 flex justify-end">
+          <ScheduleViewToggle mode={viewMode} onChange={setViewMode} />
+        </div>
+      )}
+
       {loading ? (
         <SkeletonTable rows={4} />
       ) : items.length === 0 ? (
@@ -1174,6 +1198,10 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
             mine ? "Jadwal kerja Anda akan muncul di sini." : "Buat jadwal pertama untuk cabang ini."
           }
         />
+      ) : mine || viewMode === "calendar" ? (
+        <CalendarView items={items} empMap={empMap} shiftMap={shiftMap} branchId={branchId} />
+      ) : viewMode === "kanban" ? (
+        <KanbanBoard items={items} empMap={empMap} shiftMap={shiftMap} branchId={branchId} onMove={moveSchedule} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
