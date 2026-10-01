@@ -1,0 +1,26 @@
+# API Contract
+
+This document outlines the public API endpoints for **MyShift**.
+
+## Authentication
+- `POST /api/auth/login` – PIN login, returns session cookie.
+- `POST /api/auth/logout` – Clears session.
+
+## Schedule
+- `GET /api/schedules` – List schedules (admin).
+- `GET /api/schedules?branchId=...` – List branch schedules (petugas).
+- `POST /api/schedules/:id/start-shift` – Start a shift.
+
+## Swap & Izin
+- `POST /api/swaps/eligible-partners` – Get partners for swap.
+- `POST /api/swaps` – Submit swap request.
+- `POST /api/izin` – Submit izin request.
+
+## Checklist
+- `GET /api/schedules/:id/checklist` – Get checklist.
+- `POST /api/schedules/:id/checklist` – Save point.
+- `POST /api/schedules/:id/checklist/photo` – Upload photo.
+- `POST /api/schedules/:id/checklist/submit` – Submit checklist.
+
+---
+All responses follow the `{ success, data?, error? }` shape defined in `PLAN/API-CONTRACT.md`.

@@ -1,0 +1,23 @@
+# MyShift Documentation
+
+Welcome to the **MyShift** project documentation.
+
+## Overview
+MyShift is a standalone shift management application for Mochikin, built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui. It uses Google Sheets as its data store and implements PIN‑based authentication.
+
+## Getting Started
+```bash
+npm install          # install dependencies
+npm run dev          # start development server
+npm run build && npm start   # production build
+```
+
+## Architecture
+- **Frontend** – Next.js App Router, React components under `app/` and `components/`.
+- **Backend** – API Routes (`app/api/**`) that talk to Google Sheets via the `lib/google/` client.
+- **Auth** – PIN hashed with scrypt, stored in Sheets, session cookie signed with HMAC.
+- **Design** – UI follows Atlassian design tokens defined in `PLAN/atlassian-DESIGN.md`.
+
+---
+
+**Note**: All styling should use token classes, not hard‑coded hex values.
