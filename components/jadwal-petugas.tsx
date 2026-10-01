@@ -173,6 +173,19 @@ export function JadwalPetugasPage() {
     }
   }
 
+  async function changeShift(scheduleId: string, newShiftId: string) {
+    try {
+      await request(`/api/schedules/${scheduleId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ shiftId: newShiftId }),
+      });
+      toast("Shift berhasil diganti", "success");
+      loadSchedules(selectedEmployeeId);
+    } catch (e) {
+      toast(msg(e), "error");
+    }
+  }
+
   const selectedEmployee = employees.find((e) => e.employeeId === selectedEmployeeId);
   const empMap = new Map(employees.map((e) => [e.employeeId, e.nama]));
   const shiftMap = new Map<string, string>(shifts.map((s) => [s.shiftId, s.name]));
@@ -250,7 +263,9 @@ export function JadwalPetugasPage() {
           empMap={empMap}
           shiftMap={shiftMap}
           branchId={selectedEmployee?.cabangAktif || ""}
+          shifts={shifts}
           onMove={moveSchedule}
+          onShiftChange={changeShift}
         />
       )}
 

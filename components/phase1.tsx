@@ -921,6 +921,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
   const [startingId, setStartingId] = useState<string | null>(null);
   const [duplicating, setDuplicating] = useState(false);
   const [viewMode, setViewMode] = useState<ScheduleViewMode>(mine ? "calendar" : "kanban");
+  const [dateFilter, setDateFilter] = useState<string>(todayInWIB());
 
   const load = (id: string) => {
     if (!mine && !id) {
@@ -1082,6 +1083,19 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
     }
   }
 
+  async function changeShift(scheduleId: string, newShiftId: string) {
+    try {
+      await request(`/api/schedules/${scheduleId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ shiftId: newShiftId }),
+      });
+      toast("Shift berhasil diganti", "success");
+      load(branchId);
+    } catch (e) {
+      toast(msg(e), "error");
+    }
+  }
+
   return (
     <>
       {!mine && (
@@ -1181,9 +1195,28 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
         </form>
       )}
 
-      {/* View toggle for admin */}
+      {/* View toggle + date filter for admin */}
       {!mine && (
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="date-filter" className="text-xs text-muted-foreground">Filter tanggal:</Label>
+            <Input
+              id="date-filter"
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className={controlClass}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setDateFilter(todayInWIB())}
+              className="text-xs"
+            >
+              Hari ini
+            </Button>
+          </div>
           <ScheduleViewToggle mode={viewMode} onChange={setViewMode} />
         </div>
       )}
@@ -1201,7 +1234,7 @@ export function ScheduleContent({ mine = false }: { mine?: boolean }) {
       ) : mine || viewMode === "calendar" ? (
         <CalendarView items={items} empMap={empMap} shiftMap={shiftMap} branchId={branchId} />
       ) : viewMode === "kanban" ? (
-        <KanbanBoard items={items} empMap={empMap} shiftMap={shiftMap} branchId={branchId} onMove={moveSchedule} />
+        <KanbanBoard items={items.filter((item) => item.date === dateFilter)} empMap={empMap} shiftMap={shiftMap} branchId={branchId} shifts={shifts} onMove={moveSchedule} onShiftChange={changeShift} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {

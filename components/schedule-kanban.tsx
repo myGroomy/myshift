@@ -5,24 +5,27 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shell";
-import type { Schedule } from "@/lib/types";
+import type { Schedule, Shift } from "@/lib/types";
 
 interface KanbanBoardProps {
   items: Schedule[];
   empMap: Map<string, string>;
   shiftMap: Map<string, string>;
   branchId: string;
+  shifts: Shift[];
   onMove: (scheduleId: string, newDate: string) => Promise<void>;
+  onShiftChange: (scheduleId: string, newShiftId: string) => Promise<void>;
 }
 
 interface DragState {
   scheduleId: string;
   sourceDate: string;
+  sourceShiftId: string;
 }
 
-export function KanbanBoard({ items, empMap, shiftMap, branchId, onMove }: KanbanBoardProps) {
+export function KanbanBoard({ items, empMap, shiftMap, branchId, shifts, onMove, onShiftChange }: KanbanBoardProps) {
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ date: string; shiftId: string } | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
 
   // Group items by date
@@ -36,33 +39,56 @@ export function KanbanBoard({ items, empMap, shiftMap, branchId, onMove }: Kanba
   // Sort dates and build columns (only dates that have items, sorted)
   const dates = [...byDate.keys()].sort();
 
-  function handleDragStart(scheduleId: string, date: string) {
-    setDragState({ scheduleId, sourceDate: date });
+  // Build shift list: use provided shifts, fallback to shifts from items
+  const shiftList = shifts.length > 0 ? shifts : [...new Set(items.map((i) => i.shiftId))].map((id) => ({
+    shiftId: id,
+    branchId: "",
+    name: shiftMap.get(id) || id,
+    startTime: "",
+    endTime: "",
+  }));
+
+  function handleDragStart(scheduleId: string, date: string, shiftId: string) {
+    setDragState({ scheduleId, sourceDate: date, sourceShiftId: shiftId });
   }
 
-  function handleDragOver(e: React.DragEvent, date: string) {
+  function handleDragOver(e: React.DragEvent, date: string, shiftId: string) {
     e.preventDefault();
-    setDragOverDate(date);
+    setDragOverTarget({ date, shiftId });
   }
 
   function handleDragLeave() {
-    setDragOverDate(null);
+    setDragOverTarget(null);
   }
 
-  async function handleDrop(e: React.DragEvent, targetDate: string) {
+  async function handleDrop(e: React.DragEvent, targetDate: string, targetShiftId: string) {
     e.preventDefault();
-    if (!dragState || dragState.sourceDate === targetDate) {
-      setDragState(null);
-      setDragOverDate(null);
+    if (!dragState) {
+      setDragOverTarget(null);
       return;
     }
-    setMovingId(dragState.scheduleId);
+
+    const { scheduleId, sourceDate, sourceShiftId } = dragState;
+    const sameDate = sourceDate === targetDate;
+    const sameShift = sourceShiftId === targetShiftId;
+
+    if (sameDate && sameShift) {
+      setDragState(null);
+      setDragOverTarget(null);
+      return;
+    }
+
+    setMovingId(scheduleId);
     try {
-      await onMove(dragState.scheduleId, targetDate);
+      if (!sameDate) {
+        await onMove(scheduleId, targetDate);
+      } else if (!sameShift) {
+        await onShiftChange(scheduleId, targetShiftId);
+      }
     } finally {
       setMovingId(null);
       setDragState(null);
-      setDragOverDate(null);
+      setDragOverTarget(null);
     }
   }
 
@@ -76,20 +102,21 @@ export function KanbanBoard({ items, empMap, shiftMap, branchId, onMove }: Kanba
 
   return (
     <div className="overflow-x-auto pb-4">
-      <div className="flex gap-4" style={{ minWidth: `${dates.length * 280}px` }}>
+      <div className="flex gap-4" style={{ minWidth: `${dates.length * 320}px` }}>
         {dates.map((date) => {
           const dayItems = byDate.get(date) ?? [];
-          const isOver = dragOverDate === date && dragState !== null;
+          const isDateOver = dragOverTarget?.date === date && dragState !== null;
 
           return (
             <div
               key={date}
-              className={`flex w-64 shrink-0 flex-col rounded-lg border transition-colors ${
-                isOver ? "border-primary bg-primary/5" : "border-border bg-card"
+              className={`flex w-72 shrink-0 flex-col rounded-lg border transition-colors ${
+                isDateOver ? "border-primary bg-primary/5" : "border-border bg-card"
               }`}
-              onDragOver={(e) => handleDragOver(e, date)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, date)}
+              onDragOver={(e) => {
+                // Allow drop on the date column itself (for date-only moves)
+                e.preventDefault();
+              }}
             >
               {/* Column header */}
               <div className="border-b border-border px-3 py-2">
@@ -99,52 +126,75 @@ export function KanbanBoard({ items, empMap, shiftMap, branchId, onMove }: Kanba
                 <p className="text-sm font-semibold text-foreground">{date}</p>
               </div>
 
-              {/* Cards */}
+              {/* Shift sub-columns */}
               <div className="flex flex-col gap-2 p-2">
-                {dayItems.map((item) => {
-                  const scheduleKey = `${item.branchId ?? branchId}:${item.scheduleId}`;
-                  const isDragging = dragState?.scheduleId === item.scheduleId;
-                  const isMoving = movingId === item.scheduleId;
+                {shiftList.map((shift) => {
+                  const shiftItems = dayItems.filter((i) => i.shiftId === shift.shiftId);
+                  const isOver = dragOverTarget?.date === date && dragOverTarget?.shiftId === shift.shiftId && dragState !== null;
 
                   return (
-                    <motion.div
-                      key={scheduleKey}
-                      layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      draggable
-                      onDragStart={() => handleDragStart(item.scheduleId, item.date)}
-                      onDragEnd={() => {
-                        setDragState(null);
-                        setDragOverDate(null);
-                      }}
-                      className={`cursor-grab rounded-md border border-border bg-background p-3 shadow-xs transition-shadow hover:shadow-sm active:cursor-grabbing ${
-                        isDragging ? "opacity-40" : ""
-                      } ${isMoving ? "opacity-60" : ""} ${
-                        item.conflictWarning ? "border-destructive-wash bg-destructive-wash/20" : ""
+                    <div
+                      key={shift.shiftId}
+                      className={`flex flex-col gap-2 rounded-md border p-2 transition-colors ${
+                        isOver ? "border-primary bg-primary/10" : "border-border/50 bg-background/50"
                       }`}
+                      onDragOver={(e) => handleDragOver(e, date, shift.shiftId)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, date, shift.shiftId)}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {shiftMap.get(item.shiftId) || item.shiftId}
+                      {/* Shift header */}
+                      <div className="flex items-center justify-between px-1">
+                        <p className="text-xs font-semibold text-foreground">{shift.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {shift.startTime}–{shift.endTime}
                         </p>
-                        <StatusBadge status={item.status} />
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {empMap.get(item.employeeId) || item.employeeId}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {item.shiftName || ""}
-                      </p>
-                      <div className="mt-2">
-                        <Button asChild variant="ghost" size="sm" className="h-7 w-full text-xs">
-                          <Link href={`/shift/${item.scheduleId}${item.branchId ? `?branchId=${encodeURIComponent(item.branchId)}` : ""}`}>
-                            Detail →
-                          </Link>
-                        </Button>
-                      </div>
-                    </motion.div>
+
+                      {/* Cards */}
+                      {shiftItems.map((item) => {
+                        const scheduleKey = `${item.branchId ?? branchId}:${item.scheduleId}`;
+                        const isDragging = dragState?.scheduleId === item.scheduleId;
+                        const isMoving = movingId === item.scheduleId;
+
+                        return (
+                          <motion.div
+                            key={scheduleKey}
+                            layout
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            draggable
+                            onDragStart={() => handleDragStart(item.scheduleId, item.date, item.shiftId)}
+                            onDragEnd={() => {
+                              setDragState(null);
+                              setDragOverTarget(null);
+                            }}
+                            className={`cursor-grab rounded-md border border-border bg-background p-3 shadow-xs transition-shadow hover:shadow-sm active:cursor-grabbing ${
+                              isDragging ? "opacity-40" : ""
+                            } ${isMoving ? "opacity-60" : ""} ${
+                              item.conflictWarning ? "border-destructive-wash bg-destructive-wash/20" : ""
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-semibold text-foreground">
+                                {empMap.get(item.employeeId) || item.employeeId}
+                              </p>
+                              <StatusBadge status={item.status} />
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {item.shiftName || ""}
+                            </p>
+                            <div className="mt-2">
+                              <Button asChild variant="ghost" size="sm" className="h-7 w-full text-xs">
+                                <Link href={`/shift/${item.scheduleId}${item.branchId ? `?branchId=${encodeURIComponent(item.branchId)}` : ""}`}>
+                                  Detail →
+                                </Link>
+                              </Button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   );
                 })}
               </div>
