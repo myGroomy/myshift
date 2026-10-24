@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard Operasional · MYSHIFT</title>
+    <meta
+      name="description"
+      content="Ringkasan aktivitas shift, SOP checklist, dan permohonan persetujuan hari ini."
+    />
+    <!-- Terjemahan dari components/theme-script.tsx (tanpa React, identik perilakunya). -->
+    <script>
+      try {
+        var s = localStorage.getItem("myshift-theme");
+        var d = s ? s === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (d) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/app.css" />
+    <link rel="stylesheet" href="assets/common.css" />
+    <!-- Tanpa defer: skrip inline di <body> memakai Myshift.* saat parsing. -->
+    <script src="assets/icons.js"></script>
+    <script src="assets/common.js"></script>
+  </head>
+  <!--
+    Ekstraksi dari app/(app)/dashboard/page.tsx.
+    data-shell="admin" -> header Admin + dock (components/nav.tsx + dock.tsx) dirender common.js.
+    Endpoint asli: GET /api/dashboard (lihat PLAN/API-CONTRACT.md).
+  -->
+  <body data-shell="admin" data-active="/dashboard">
+    <div id="ms-root">
+      <main id="main">
+        <!-- PageHeader (components/shell.tsx) -->
+        <div class="mb-5 flex min-w-0 flex-wrap items-start justify-between gap-3 sm:mb-6 sm:items-end">
+          <div class="min-w-0 flex-1">
+            <h1 class="text-xl font-bold tracking-tight text-foreground text-balance sm:text-2xl">
+              Dashboard Operasional
+            </h1>
+            <p class="mt-1 text-sm text-muted-foreground">
+              Ringkasan aktivitas shift, SOP checklist, dan permohonan persetujuan hari ini.
+            </p>
+          </div>
+          <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <!-- Button variant="outline" size="sm" -->
+            <button
+              type="button"
+              id="btn-refresh"
+              class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" />
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <!--
+          Kondisi loading di aplikasi: 3 x SkeletonCard = <div class="ms-skeleton rounded-lg" style="height:18rem"></div>
+          Kondisi error (app/(app)/dashboard/page.tsx):
+            <div class="rounded-lg border border-destructive-wash bg-destructive-wash p-6 text-center">
+              [ikon alert-circle 36] <p class="mt-2 text-sm text-destructive-foreground">{pesan}</p>
+              <button ...>Coba Lagi</button>
+            </div>
+          Kondisi kosong: komponen EmptyState (lihat README bagian pola umum).
+        -->
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <!-- Kartu cabang #1 -->
+          <article
+            class="flex min-w-0 flex-col justify-between rounded-lg border border-border bg-card p-4 shadow-xs transition-shadow hover:shadow-sm sm:p-5"
+          >
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">CBG001</span>
+                <span class="rounded-full bg-warning-wash px-2 py-0.5 text-xs font-medium text-warning">1 Perlu Ditinjau</span>
+              </div>
+              <h2 class="mt-1 text-lg font-bold text-foreground">Cabang Kopo</h2>
+
+              <div class="mt-4 space-y-2.5 text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Shift Hari Ini</span>
+                  <span class="font-semibold text-foreground">6</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Berjalan (Started)</span>
+                  <span class="font-medium text-foreground">3</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Selesai (Completed)</span>
+                  <span class="font-medium text-success">2</span>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-muted-foreground">Kepatuhan SOP</span>
+                  <span class="font-semibold text-primary">85%</span>
+                </div>
+                <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div class="h-full rounded-full bg-primary transition-all duration-300" style="width: 85%"></div>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-muted-foreground">Log Handover</span>
+                  <span class="font-medium text-foreground">4 catatan</span>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-muted-foreground">Incident Open</span>
+                  <span class="font-semibold text-destructive">1 (1 high)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
+              <a
+                href="jadwal.html?branchId=CBG001"
+                class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 flex-1"
+                >Jadwal</a
+              >
+              <a
+                href="approval.html?tab=swap"
+                class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 text-xs"
+                >Swap (1)</a
+              >
+              <a
+                href="incident.html"
+                class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 text-xs"
+                >Incident (1)</a
+              >
+            </div>
+          </article>
+
+          <!-- Kartu cabang #2 -->
+          <article
+            class="flex min-w-0 flex-col justify-between rounded-lg border border-border bg-card p-4 shadow-xs transition-shadow hover:shadow-sm sm:p-5"
+          >
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">CBG002</span>
+              </div>
+              <h2 class="mt-1 text-lg font-bold text-foreground">Cabang Buah Batu</h2>
+
+              <div class="mt-4 space-y-2.5 text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Shift Hari Ini</span>
+                  <span class="font-semibold text-foreground">5</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Berjalan (Started)</span>
+                  <span class="font-medium text-foreground">2</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Selesai (Completed)</span>
+                  <span class="font-medium text-success">3</span>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-muted-foreground">Kepatuhan SOP</span>
+                  <span class="font-semibold text-primary">100%</span>
+                </div>
+                <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div class="h-full rounded-full bg-primary transition-all duration-300" style="width: 100%"></div>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-muted-foreground">Log Handover</span>
+                  <span class="font-medium text-foreground">2 catatan</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
+              <a
+                href="jadwal.html?branchId=CBG002"
+                class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 flex-1"
+                >Jadwal</a
+              >
+            </div>
+          </article>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      /* Data contoh untuk tombol Refresh — pada aplikasi nyata diambil dari GET /api/dashboard. */
+      window.MS_MOCKS = {
+        "/api/dashboard": [
+          {
+            branchId: "CBG001",
+            branchName: "Cabang Kopo",
+            shiftsToday: 6,
+            shiftsStarted: 3,
+            shiftsCompleted: 2,
+            checklistPercent: 85,
+            handoverCount: 4,
+            pendingSwaps: 1,
+            pendingIzins: 0,
+            openIncidents: 1,
+            highIncidents: 1,
+          },
+          {
+            branchId: "CBG002",
+            branchName: "Cabang Buah Batu",
+            shiftsToday: 5,
+            shiftsStarted: 2,
+            shiftsCompleted: 3,
+            checklistPercent: 100,
+            handoverCount: 2,
+            pendingSwaps: 0,
+            pendingIzins: 0,
+            openIncidents: 0,
+            highIncidents: 0,
+          },
+        ],
+      };
+
+      document.getElementById("btn-refresh").addEventListener("click", async function () {
+        var btn = this;
+        btn.disabled = true;
+        try {
+          var items = await Myshift.request("/api/dashboard");
+          Myshift.toast("Ringkasan diperbarui (" + items.length + " cabang)", "success");
+        } catch (e) {
+          Myshift.toast(e.message, "error");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Laporan Shift · MYSHIFT</title>
+    <meta name="description" content="Laporan shift MYSHIFT untuk tautan publik (berbasis token)." />
+    <!-- Terjemahan dari components/theme-script.tsx. -->
+    <script>
+      try {
+        var s = localStorage.getItem("myshift-theme");
+        var d = s ? s === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (d) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/app.css" />
+    <link rel="stylesheet" href="assets/common.css" />
+    <!-- Tanpa defer: skrip inline di <body> memakai Myshift.* saat parsing. -->
+    <script src="assets/icons.js"></script>
+    <script src="assets/common.js"></script>
+  </head>
+  <body data-shell="none">
+    <!--
+      Ekstraksi dari app/laporan-publik/[token]/page.tsx + components/shift-report-view.tsx.
+      Tanpa shell: data-shell="none" — halaman publik (read-only), tanpa login.
+      Endpoint asli: GET /api/public/reports/{token} — token berada di path URL
+      (di aplikasi: params.token), public tanpa login (lihat PLAN/API-CONTRACT.md).
+      Kondisi termuat (report != null) yang dibakar; kondisi loading & error ada di komentar di bawah.
+    -->
+    <main id="main" class="min-h-screen bg-background px-4 py-8 text-foreground">
+      <div class="mx-auto max-w-3xl">
+        <p class="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">MYSHIFT · Laporan Publik</p>
+
+        <!--
+          Kondisi error (bila request gagal / token tidak valid) — uncomment untuk melihat:
+          <div class="rounded-lg border border-destructive-wash bg-destructive-wash p-5 text-sm text-destructive-foreground">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="mr-2 inline"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>Laporan tidak tersedia
+          </div>
+
+          Kondisi loading (sebelum response):
+          <div class="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Memuat laporan shift...</div>
+
+          Baris kosong di dalam laporan (bila array kosong):
+          checklist total 0   -> "Tidak ada checklist point yang berlaku untuk shift ini."
+          grup tanpa item     -> "Tidak ada point."
+          handover tanpa field-> "Tidak ada field handover."
+          audit kosong        -> "Belum ada perubahan setelah laporan dibuat."
+        -->
+
+        <!--
+          ShiftReportView dengan data contoh (kondisi termuat):
+          scheduleId SCH-20261002-001 · shift "Shift Pagi" · date "Kamis, 2 Oktober 2026"
+          · branchName "Cabang Kopo (CBG001)" · employeeName "Rina Wulandari"
+          · status "completed" · reportGeneratedAt 2026-10-02T21:50+07:00 (dirender toLocaleString "id-ID")
+          · checklist 4/4 selesai (SOP-001 Buka Toko, SOP-002 Tutup Toko)
+          · handover 3 field (2 wajib terisi, 1 kosong) · auditHistory 2 entri.
+        -->
+        <div class="space-y-5">
+          <!-- Header laporan -->
+          <section class="rounded-lg border border-border bg-card p-4 sm:p-5">
+            <h1 class="text-xl font-bold text-foreground">Laporan Shift</h1>
+            <p class="mt-1 text-sm text-muted-foreground">Cabang Kopo (CBG001) · Shift Pagi · Kamis, 2 Oktober 2026</p>
+            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div><dt class="text-muted-foreground">Karyawan</dt><dd class="font-medium">Rina Wulandari</dd></div>
+              <div><dt class="text-muted-foreground">ID Jadwal</dt><dd class="font-medium">SCH-20261002-001</dd></div>
+              <div><dt class="text-muted-foreground">Status shift</dt><dd class="font-medium">completed</dd></div>
+              <div><dt class="text-muted-foreground">Laporan digenerate</dt><dd class="font-medium">2/10/2026, 21.50.00</dd></div>
+            </dl>
+          </section>
+
+          <!-- Checklist (dikelompokkan per kategori SOP, urut kemunculan) -->
+          <section class="rounded-lg border border-border bg-card p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="text-base font-semibold">Checklist</h2>
+              <span class="text-sm font-medium">4/4 selesai</span>
+            </div>
+            <div class="mt-4 space-y-4">
+              <div>
+                <h3 class="mb-2 text-sm font-semibold">Buka Toko</h3>
+                <div class="space-y-2">
+                  <!-- centang, TRUE, checked -->
+                  <div class="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="mt-0.5 shrink-0 text-success"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></svg>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-medium">Kasir dan aplikasi POS dinyalakan</p>
+                      <p class="mt-1 whitespace-pre-wrap text-muted-foreground">Selesai</p>
+                      <p class="mt-1 text-xs text-muted-foreground">Diisi oleh Rina Wulandari · 2/10/2026, 06.05.00</p>
+                    </div>
+                  </div>
+                  <!-- isian, warning=true -->
+                  <div class="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="mt-0.5 shrink-0 text-success"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></svg>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-medium">Suhu chiller dicatat</p>
+                      <p class="mt-1 whitespace-pre-wrap text-muted-foreground">8</p>
+                      <p class="mt-1 text-xs text-warning">Nilai berada di luar batas yang disarankan.</p>
+                      <p class="mt-1 text-xs text-muted-foreground">Diisi oleh Rina Wulandari · 2/10/2026, 06.10.00</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="mb-2 text-sm font-semibold">Tutup Toko</h3>
+                <div class="space-y-2">
+                  <!-- centang_foto, TRUE, photoUrl terisi -->
+                  <div class="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="mt-0.5 shrink-0 text-success"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></svg>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-medium">Foto etalase saat tutup</p>
+                      <p class="mt-1 whitespace-pre-wrap text-muted-foreground">Selesai · Foto terlampir</p>
+                      <p class="mt-1 text-xs text-muted-foreground">Diisi oleh Dimas Prayoga · 2/10/2026, 21.40.00</p>
+                      <a href="https://placehold.co/600x400.png" target="_blank" rel="noreferrer" class="mt-1 inline-block text-xs text-primary underline">Lihat foto</a>
+                    </div>
+                  </div>
+                  <!-- centang, TRUE, checked -->
+                  <div class="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="mt-0.5 shrink-0 text-success"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></svg>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-medium">Kebersihan meja tamu</p>
+                      <p class="mt-1 whitespace-pre-wrap text-muted-foreground">Selesai</p>
+                      <p class="mt-1 text-xs text-muted-foreground">Diisi oleh Dimas Prayoga · 2/10/2026, 21.42.00</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Handover -->
+          <section class="rounded-lg border border-border bg-card p-4 sm:p-5">
+            <h2 class="text-base font-semibold">Handover</h2>
+            <div class="mt-3 space-y-3">
+              <div class="border-b border-border pb-3 last:border-0 last:pb-0">
+                <p class="text-xs font-semibold text-muted-foreground">Sisa stok bahan baku · Wajib</p>
+                <p class="mt-1 whitespace-pre-wrap text-sm">Susu 2L tersisa 3 unit, gula aren 1,5 kg</p>
+                <p class="mt-1 text-xs text-muted-foreground">Diisi oleh Rina Wulandari</p>
+              </div>
+              <div class="border-b border-border pb-3 last:border-0 last:pb-0">
+                <p class="text-xs font-semibold text-muted-foreground">Mesin &amp; peralatan · Wajib</p>
+                <p class="mt-1 whitespace-pre-wrap text-sm">Mesin espresso dibersihkan, grinder di-reset jam 06.00.</p>
+                <p class="mt-1 text-xs text-muted-foreground">Diisi oleh Dimas Prayoga</p>
+              </div>
+              <div class="border-b border-border pb-3 last:border-0 last:pb-0">
+                <p class="text-xs font-semibold text-muted-foreground">Catatan untuk shift berikutnya</p>
+                <p class="mt-1 whitespace-pre-wrap text-sm">(kosong)</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Riwayat Perubahan (audit) -->
+          <section class="rounded-lg border border-border bg-card p-4 sm:p-5">
+            <h2 class="flex items-center gap-2 text-base font-semibold"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/></svg>Riwayat Perubahan</h2>
+            <div class="mt-3 space-y-3">
+              <div class="border-l-2 border-border pl-3 text-sm">
+                <p class="font-medium">Sisa stok bahan baku · value</p>
+                <p class="mt-1 whitespace-pre-wrap text-muted-foreground">“Susu 2L tersisa 5 unit” → “Susu 2L tersisa 3 unit, gula aren 1,5 kg”</p>
+                <p class="mt-1 text-xs text-muted-foreground">Rina Wulandari · 2/10/2026, 21.46.00</p>
+              </div>
+              <div class="border-l-2 border-border pl-3 text-sm">
+                <p class="font-medium">Suhu chiller dicatat · value</p>
+                <p class="mt-1 whitespace-pre-wrap text-muted-foreground">“6” → “8”</p>
+                <p class="mt-1 text-xs text-muted-foreground">Rina Wulandari · 2/10/2026, 06.12.00</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      /* Loader asli — DIMATIKAN di pratinjau statis (kondisi termuat sudah dibakar di atas).
+         Sumber: app/laporan-publik/[token]/page.tsx
+           const { token } = use(params);                       // token dari path URL
+           request("/api/public/reports/" + encodeURIComponent(token))
+             .then(setReport)
+             .catch(err => setError(err.message || "Laporan tidak tersedia"));
+
+         Endpoint: GET /api/public/reports/{token} (public, no login — PLAN/API-CONTRACT.md).
+         Bila diaktifkan kembali, mock-nya kira-kira begini (token apa pun di URL diarahkan
+         ke laporan contoh — lihat README bagian peta route):
+           window.MS_MOCKS = {
+             "/api/public/reports/RPT-DEMO": { ...data ShiftReport contoh seperti di atas... },
+           };
+           var token = decodeURIComponent(location.pathname.split("/").pop() || "");
+           Myshift.request("/api/public/reports/" + encodeURIComponent(token))
+             .then(function (report) { /* render blok termuat */ })
+             .catch(function (err) { /* ganti dengan blok error (lihat komentar di atas) */ });
+      */
+    </script>
+  </body>
+</html>

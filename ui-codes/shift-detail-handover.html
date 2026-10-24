@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mengalihkan… · MYSHIFT</title>
+    <!--
+      Pengganti router.replace(`/shift/${id}?tab=handover`) di
+      app/(app)/shift/[id]/handover/page.tsx. Query ?branchId ikut diteruskan
+      (sama seperti perilaku sumbernya). Karena id shift statis di preview ini
+      selalu memakai shift-detail.html, meta refresh tanpa query cukup sebagai
+      fallback tanpa JS; versi JS meneruskan query apa adanya.
+    -->
+    <meta http-equiv="refresh" content="0; url=shift-detail.html?tab=handover" />
+    <script>
+      try {
+        var s = localStorage.getItem("myshift-theme");
+        var d = s ? s === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (d) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/app.css" />
+    <link rel="stylesheet" href="assets/common.css" />
+    <script src="assets/icons.js"></script>
+    <script src="assets/common.js"></script>
+    <script>
+      (function () {
+        var qs = new URLSearchParams(location.search);
+        qs.set("tab", "handover");
+        location.replace("shift-detail.html?" + qs.toString());
+      })();
+    </script>
+  </head>
+  <!-- Teks & tampilan identik dengan yang dirender sumbernya. -->
+  <body data-shell="none">
+    <main id="main" class="flex min-h-[100dvh] items-center justify-center bg-background px-4 text-foreground">
+      <p class="text-sm text-muted-foreground">Mengalihkan ke Layar Shift Terpadu...</p>
+    </main>
+    <p class="pb-10 text-center text-sm">
+      <a href="shift-detail.html?tab=handover" class="text-primary underline-offset-4 hover:underline">Buka detail shift (tab Handover) sekarang</a>
+    </p>
+  </body>
+</html>

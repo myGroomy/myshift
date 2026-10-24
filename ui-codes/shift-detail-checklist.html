@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Checklist Shift Pagi · MYSHIFT</title>
+    <meta
+      name="description"
+      content="Checklist SOP shift berjalan: progres, kontrol centang/foto/angka/teks/pilihan, dan penyelesaian shift."
+    />
+    <!-- Terjemahan dari components/theme-script.tsx (tanpa React, identik perilakunya). -->
+    <script>
+      try {
+        var s = localStorage.getItem("myshift-theme");
+        var d = s ? s === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (d) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/app.css" />
+    <link rel="stylesheet" href="assets/common.css" />
+    <!-- Tanpa defer: skrip inline di <body> memakai Myshift.* saat parsing. -->
+    <script src="assets/icons.js"></script>
+    <script src="assets/common.js"></script>
+  </head>
+  <!--
+    Ekstraksi dari app/(app)/shift/[id]/checklist/page.tsx (ShiftChecklistEditor).
+    data-shell="petugas" -> header Petugas + tab bawah (components/petugas-shell.tsx)
+    dirender common.js; PageHeader (title/lead dari <PetugasShell title lead>) dirender
+    di dalam #main persis seperti source.
+    data-active="/shift": nav-config.ts tidak punya href "/shift", jadi tidak ada link
+    yang disorot — identik dengan source, di mana isCurrent() pada pathname
+    "/shift/SCH-…/checklist" juga tidak cocok dengan item nav mana pun.
+
+    Endpoint asli (PLAN/API-CONTRACT.md §8, semua di-mock di bawah):
+      GET  /api/schedules/{id}?branchId=                       info shift
+      GET  /api/schedules/{id}/checklist?branchId=             daftar point + grup
+      POST /api/schedules/{id}/checklist                       simpan 1 point {pointId, value, photoUrl}
+      POST /api/schedules/{id}/checklist/photo?itemId=&branchId=   upload foto bukti (FormData)
+      POST /api/schedules/{id}/checklist/submit?branchId=      tandai shift selesai
+
+    Data contoh = shift parsial (5/8 selesai) supaya progres, filter, dan aturan
+    disabled tombol "Selesaikan Shift" bisa terlihat. Varian UI lain:
+      Kondisi loading (source): <div class="ms-skeleton rounded-lg" style="height:14rem"></div>
+      Kondisi error (source):    <div class="rounded-lg border border-destructive-wash bg-destructive-wash p-5 text-sm text-destructive-foreground">
+                                   <svg… alert-circle 16 class="mr-2 inline" />Checklist tidak dapat dimuat.
+                                 </div>
+      Groups kosong (source):    <div class="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground sm:p-6">
+                                   Tidak ada checklist point yang berlaku untuk shift ini.
+                                 </div>
+  -->
+  <body data-shell="petugas" data-active="/shift">
+    <div id="ms-root">
+      <main id="main">
+        <!-- PageHeader (PetugasShell title/lead): Checklist – Shift Pagi / 2026-10-02 · Cabang Kopo -->
+        <div class="mb-5 flex min-w-0 flex-wrap items-start justify-between gap-3 sm:mb-6 sm:items-end">
+          <div class="min-w-0 flex-1">
+            <h1 class="text-xl font-bold tracking-tight text-foreground text-balance sm:text-2xl">
+              Checklist – Shift Pagi
+            </h1>
+            <p class="mt-1 text-sm text-muted-foreground">2026-10-02 · Cabang Kopo</p>
+          </div>
+        </div>
+
+        <div class="max-w-3xl space-y-5 pb-20">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <!-- Button asChild variant="ghost" size="sm" -->
+            <a
+              href="shift-detail.html?branchId=CBG001"
+              class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
+              </svg>
+              Kembali ke shift
+            </a>
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Button asChild variant="outline" size="sm" -->
+              <a
+                href="shift-detail.html?tab=handover&amp;branchId=CBG001"
+                class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >Catatan Handover</a
+              >
+              <a
+                href="shift-detail-laporan.html?branchId=CBG001"
+                class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >Laporan Shift</a
+              >
+            </div>
+          </div>
+
+          <!--
+            Banner "Laporan sudah dibuat" (source: dirender saat schedule.reportGeneratedAt terisi).
+            Data contoh memakai reportGeneratedAt kosong (laporan belum dibuat) → tersembunyi.
+          -->
+          <div
+            class="flex items-start gap-2 rounded-lg border border-primary/20 bg-accent/20 p-3 text-sm"
+            hidden
+            style="display: none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="mt-0.5 shrink-0"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+            </svg>
+            Laporan sudah dibuat. Perubahan selanjutnya tetap bisa disimpan dan akan muncul di riwayat
+            perubahan laporan.
+          </div>
+
+          <!-- Kartu info shift -->
+          <div class="grid gap-3 rounded-lg border border-border bg-card p-4 text-sm sm:grid-cols-2">
+            <div>
+              <span class="text-xs text-muted-foreground">Petugas</span>
+              <p class="font-medium">Rina Saputra</p>
+            </div>
+            <div>
+              <span class="text-xs text-muted-foreground">Jadwal</span>
+              <p class="font-medium">2026-10-02 · 07:00–15:00</p>
+            </div>
+            <div>
+              <span class="text-xs text-muted-foreground">Cabang</span>
+              <p class="font-medium">Cabang Kopo</p>
+            </div>
+            <div>
+              <span class="text-xs text-muted-foreground">Status shift</span>
+              <!-- status "started" → source memakai penerjemahan: Sedang berjalan / Selesai / Belum dimulai -->
+              <p class="font-medium capitalize">Sedang berjalan</p>
+            </div>
+          </div>
+
+          <!-- STICKY PROGRESS & FILTER HEADER -->
+          <div
+            class="sticky top-2 z-20 space-y-2.5 rounded-xl border border-border bg-card/95 p-3.5 shadow-sm backdrop-blur-md"
+          >
+            <div class="flex items-center justify-between gap-2 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-foreground">Progres Checklist</span>
+                <span id="progress-text" class="tnum text-xs font-semibold text-muted-foreground"
+                  >5/8 (63%)</span
+                >
+              </div>
+              <div id="save-indicator" class="flex items-center gap-1.5 text-xs">
+                <!-- tiga varian indikator (source: saving | error/needs-photo | saved) -->
+                <span
+                  data-ind="saving"
+                  class="items-center gap-1 text-muted-foreground"
+                  hidden
+                  style="display: none"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="animate-spin text-primary"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  <span>Menyimpan...</span>
+                </span>
+                <span
+                  data-ind="error"
+                  class="items-center gap-1 font-medium text-destructive"
+                  hidden
+                  style="display: none"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line
+                      x1="12"
+                      x2="12.01"
+                      y1="16"
+                      y2="16"
+                    />
+                  </svg>
+                  <span>Perlu foto / aksi</span>
+                </span>
+                <span data-ind="saved" class="inline-flex items-center gap-1 font-medium text-success">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" />
+                  </svg>
+                  <span>Tersimpan</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                id="progress-bar"
+                class="h-full transition-all duration-300 bg-primary"
+                style="width: 63%"
+              ></div>
+            </div>
+
+            <!-- Quick Filter Pills -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <button
+                type="button"
+                data-filter="all"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-primary text-primary-foreground shadow-xs"
+              >
+                Semua (<span id="count-all">8</span>)
+              </button>
+              <button
+                type="button"
+                data-filter="uncompleted"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-warning-wash font-semibold text-warning hover:bg-warning-wash/80"
+              >
+                Belum Selesai (<span id="count-uncompleted">3</span>)
+              </button>
+              <button
+                type="button"
+                data-filter="photo"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-muted text-muted-foreground hover:text-foreground"
+              >
+                Perlu Foto (<span id="count-photo">2</span>)
+              </button>
+              <button
+                type="button"
+                data-filter="warning"
+                class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors bg-destructive-wash text-destructive hover:bg-destructive-wash/80"
+              >
+                Peringatan Suhu (<span id="count-warning">1</span>)
+              </button>
+            </div>
+          </div>
+
+          <!-- ============================== GRUP: Persiapan Buka ============================== -->
+          <section class="space-y-3" data-group>
+            <h2 class="text-base font-semibold text-foreground">Persiapan Buka</h2>
+
+            <!-- completionType: centang (sudah dicentang) -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border/60 bg-muted/20"
+              data-point="PT-001"
+              data-type="centang"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground">Kunci brankas &amp; laci kasir dicek</h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">centang</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"
+                  ><span class="font-medium text-success inline-flex items-center gap-0.5"
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" /></svg
+                    >Selesai</span
+                  ></span
+                >
+              </div>
+              <div class="space-y-3">
+                <label class="flex min-h-11 items-center gap-3 text-sm">
+                  <input type="checkbox" class="size-5 accent-primary" checked data-check />
+                  Selesai
+                </label>
+              </div>
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+
+            <!-- completionType: centang_foto (belum dicentang, tanpa foto) -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border shadow-xs"
+              data-point="PT-002"
+              data-type="centang_foto"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground font-semibold">
+                    Foto kebersihan area dapur
+                  </h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">centang + foto</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"></span>
+              </div>
+              <div class="space-y-3">
+                <label class="flex min-h-11 items-center gap-3 text-sm">
+                  <input type="checkbox" class="size-5 accent-primary" data-check />
+                  Selesai
+                </label>
+                <div class="space-y-2">
+                  <label
+                    class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+                    for="photo-PT-002"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="mr-1 inline"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"
+                      />
+                      <circle cx="12" cy="13" r="3" />
+                    </svg>
+                    Foto bukti
+                  </label>
+                  <input
+                    id="photo-PT-002"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic"
+                    class="block w-full text-sm"
+                    data-photo
+                  />
+                  <p class="text-xs text-muted-foreground" data-photo-name hidden style="display: none"></p>
+                  <a
+                    class="text-xs text-primary underline"
+                    data-photo-link
+                    href="#"
+                    target="_blank"
+                    rel="noreferrer"
+                    hidden
+                    style="display: none"
+                    >Lihat foto tersimpan</a
+                  >
+                </div>
+              </div>
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+
+            <!-- completionType: angka (dalam batas SOP) -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border/60 bg-muted/20"
+              data-point="PT-003"
+              data-type="angka"
+              data-min="1"
+              data-max="5"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground">Suhu chiller</h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">angka</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"
+                  ><span class="font-medium text-success inline-flex items-center gap-0.5"
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" /></svg
+                    >Selesai</span
+                  ></span
+                >
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value="3"
+                    data-num
+                    class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-11 w-full min-w-0 rounded-md border border-input bg-card px-4 text-sm text-foreground transition-colors placeholder:text-subtle-foreground hover:border-border focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <span class="text-sm text-muted-foreground">°C</span>
+                </div>
+                <p class="mt-1 text-xs text-warning" data-warning hidden style="display: none">
+                  Nilai di luar batas SOP. Tetap bisa disimpan.
+                </p>
+              </div>
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+          </section>
+
+          <!-- ============================== GRUP: SOP Harian ============================== -->
+          <section class="space-y-3" data-group>
+            <h2 class="text-base font-semibold text-foreground">SOP Harian</h2>
+
+            <!-- completionType: angka (di luar batas SOP -> warning) -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border/60 bg-muted/20"
+              data-point="PT-004"
+              data-type="angka"
+              data-min="-20"
+              data-max="-15"
+              data-warning-item
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground">Suhu freezer</h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">angka</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"
+                  ><span class="font-medium text-success inline-flex items-center gap-0.5"
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" /></svg
+                    >Selesai</span
+                  ></span
+                >
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value="-12"
+                    data-num
+                    class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-11 w-full min-w-0 rounded-md border border-input bg-card px-4 text-sm text-foreground transition-colors placeholder:text-subtle-foreground hover:border-border focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <span class="text-sm text-muted-foreground">°C</span>
+                </div>
+                <p class="mt-1 text-xs text-warning" data-warning>
+                  Nilai di luar batas SOP. Tetap bisa disimpan.
+                </p>
+              </div>
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+
+            <!-- completionType: teks -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border/60 bg-muted/20"
+              data-point="PT-005"
+              data-type="teks"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground">Hasil pemeriksaan area penyajian</h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">teks</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"
+                  ><span class="font-medium text-success inline-flex items-center gap-0.5"
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" /></svg
+                    >Selesai</span
+                  ></span
+                >
+              </div>
+              <textarea
+                rows="3"
+                data-text
+                placeholder="Tulis hasil pemeriksaan..."
+                class="w-full rounded-lg border border-input bg-card px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 md:text-sm dark:bg-input/30 h-11 w-full min-w-0 rounded-md border border-input bg-card px-4 text-sm text-foreground transition-colors placeholder:text-subtle-foreground hover:border-border focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+Bersih, tidak ada kendala</textarea
+              >
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+
+            <!-- completionType: pilihan -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border/60 bg-muted/20"
+              data-point="PT-006"
+              data-type="pilihan"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground">Kondisi alat &amp; mesin</h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">pilihan</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"
+                  ><span class="font-medium text-success inline-flex items-center gap-0.5"
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" /></svg
+                    >Selesai</span
+                  ></span
+                >
+              </div>
+              <select
+                data-select
+                class="h-11 w-full min-w-0 rounded-md border border-input bg-card px-4 text-sm text-foreground transition-colors placeholder:text-subtle-foreground hover:border-border focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Pilih jawaban</option>
+                <option value="Aman" selected>Aman</option>
+                <option value="Perlu perbaikan">Perlu perbaikan</option>
+              </select>
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+          </section>
+
+          <!-- ============================== GRUP: Penutupan ============================== -->
+          <section class="space-y-3" data-group>
+            <h2 class="text-base font-semibold text-foreground">Penutupan</h2>
+
+            <!-- completionType: centang (belum) -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border shadow-xs"
+              data-point="PT-007"
+              data-type="centang"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground font-semibold">
+                    Kursi &amp; meja dikembalikan ke posisi awal
+                  </h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">centang</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"></span>
+              </div>
+              <div class="space-y-3">
+                <label class="flex min-h-11 items-center gap-3 text-sm">
+                  <input type="checkbox" class="size-5 accent-primary" data-check />
+                  Selesai
+                </label>
+              </div>
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+
+            <!-- completionType: centang_foto (belum) -->
+            <article
+              class="space-y-3 rounded-lg border bg-card p-4 transition-colors border-border shadow-xs"
+              data-point="PT-008"
+              data-type="centang_foto"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-medium text-foreground font-semibold">Foto etalase sebelum tutup</h3>
+                  <p class="mt-1 text-xs text-muted-foreground capitalize">centang + foto</p>
+                </div>
+                <span class="point-status inline-flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite"></span>
+              </div>
+              <div class="space-y-3">
+                <label class="flex min-h-11 items-center gap-3 text-sm">
+                  <input type="checkbox" class="size-5 accent-primary" data-check />
+                  Selesai
+                </label>
+                <div class="space-y-2">
+                  <label
+                    class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+                    for="photo-PT-008"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="mr-1 inline"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"
+                      />
+                      <circle cx="12" cy="13" r="3" />
+                    </svg>
+                    Foto bukti
+                  </label>
+                  <input
+                    id="photo-PT-008"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic"
+                    class="block w-full text-sm"
+                    data-photo
+                  />
+                  <p class="text-xs text-muted-foreground" data-photo-name hidden style="display: none"></p>
+                  <a
+                    class="text-xs text-primary underline"
+                    data-photo-link
+                    href="#"
+                    target="_blank"
+                    rel="noreferrer"
+                    hidden
+                    style="display: none"
+                    >Lihat foto tersimpan</a
+                  >
+                </div>
+              </div>
+              <div
+                class="error-row items-center justify-between gap-3 text-xs text-destructive"
+                hidden
+                style="display: none"
+              >
+                <span data-error-msg></span>
+                <button
+                  type="button"
+                  data-retry
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            </article>
+          </section>
+
+          <!-- Empty-state filter (source: tampil saat displayedGroups kosong) -->
+          <div
+            id="filter-empty"
+            class="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground"
+            hidden
+            style="display: none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="mx-auto mb-2 text-success"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" />
+            </svg>
+            <p class="font-semibold text-foreground">Tidak ada item di kategori filter ini</p>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Semua tugas pada filter ini telah terselesaikan dengan baik.
+            </p>
+            <button
+              type="button"
+              id="btn-show-all"
+              class="group/button mt-4 inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+            >
+              Tampilkan Semua Item
+            </button>
+          </div>
+
+          <!-- STICKY BOTTOM ACTION BAR -->
+          <div
+            class="sticky bottom-4 z-30 mx-auto w-full max-w-3xl rounded-xl border border-border bg-card/95 p-3.5 shadow-lg backdrop-blur-md"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div id="hint" class="text-xs">
+                <span class="text-muted-foreground"
+                  >Tersisa <strong class="font-semibold text-foreground">3 tugas</strong> lagi</span
+                >
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- Button variant="outline" size="sm": Lihat Sisa (tampil saat belum 100% dan filter bukan "Belum Selesai") -->
+                <button
+                  type="button"
+                  id="btn-sisa"
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  Lihat Sisa (3)
+                </button>
+                <!-- Button asChild variant="secondary" size="sm" -->
+                <a
+                  href="shift-detail.html?tab=handover&amp;branchId=CBG001"
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                  >Ke Handover →</a
+                >
+                <!--
+                  CATATAN DEVIASI: source (page.tsx baris 610) merender tombol ini HANYA saat
+                  checklist.completed === checklist.total dan status !== "completed". Pratinjau
+                  memakai tombol yang selalu tampil (sampai status "completed") namun disabled
+                  selama belum 100% / ada perubahan belum tersimpan, supaya aturannya terlihat.
+                  Aturan disabled (hasUnsavedChanges || submitting) identik dengan source.
+                -->
+                <button
+                  type="button"
+                  id="btn-submit"
+                  disabled
+                  class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5"
+                >
+                  <svg
+                    id="submit-spinner"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="animate-spin mr-1 size-3.5"
+                    aria-hidden="true"
+                    hidden
+                    style="display: none"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Selesaikan Shift
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      /* ====================== data contoh (dibakar; aplikasi mengambil dari API) ====================== */
+      var SCHEDULE_ID = "SCH-20261002-001";
+      var branchId = new URLSearchParams(window.location.search).get("branchId") || "CBG001";
+
+      var schedule = {
+        shiftName: "Shift Pagi",
+        shiftId: "SFT001",
+        date: "2026-10-02",
+        branchId: "CBG001",
+        branchName: "Cabang Kopo",
+        employeeName: "Rina Saputra",
+        startTime: "07:00",
+        endTime: "15:00",
+        startedAt: "2026-10-02T07:02:00+07:00",
+        reportGeneratedAt: "",
+        status: "started",
+      };
+
+      var items = [
+        { pointId: "PT-001", categoryId: "CAT-01", categoryName: "Persiapan Buka", description: "Kunci brankas & laci kasir dicek", completionType: "centang", unit: "", min: "", max: "", options: [], value: "TRUE", photoUrl: "", checked: true, warning: false },
+        { pointId: "PT-002", categoryId: "CAT-01", categoryName: "Persiapan Buka", description: "Foto kebersihan area dapur", completionType: "centang_foto", unit: "", min: "", max: "", options: [], value: "", photoUrl: "", checked: false, warning: false },
+        { pointId: "PT-003", categoryId: "CAT-01", categoryName: "Persiapan Buka", description: "Suhu chiller", completionType: "angka", unit: "°C", min: "1", max: "5", options: [], value: "3", photoUrl: "", checked: true, warning: false },
+        { pointId: "PT-004", categoryId: "CAT-02", categoryName: "SOP Harian", description: "Suhu freezer", completionType: "angka", unit: "°C", min: "-20", max: "-15", options: [], value: "-12", photoUrl: "", checked: true, warning: true },
+        { pointId: "PT-005", categoryId: "CAT-02", categoryName: "SOP Harian", description: "Hasil pemeriksaan area penyajian", completionType: "teks", unit: "", min: "", max: "", options: [], value: "Bersih, tidak ada kendala", photoUrl: "", checked: true, warning: false },
+        { pointId: "PT-006", categoryId: "CAT-02", categoryName: "SOP Harian", description: "Kondisi alat & mesin", completionType: "pilihan", unit: "", min: "", max: "", options: ["Aman", "Perlu perbaikan"], value: "Aman", photoUrl: "", checked: true, warning: false },
+        { pointId: "PT-007", categoryId: "CAT-03", categoryName: "Penutupan", description: "Kursi & meja dikembalikan ke posisi awal", completionType: "centang", unit: "", min: "", max: "", options: [], value: "", photoUrl: "", checked: false, warning: false },
+        { pointId: "PT-008", categoryId: "CAT-03", categoryName: "Penutupan", description: "Foto etalase sebelum tutup", completionType: "centang_foto", unit: "", min: "", max: "", options: [], value: "", photoUrl: "", checked: false, warning: false },
+      ];
+      var byId = {};
+      items.forEach(function (item) {
+        byId[item.pointId] = item;
+      });
+
+      function snapshot() {
+        var groups = [];
+        items.forEach(function (item) {
+          var group = null;
+          for (var i = 0; i < groups.length; i++) {
+            if (groups[i].categoryId === item.categoryId) group = groups[i];
+          }
+          if (!group) {
+            group = { categoryId: item.categoryId, categoryName: item.categoryName, items: [] };
+            groups.push(group);
+          }
+          group.items.push(item);
+        });
+        return {
+          groups: groups,
+          items: items.slice(),
+          completed: items.filter(function (i) { return i.checked; }).length,
+          total: items.length,
+        };
+      }
+
+      /* ================================ mock endpoint ================================ */
+      var URL_SCHEDULE = "/api/schedules/" + SCHEDULE_ID + "?branchId=" + encodeURIComponent(branchId);
+      var URL_CHECKLIST = "/api/schedules/" + SCHEDULE_ID + "/checklist?branchId=" + encodeURIComponent(branchId);
+      var URL_SUBMIT = "/api/schedules/" + SCHEDULE_ID + "/checklist/submit?branchId=" + encodeURIComponent(branchId);
+      function URL_PHOTO(pointId) {
+        return (
+          "/api/schedules/" + SCHEDULE_ID + "/checklist/photo?itemId=" +
+          encodeURIComponent(pointId) + "&branchId=" + encodeURIComponent(branchId)
+        );
+      }
+
+      window.MS_MOCKS = {};
+      window.MS_MOCKS[URL_SCHEDULE] = function () { return schedule; };
+      /* Myshift.request tidak membedakan GET/POST (lihat README): mock ini dipakai saat muat
+         ulang (GET) maupun saat menyimpan point (POST) — keduanya mengembalikan state terkini. */
+      window.MS_MOCKS[URL_CHECKLIST] = function () { return snapshot(); };
+      window.MS_MOCKS[URL_SUBMIT] = { success: true };
+      window.MS_MOCKS[URL_PHOTO("PT-002")] = { photoUrl: "" };
+      window.MS_MOCKS[URL_PHOTO("PT-008")] = { photoUrl: "" };
+
+      /* ================================= state ================================= */
+      var drafts = {};
+      var statuses = {}; /* saving | saved | needs-photo | error (undefined = belum pernah disentuh) */
+      var errors = {};
+      var pendingFiles = {};
+      var photoStore = {};
+      var timers = {};
+      var queued = {};
+      var saving = {};
+      var activeFilter = "all";
+      var submitting = false;
+
+      var ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+      var MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+      items.forEach(function (item) {
+        drafts[item.pointId] = item.value;
+        photoStore[item.pointId] = item.photoUrl;
+      });
+
+      function card(pointId) {
+        return document.querySelector('article[data-point="' + pointId + '"]');
+      }
+      function show(el, on) {
+        if (!el) return;
+        el.hidden = !on;
+        el.style.display = on ? "" : "none";
+      }
+      function vibrate() {
+        if ("vibrate" in navigator) {
+          try { navigator.vibrate(15); } catch (e) {}
+        }
+      }
+      /* Aturan server yang disimulasikan di pratinjau (lib/domain/checklist-values.ts). */
+      function numericWarning(item, value) {
+        if (item.completionType !== "angka" || !value.trim()) return false;
+        var numeric = Number(value);
+        return (
+          !isFinite(numeric) ||
+          (item.min !== "" && numeric < Number(item.min)) ||
+          (item.max !== "" && numeric > Number(item.max))
+        );
+      }
+
+      /* ================================ render ================================ */
+      function statusHTML(pointId) {
+        var status = statuses[pointId];
+        if (status === "saving") {
+          return Myshift.icon("loader-2", 13, 'class="animate-spin text-primary"') + "Menyimpan...";
+        }
+        if (status === "needs-photo") return '<span class="font-medium text-warning">Pilih foto</span>';
+        if (status === "error") return '<span class="font-medium text-destructive">Gagal simpan</span>';
+        if (byId[pointId].checked) {
+          return (
+            '<span class="font-medium text-success inline-flex items-center gap-0.5">' +
+            Myshift.icon("check-circle-2", 13) + "Selesai</span>"
+          );
+        }
+        return "";
+      }
+
+      function updatePhotoUI(pointId) {
+        var el = card(pointId);
+        if (!el) return;
+        var nameEl = el.querySelector("[data-photo-name]");
+        var linkEl = el.querySelector("[data-photo-link]");
+        var file = pendingFiles[pointId];
+        if (file) {
+          if (nameEl) { nameEl.textContent = file.name; show(nameEl, true); }
+          show(linkEl, false);
+        } else {
+          if (nameEl) show(nameEl, false);
+          if (linkEl) {
+            if (photoStore[pointId]) linkEl.href = photoStore[pointId];
+            show(linkEl, !!photoStore[pointId]);
+          }
+        }
+      }
+
+      function renderCardState(pointId) {
+        var el = card(pointId);
+        if (!el) return;
+        var item = byId[pointId];
+        el.querySelector(".point-status").innerHTML = statusHTML(pointId);
+        /* tampilan kartu mengikuti item.checked (kelas sama persis dengan cn() di source) */
+        el.classList.toggle("border-border/60", item.checked);
+        el.classList.toggle("bg-muted/20", item.checked);
+        el.classList.toggle("border-border", !item.checked);
+        el.classList.toggle("shadow-xs", !item.checked);
+        el.querySelector("h3").classList.toggle("font-semibold", !item.checked);
+        var errRow = el.querySelector(".error-row");
+        if (statuses[pointId] === "error") {
+          el.querySelector("[data-error-msg]").textContent = errors[pointId] || "Gagal menyimpan checklist.";
+          show(errRow, true);
+          errRow.classList.add("flex");
+        } else {
+          show(errRow, false);
+          errRow.classList.remove("flex");
+        }
+        updatePhotoUI(pointId);
+      }
+
+      function renderProgress() {
+        var total = items.length;
+        var completed = items.filter(function (i) { return i.checked; }).length;
+        var percent = total ? Math.round((completed * 100) / total) : 100;
+        document.getElementById("progress-text").textContent =
+          completed + "/" + total + " (" + percent + "%)";
+        var bar = document.getElementById("progress-bar");
+        bar.style.width = percent + "%";
+        bar.classList.toggle("bg-success", percent === 100);
+        bar.classList.toggle("bg-primary", percent !== 100);
+
+        var uncompleted = total - completed;
+        var photoCount = items.filter(function (i) { return i.completionType === "centang_foto"; }).length;
+        var warningCount = items.filter(function (i) { return i.warning; }).length;
+        document.getElementById("count-all").textContent = total;
+        document.getElementById("count-uncompleted").textContent = uncompleted;
+        document.getElementById("count-photo").textContent = photoCount;
+        document.getElementById("count-warning").textContent = warningCount;
+        show(document.querySelector('[data-filter="photo"]'), photoCount > 0);
+        show(document.querySelector('[data-filter="warning"]'), warningCount > 0);
+
+        /* hint bar bawah */
+        var hint = document.getElementById("hint");
+        if (completed === total) {
+          hint.innerHTML =
+            '<span class="flex items-center gap-1.5 font-semibold text-success">' +
+            Myshift.icon("check-circle-2", 16) + " Semua checklist (" + total + ") lengkap!</span>";
+        } else {
+          hint.innerHTML =
+            '<span class="text-muted-foreground">Tersisa <strong class="font-semibold text-foreground">' +
+            uncompleted + " tugas</strong> lagi</span>";
+        }
+
+        /* indikator simpan ringkas (saving | error/needs-photo | saved) */
+        var hasSaving = false;
+        var hasIssue = false;
+        items.forEach(function (item) {
+          var status = statuses[item.pointId];
+          if (status === "saving") hasSaving = true;
+          if (status === "error" || status === "needs-photo") hasIssue = true;
+        });
+        var ind = document.getElementById("save-indicator");
+        show(ind.querySelector('[data-ind="saving"]'), hasSaving);
+        show(ind.querySelector('[data-ind="error"]'), !hasSaving && hasIssue);
+        show(ind.querySelector('[data-ind="saved"]'), !hasSaving && !hasIssue);
+      }
+
+      function hasUnsavedChanges() {
+        return items.some(function (item) {
+          var status = statuses[item.pointId];
+          return status === "saving" || status === "error" || status === "needs-photo";
+        });
+      }
+
+      function renderActions() {
+        var total = items.length;
+        var completed = items.filter(function (i) { return i.checked; }).length;
+        var btnSubmit = document.getElementById("btn-submit");
+        show(btnSubmit, schedule.status !== "completed");
+        btnSubmit.disabled = submitting || hasUnsavedChanges() || completed < total;
+        var btnSisa = document.getElementById("btn-sisa");
+        show(btnSisa, completed < total && activeFilter !== "uncompleted");
+        if (completed < total) {
+          btnSisa.textContent = "Lihat Sisa (" + (total - completed) + ")";
+        }
+      }
+
+      var PILL_BASE = "rounded-md px-2.5 py-1 text-xs font-medium transition-colors";
+      var PILL_ACTIVE = "bg-primary text-primary-foreground shadow-xs";
+      var PILL_ACTIVE_WARNING = "bg-destructive text-destructive-foreground shadow-xs";
+      function inactivePillClass(filter) {
+        if (filter === "uncompleted") {
+          var uncompleted = items.filter(function (i) { return !i.checked; }).length;
+          if (uncompleted > 0) return "bg-warning-wash font-semibold text-warning hover:bg-warning-wash/80";
+        }
+        if (filter === "warning") return "bg-destructive-wash text-destructive hover:bg-destructive-wash/80";
+        return "bg-muted text-muted-foreground hover:text-foreground";
+      }
+      function renderPills() {
+        document.querySelectorAll("[data-filter]").forEach(function (btn) {
+          var filter = btn.getAttribute("data-filter");
+          var active = filter === activeFilter;
+          btn.className =
+            PILL_BASE + " " +
+            (active
+              ? filter === "warning" ? PILL_ACTIVE_WARNING : PILL_ACTIVE
+              : inactivePillClass(filter));
+        });
+      }
+
+      function applyFilter() {
+        var visibleCount = 0;
+        document.querySelectorAll("section[data-group]").forEach(function (section) {
+          var groupVisible = 0;
+          section.querySelectorAll("article[data-point]").forEach(function (el) {
+            var item = byId[el.getAttribute("data-point")];
+            var match =
+              activeFilter === "all" ||
+              (activeFilter === "uncompleted" && !item.checked) ||
+              (activeFilter === "photo" && item.completionType === "centang_foto") ||
+              (activeFilter === "warning" && item.warning);
+            show(el, match);
+            if (match) groupVisible += 1;
+          });
+          show(section, groupVisible > 0);
+          visibleCount += groupVisible;
+        });
+        show(document.getElementById("filter-empty"), visibleCount === 0);
+      }
+
+      function renderAll() {
+        items.forEach(function (item) { renderCardState(item.pointId); });
+        renderProgress();
+        renderPills();
+        applyFilter();
+        renderActions();
+      }
+
+      /* ================================ simpan point ================================ */
+      function scheduleSave(pointId, value, immediate) {
+        var item = byId[pointId];
+        var file = pendingFiles[pointId];
+        /* aturan source: centang_foto bernilai TRUE wajib punya foto, kalau tidak jangan dipanggil API */
+        if (item.completionType === "centang_foto" && value === "TRUE" && !file && !photoStore[pointId]) {
+          delete queued[pointId];
+          statuses[pointId] = "needs-photo";
+          renderCardState(pointId);
+          renderProgress();
+          renderActions();
+          return;
+        }
+        queued[pointId] = { value: value };
+        statuses[pointId] = "saving";
+        errors[pointId] = "";
+        renderCardState(pointId);
+        renderProgress();
+        renderActions();
+        if (timers[pointId]) clearTimeout(timers[pointId]);
+        timers[pointId] = setTimeout(function () {
+          delete timers[pointId];
+          persist(pointId);
+        }, immediate ? 0 : 700);
+      }
+
+      async function persist(pointId) {
+        if (saving[pointId]) return;
+        saving[pointId] = true;
+        while (queued[pointId]) {
+          var job = queued[pointId];
+          delete queued[pointId];
+          var item = byId[pointId];
+          try {
+            var file = pendingFiles[pointId];
+            if (file) {
+              if (ACCEPTED_PHOTO_TYPES.indexOf(file.type) < 0) {
+                throw new Error("Foto harus JPEG, PNG, WEBP, atau HEIC.");
+              }
+              if (file.size > MAX_PHOTO_BYTES) {
+                throw new Error("Ukuran foto maksimal 5 MB.");
+              }
+              await Myshift.request(URL_PHOTO(pointId)); /* POST .../checklist/photo (mock) */
+              /* Pratinjau statis tidak punya penyimpanan foto (Drive/GAS): pakai object URL lokal. */
+              photoStore[pointId] = URL.createObjectURL(file);
+              delete pendingFiles[pointId];
+            }
+            await Myshift.request(URL_CHECKLIST); /* POST .../checklist (mock mengembalikan state) */
+            item.value = job.value;
+            item.photoUrl = photoStore[pointId] || "";
+            if (item.completionType === "angka") {
+              item.warning = numericWarning(item, job.value);
+            }
+            /* aturan server yang disimulasikan: point dianggap selesai bila value terisi */
+            item.checked = String(job.value).trim() !== "";
+            errors[pointId] = "";
+            if (!queued[pointId]) statuses[pointId] = "saved";
+          } catch (e) {
+            errors[pointId] = e instanceof Error ? e.message : "Gagal menyimpan checklist.";
+            statuses[pointId] = "error";
+          }
+          renderAll();
+        }
+        delete saving[pointId];
+        if (queued[pointId]) persist(pointId);
+      }
+
+      async function reload() {
+        await Myshift.request(URL_SCHEDULE);
+        await Myshift.request(URL_CHECKLIST);
+      }
+
+      /* ================================ aksi bawah ================================ */
+      document.getElementById("btn-sisa").addEventListener("click", function () {
+        setFilter("uncompleted");
+      });
+      document.getElementById("btn-show-all").addEventListener("click", function () {
+        setFilter("all");
+      });
+
+      function setFilter(filter) {
+        activeFilter = filter;
+        renderPills();
+        applyFilter();
+        renderActions();
+      }
+      document.querySelectorAll("[data-filter]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          setFilter(btn.getAttribute("data-filter"));
+        });
+      });
+
+      var btnSubmit = document.getElementById("btn-submit");
+      var submitSpinner = document.getElementById("submit-spinner");
+      btnSubmit.addEventListener("click", async function () {
+        if (btnSubmit.disabled) return;
+        submitting = true;
+        show(submitSpinner, true);
+        renderActions();
+        try {
+          await Myshift.request(URL_SUBMIT); /* POST .../checklist/submit */
+          Myshift.toast("Shift berhasil diselesaikan", "success");
+          schedule.status = "completed";
+          await reload();
+        } catch (e) {
+          Myshift.toast(e instanceof Error ? e.message : "Gagal menyelesaikan shift", "error");
+        } finally {
+          submitting = false;
+          show(submitSpinner, false);
+          renderAll();
+        }
+      });
+
+      /* ================================ kontrol per point ================================ */
+      document.querySelectorAll("article[data-point]").forEach(function (el) {
+        var pointId = el.getAttribute("data-point");
+        var item = byId[pointId];
+
+        var check = el.querySelector("[data-check]");
+        if (check) {
+          check.addEventListener("change", function () {
+            drafts[pointId] = check.checked ? "TRUE" : "";
+            vibrate();
+            scheduleSave(pointId, drafts[pointId], true);
+          });
+        }
+
+        var photoInput = el.querySelector("[data-photo]");
+        if (photoInput) {
+          photoInput.addEventListener("change", function () {
+            var file = photoInput.files && photoInput.files[0];
+            pendingFiles[pointId] = file;
+            if (file) {
+              updatePhotoUI(pointId);
+              scheduleSave(pointId, drafts[pointId], true);
+            }
+          });
+        }
+
+        var num = el.querySelector("[data-num]");
+        if (num) {
+          var warnEl = el.querySelector("[data-warning]");
+          num.addEventListener("input", function () {
+            drafts[pointId] = num.value;
+            vibrate();
+            if (warnEl) show(warnEl, numericWarning(item, num.value));
+            scheduleSave(pointId, drafts[pointId], false);
+          });
+          num.addEventListener("blur", function () {
+            scheduleSave(pointId, drafts[pointId], true);
+          });
+        }
+
+        var sel = el.querySelector("[data-select]");
+        if (sel) {
+          sel.addEventListener("change", function () {
+            drafts[pointId] = sel.value;
+            vibrate();
+            scheduleSave(pointId, drafts[pointId], true);
+          });
+        }
+
+        var txt = el.querySelector("[data-text]");
+        if (txt) {
+          txt.addEventListener("input", function () {
+            drafts[pointId] = txt.value;
+            vibrate();
+            scheduleSave(pointId, drafts[pointId], false);
+          });
+          txt.addEventListener("blur", function () {
+            scheduleSave(pointId, drafts[pointId], true);
+          });
+        }
+
+        var retry = el.querySelector("[data-retry]");
+        if (retry) {
+          retry.addEventListener("click", function () {
+            scheduleSave(pointId, drafts[pointId], true);
+          });
+        }
+      });
+
+      /* Kondisi awal halaman = sudah dimuat (happy path). Varian loading & error ada di komentar <body>. */
+      renderAll();
+    </script>
+  </body>
+</html>

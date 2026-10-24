@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mengalihkan… · MYSHIFT</title>
+    <!-- Pengganti router.replace("/approval?tab=swap") di app/(app)/approval/swap/page.tsx -->
+    <meta http-equiv="refresh" content="0; url=approval.html?tab=swap" />
+    <script>
+      try {
+        var s = localStorage.getItem("myshift-theme");
+        var d = s ? s === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (d) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/app.css" />
+    <link rel="stylesheet" href="assets/common.css" />
+    <script src="assets/icons.js"></script>
+    <script src="assets/common.js"></script>
+    <script>location.replace("approval.html?tab=swap");</script>
+  </head>
+  <!-- Teks & tampilan identik dengan yang dirender sumbernya. -->
+  <body data-shell="none">
+    <main id="main" class="flex min-h-[100dvh] items-center justify-center bg-background px-4 text-foreground">
+      <p class="text-sm text-muted-foreground">Mengalihkan ke Unified Approval Hub...</p>
+    </main>
+    <p class="pb-10 text-center text-sm">
+      <a href="approval.html?tab=swap" class="text-primary underline-offset-4 hover:underline">Buka Approval (tab Swap) sekarang</a>
+    </p>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404 · MYSHIFT</title>
+    <meta name="description" content="Halaman yang Anda cari tidak ada atau telah dipindahkan." />
+    <!-- Terjemahan dari components/theme-script.tsx. -->
+    <script>
+      try {
+        var s = localStorage.getItem("myshift-theme");
+        var d = s ? s === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (d) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="assets/app.css" />
+    <link rel="stylesheet" href="assets/common.css" />
+    <!-- Tanpa defer: skrip inline di <body> memakai Myshift.* saat parsing. -->
+    <script src="assets/icons.js"></script>
+    <script src="assets/common.js"></script>
+  </head>
+  <body data-shell="none">
+    <!--
+      Ekstraksi dari app/not-found.tsx (halaman 404 bawaan Next.js).
+      Tanpa shell: data-shell="none" (lihat ui-codes/README.md bagian kontrak shell).
+      Tidak ada endpoint — halaman statis tanpa data & tanpa mock.
+    -->
+    <main
+      id="main"
+      class="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-4 text-foreground"
+    >
+      <div class="text-center">
+        <p class="mb-2 text-6xl font-bold text-primary">404</p>
+        <h1 class="mb-2 text-2xl font-bold">Halaman tidak ditemukan</h1>
+        <p class="mb-8 text-muted-foreground">Halaman yang Anda cari tidak ada atau telah dipindahkan.</p>
+        <!-- Button asChild size="lg" (variant default) -> anchor; href="/dashboard" -> dashboard.html. -->
+        <a
+          href="dashboard.html"
+          class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-9 gap-1.5 px-2.5 in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2"
+          >Kembali ke Beranda</a
+        >
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,108 @@
+/* MYSHIFT ui-codes — pelengkap gaya statis untuk ekstraksi frontend.
+   Token warna/font tetap dari assets/app.css (di-compile dari app/globals.css).
+   File ini hanya berisi keyframe & state yang tidak bisa diekspresikan sebagai
+   utility Tailwind statis (animasi menggantikan motion/react, sheet, toast). */
+
+/* --- masuknya konten halaman (pengganti motion.div di AdminShell) --- */
+@keyframes ms-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ms-enter {
+  animation: ms-enter 0.4s cubic-bezier(0.4, 0, 0, 1) both;
+}
+
+/* --- masuk lebih tinggi (motion y:30 dipakai halaman login) --- */
+@keyframes ms-enter-lg {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ms-enter-lg {
+  animation: ms-enter-lg 0.5s cubic-bezier(0.4, 0, 0, 1) both;
+}
+/* jeda animasi (motion delay) — tempel setelah kelas animasi */
+.ms-delay-150 {
+  animation-delay: 0.15s;
+}
+
+/* --- toast (pengganti AnimatePresence di ui/toast.tsx) --- */
+@keyframes ms-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes ms-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+}
+.ms-toast {
+  animation: ms-toast-in 0.2s ease both;
+}
+.ms-toast.is-out {
+  animation: ms-toast-out 0.2s ease both;
+}
+
+/* --- sheet bawah "Menu lain" (pengganti Sheet side=bottom) --- */
+.ms-overlay {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.ms-overlay.is-open {
+  opacity: 1;
+}
+.ms-sheet {
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.ms-sheet.is-open {
+  transform: translateY(0);
+}
+
+/* --- durasi steger data (skeleton) --- */
+@keyframes ms-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.ms-skeleton {
+  animation: ms-shimmer 1.5s ease-in-out infinite;
+  background-color: var(--border);
+  border-radius: 0.5rem;
+}
+
+/* --- hormati preferensi gerak pengguna --- */
+@media (prefers-reduced-motion: reduce) {
+  .ms-enter,
+  .ms-enter-lg,
+  .ms-toast,
+  .ms-skeleton {
+    animation: none !important;
+  }
+  .ms-sheet,
+  .ms-overlay {
+    transition: none !important;
+  }
+}
